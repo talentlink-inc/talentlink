@@ -1,0 +1,262 @@
+// TalentLink — Phase 1 schema: Recruitment module only
+// (Requirements, Candidates, Resumes, Submissions, Interviews)
+// Placements = submissions filtered by status (see QUALIFYING_PLACEMENT_STATUSES
+// in the source app's Recruitment.js) — no separate table.
+//
+// tenant_id is present on every business table so Postgres RLS can be turned on
+// later without a schema change, even though phase 1 runs with a single tenant
+// and no subdomain routing.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  subdomain String   @unique
+  plan      String   @default("starter")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  requirements Requirement[]
+  candidates   Candidate[]
+  resumes      Resume[]
+  submissions  Submission[]
+  interviews   Interview[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  tenantId     String    @map("tenant_id")
+  authUserId   String?   @unique @map("auth_user_id") // mirrors Supabase auth.users.id once claimed
+  email        String
+  name         String
+  role         String // Admin | Manager | Recruiter | BenchSales | HR
+  status       String    @default("active")
+  legacyId     Int?      @map("legacy_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  postedRequirements    Requirement[] @relation("RequirementPostedBy")
+  cpocRequirements      Requirement[] @relation("RequirementCpoc")
+  assignedRequirements  RequirementAssignee[]
+  recruiterSubmissions  Submission[]   @relation("SubmissionRecruiter")
+  assignedSubmissions   Submission[]   @relation("SubmissionAssignedTo")
+  cpocSubmissions       Submission[]   @relation("SubmissionCpoc")
+  scheduledInterviews   Interview[]    @relation("InterviewScheduledBy")
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model Requirement {
+  id               String    @id @default(uuid())
+  tenantId         String    @map("tenant_id")
+  legacyId         Int?      @map("legacy_id")
+  jobId            String    @map("job_id") // human-readable JobID, e.g. REQ-2026-0042
+  jobTitle         String    @map("job_title")
+  jobDescription   String?   @map("job_description") @db.Text
+  duration         String?
+  visa             String?
+  mandatorySkills  String?   @map("mandatory_skills") @db.Text
+  workLocation     String?   @map("work_location")
+  billRate         Decimal?  @map("bill_rate") @db.Decimal(10, 2)
+  payRate          Decimal?  @map("pay_rate") @db.Decimal(10, 2)
+  clientName       String?   @map("client_name")
+  status           String    @default("Open") // Open | Submitted | OnHold | Closed | Filled
+  priority         Int       @default(0) // 0-5, normalized from legacy Critical/High/Medium/Low
+  employmentType   String?   @map("employment_type")
+  country          String?
+  isRemote         Boolean   @default(false) @map("is_remote")
+  regions          Json?     // raw region breakdown strings (Europe/APAC/UAE/South America/Other)
+  ceipalJobId      String?   @map("ceipal_job_id")
+
+  postedByUserId String? @map("posted_by_user_id")
+  postedByRaw    String? @map("posted_by_raw") // legacy free-text name when not resolvable to a User
+  cpocUserId     String? @map("cpoc_user_id")
+  cpocRaw        String? @map("cpoc_raw")
+
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
+
+  tenant     Tenant                 @relation(fields: [tenantId], references: [id])
+  postedBy   User?                  @relation("RequirementPostedBy", fields: [postedByUserId], references: [id])
+  cpoc       User?                  @relation("RequirementCpoc", fields: [cpocUserId], references: [id])
+  assignees  RequirementAssignee[]
+  submissions Submission[]
+
+  @@unique([tenantId, jobId])
+  @@index([tenantId, status])
+  @@map("requirements")
+}
+
+model RequirementAssignee {
+  requirementId String @map("requirement_id")
+  userId        String @map("user_id")
+
+  requirement Requirement @relation(fields: [requirementId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@id([requirementId, userId])
+  @@map("requirement_assignees")
+}
+
+model Candidate {
+  id                   String   @id @default(uuid())
+  tenantId             String   @map("tenant_id")
+  legacyId             Int?     @map("legacy_id")
+  name                 String
+  email                String?
+  phone                String?
+  currentLocation      String?  @map("current_location")
+  totalExperienceYears  Decimal? @map("total_experience_years") @db.Decimal(4, 1)
+  visaStatus           String?  @map("visa_status")
+  linkedinUrl          String?  @map("linkedin_url")
+  identityHash         String?  @map("identity_hash") // hash of lower(email)+phone, for dup detection
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  resumes     Resume[]
+  submissions Submission[]
+
+  @@unique([tenantId, identityHash])
+  @@index([tenantId, email])
+  @@index([tenantId, phone])
+  @@map("candidates")
+}
+
+model Resume {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  candidateId  String   @map("candidate_id")
+  fileUrl      String   @map("file_url") // Supabase Storage path
+  fileName     String?  @map("file_name")
+  fileMime     String?  @map("file_mime")
+  fileSizeBytes Int?    @map("file_size_bytes")
+  fileSha256   String?  @map("file_sha256")
+  sourceDriveFileId String? @map("source_drive_file_id") // legacy Google Drive fileId, for traceability
+  parsedText   String?  @db.Text @map("parsed_text") // populated in a later AI phase
+  source       String?  // submission | manual_upload | migration
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  candidate   Candidate    @relation(fields: [candidateId], references: [id])
+  submissions Submission[]
+
+  @@index([tenantId, fileSha256])
+  @@map("resumes")
+}
+
+model Submission {
+  id                String    @id @default(uuid())
+  tenantId          String    @map("tenant_id")
+  legacyId          Int?      @map("legacy_id")
+  candidateId       String    @map("candidate_id")
+  resumeId          String?   @map("resume_id")
+  requirementId     String?   @map("requirement_id")
+  requirementJobIdRaw String? @map("requirement_job_id_raw") // fallback when requirement wasn't migrated
+
+  roleWithSkills    String?   @map("role_with_skills") @db.Text
+  roleSkillsShort   String?   @map("role_skills_short")
+
+  status            String    @default("New_Resume") // see Recruitment.js SUB_STATUS_BUCKET for the full lifecycle
+  employmentType    String?   @map("employment_type")
+  country           String?
+
+  recruiterUserId   String?   @map("recruiter_user_id")
+  recruiterNameRaw  String?   @map("recruiter_name_raw")
+  assignedToUserId  String?   @map("assigned_to_user_id")
+  assignedToNameRaw String?   @map("assigned_to_name_raw")
+  cpocUserId        String?   @map("cpoc_user_id")
+  cpocNameRaw       String?   @map("cpoc_name_raw")
+  salesBy           String?   @map("sales_by")
+
+  submissionDate      DateTime? @map("submission_date")
+  submissionCountDate DateTime? @map("submission_count_date")
+  selectedDate         DateTime? @map("selected_date")
+  doj                  DateTime? @map("doj") // date of joining
+
+  billRate    Decimal? @map("bill_rate") @db.Decimal(10, 2)
+  payRate     Decimal? @map("pay_rate") @db.Decimal(10, 2)
+  commission  Decimal? @map("commission") @db.Decimal(10, 2)
+
+  placementId  String?  @map("placement_id") // "PLC-0001" style, set when status reaches a qualifying placement status
+  rejectReason String?  @map("reject_reason")
+
+  additionalDocUrl  String? @map("additional_doc_url")
+  additionalDocName String? @map("additional_doc_name")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  candidate   Candidate    @relation(fields: [candidateId], references: [id])
+  resume      Resume?      @relation(fields: [resumeId], references: [id])
+  requirement Requirement? @relation(fields: [requirementId], references: [id])
+  recruiter   User?        @relation("SubmissionRecruiter", fields: [recruiterUserId], references: [id])
+  assignedTo  User?        @relation("SubmissionAssignedTo", fields: [assignedToUserId], references: [id])
+  cpoc        User?        @relation("SubmissionCpoc", fields: [cpocUserId], references: [id])
+  interviews  Interview[]
+
+  @@unique([tenantId, legacyId])
+  @@index([tenantId, requirementId])
+  @@index([tenantId, status])
+  @@index([tenantId, placementId])
+  @@map("submissions")
+}
+
+model Interview {
+  id             String    @id @default(uuid())
+  tenantId       String    @map("tenant_id")
+  legacyId       Int?      @map("legacy_id")
+  submissionId   String    @map("submission_id")
+
+  interviewType  String    @map("interview_type") // free-text round label, e.g. "L1", "Final"
+  scheduledAt    DateTime? @map("scheduled_at") // combines legacy InterviewDate + InterviewTime
+  timezone       String?
+  durationMinutes Int?     @map("duration_minutes")
+  mode           String?   // phone | video | in_person
+  clientCompany  String?   @map("client_company")
+
+  status         String    @default("Scheduled") // see Interviews.js VALID_INTERVIEW_STATUSES
+  feedback       String?   @db.Text
+
+  scheduledByUserId  String? @map("scheduled_by_user_id")
+  scheduledByNameRaw String? @map("scheduled_by_name_raw")
+
+  outlookEventId     String? @map("outlook_event_id")
+  infoAlertEventIds  String? @map("info_alert_event_ids")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  submission  Submission @relation(fields: [submissionId], references: [id])
+  scheduledBy User?      @relation("InterviewScheduledBy", fields: [scheduledByUserId], references: [id])
+
+  @@unique([tenantId, legacyId])
+  @@index([tenantId, submissionId])
+  @@index([tenantId, status])
+  @@map("interviews")
+}
