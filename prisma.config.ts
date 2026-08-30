@@ -10,6 +10,10 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // The Prisma CLI (migrate/studio/db pull) uses this. It's DIRECT_URL, not
+    // DATABASE_URL — Supabase's transaction-mode pooler (used by the app at
+    // runtime via the pg driver adapter) doesn't support the DDL/prepared
+    // statements migrations need. See src/lib/db.ts for the runtime connection.
+    url: process.env["DIRECT_URL"],
   },
 });
