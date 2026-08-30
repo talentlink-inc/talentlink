@@ -22,6 +22,9 @@ jobs:
 
       - run: npm ci
       - run: npx prisma validate
-      - run: npx tsc --noEmit
       - run: npm run lint
+      # `next build` runs its own full TypeScript check as part of the build —
+      # a standalone `tsc --noEmit` here would fail on a fresh checkout since
+      # it references ambient route types (LayoutProps etc.) that Next only
+      # generates during dev/build, in .next/types/.
       - run: npm run build
