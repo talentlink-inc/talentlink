@@ -3,7 +3,8 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { createRequirement, updateRequirement, deleteRequirement } from "./actions";
 import { REQUIREMENT_STATUSES } from "@/lib/recruitment";
-import type { Requirement } from "@/generated/prisma/client";
+import { NotesSection } from "../notes/NotesSection";
+import type { SerializedRequirement } from "./types";
 
 type Mode = "create" | "view" | "edit";
 
@@ -14,10 +15,12 @@ const labelClass = "mb-1 block text-xs font-medium text-black/60 dark:text-white
 export function RequirementModal({
   mode: initialMode,
   requirement,
+  currentUserId,
   onClose,
 }: {
   mode: Mode;
-  requirement: Requirement | null;
+  requirement: SerializedRequirement | null;
+  currentUserId: string;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -61,16 +64,19 @@ export function RequirementModal({
         </div>
 
         {mode === "view" && requirement && (
-          <ViewRequirement
-            requirement={requirement}
-            onEdit={() => setMode("edit")}
-            onDelete={async () => {
-              if (confirm(`Delete requirement "${requirement.jobId}"?`)) {
-                await deleteRequirement(requirement.id);
-                onClose();
-              }
-            }}
-          />
+          <>
+            <ViewRequirement
+              requirement={requirement}
+              onEdit={() => setMode("edit")}
+              onDelete={async () => {
+                if (confirm(`Delete requirement "${requirement.jobId}"?`)) {
+                  await deleteRequirement(requirement.id);
+                  onClose();
+                }
+              }}
+            />
+            <NotesSection module="requirement" recordId={requirement.id} currentUserId={currentUserId} />
+          </>
         )}
 
         {isForm && (
@@ -205,7 +211,7 @@ function ViewRequirement({
   onEdit,
   onDelete,
 }: {
-  requirement: Requirement;
+  requirement: SerializedRequirement;
   onEdit: () => void;
   onDelete: () => void;
 }) {

@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 import { RequirementModal } from "./RequirementModal";
-import type { Requirement } from "@/generated/prisma/client";
+import type { SerializedRequirement } from "./types";
 
-export function RequirementsTable({ requirements }: { requirements: Requirement[] }) {
-  const [modal, setModal] = useState<{ mode: "create" | "view" | "edit"; requirement: Requirement | null } | null>(
-    null
-  );
+export function RequirementsTable({
+  requirements,
+  currentUserId,
+}: {
+  requirements: SerializedRequirement[];
+  currentUserId: string;
+}) {
+  const [modal, setModal] = useState<{
+    mode: "create" | "view" | "edit";
+    requirement: SerializedRequirement | null;
+  } | null>(null);
 
   return (
     <div>
@@ -62,6 +69,7 @@ export function RequirementsTable({ requirements }: { requirements: Requirement[
         <RequirementModal
           mode={modal.mode}
           requirement={modal.requirement}
+          currentUserId={currentUserId}
           onClose={() => setModal(null)}
         />
       )}

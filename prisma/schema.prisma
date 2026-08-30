@@ -31,6 +31,7 @@ model Tenant {
   resumes      Resume[]
   submissions  Submission[]
   interviews   Interview[]
+  notes        Note[]
 
   @@map("tenants")
 }
@@ -56,6 +57,7 @@ model User {
   assignedSubmissions   Submission[]   @relation("SubmissionAssignedTo")
   cpocSubmissions       Submission[]   @relation("SubmissionCpoc")
   scheduledInterviews   Interview[]    @relation("InterviewScheduledBy")
+  notes                 Note[]
 
   @@unique([tenantId, email])
   @@map("users")
@@ -259,4 +261,24 @@ model Interview {
   @@index([tenantId, submissionId])
   @@index([tenantId, status])
   @@map("interviews")
+}
+
+// Generic notes thread, reusable across every record type. Placements don't
+// have their own rows (see the comment at the top of this file) — a note on
+// a placement is just a note on its underlying Submission.
+model Note {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  module    String   // "requirement" | "submission" | "interview"
+  recordId  String   @map("record_id")
+  userId    String   @map("user_id")
+  body      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, module, recordId])
+  @@map("notes")
 }
