@@ -8,12 +8,20 @@ export function parseSheetDate(value: string | undefined | null): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+// Rate columns in the source sheet are free text and occasionally contain
+// garbage (e.g. a mis-columned timestamp) — stripping non-numeric chars from
+// something like "2/08/2026 10:50:53" produces a 14-digit number that
+// overflows the DB column. Anything above a generous real-world rate ceiling
+// is treated as bad data rather than truncated/rejected by Postgres.
+const MAX_PLAUSIBLE_RATE = 1_000_000;
+
 export function parseDecimal(value: string | undefined | null): string | null {
   if (!value) return null;
   const cleaned = value.replace(/[^0-9.-]/g, "");
   if (!cleaned) return null;
   const num = Number(cleaned);
-  return Number.isNaN(num) ? null : num.toFixed(2);
+  if (Number.isNaN(num) || Math.abs(num) >= MAX_PLAUSIBLE_RATE) return null;
+  return num.toFixed(2);
 }
 
 export function parseInt10(value: string | undefined | null): number | null {

@@ -27,7 +27,7 @@ export function getGoogleClients() {
 }
 
 // Reads a whole sheet and returns an array of header-keyed row objects.
-// Uses FORMATTED_STRING so dates/numbers come back as the same text a user
+// Uses FORMATTED_VALUE so dates/numbers come back as the same text a user
 // would see in the sheet — good enough for a one-shot migration script.
 export async function readSheetAsObjects(
   sheets: ReturnType<typeof getGoogleClients>["sheets"],
@@ -37,7 +37,7 @@ export async function readSheetAsObjects(
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: sheetName,
-    valueRenderOption: "FORMATTED_STRING",
+    valueRenderOption: "FORMATTED_VALUE",
   });
 
   const rows = res.data.values ?? [];

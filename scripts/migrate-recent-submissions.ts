@@ -136,6 +136,7 @@ async function main() {
       continue;
     }
 
+    try {
     const candidate = await prisma.candidate.upsert({
       where: { tenantId_identityHash: { tenantId: tenant.id, identityHash } },
       update: {
@@ -205,6 +206,9 @@ async function main() {
     });
 
     migrated++;
+    } catch (err) {
+      console.warn(`  ! skipping submission ${legacyId} (${row.CandidateName}):`, err);
+    }
     if (migrated % 10 === 0) console.log(`  ...${migrated}/${recentSubmissions.length}`);
   }
 
@@ -232,7 +236,8 @@ async function main() {
       });
       if (existing) return existing.id;
 
-      const storagePath = `${args.tenantId}/${args.candidateId}/${fileSha256}-${args.fileName}`;
+      const safeFileName = args.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const storagePath = `${args.tenantId}/${args.candidateId}/${fileSha256}-${safeFileName}`;
       const { error } = await supabaseAdmin.storage
         .from(RESUME_BUCKET)
         .upload(storagePath, buffer, { upsert: true });
