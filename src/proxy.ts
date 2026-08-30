@@ -36,7 +36,9 @@ export async function proxy(request: NextRequest) {
 
   const isAuthRoute = request.nextUrl.pathname.startsWith("/login");
   const isPublicRoute =
-    isAuthRoute || request.nextUrl.pathname.startsWith("/api/health");
+    isAuthRoute ||
+    request.nextUrl.pathname.startsWith("/api/health") ||
+    request.nextUrl.pathname.startsWith("/auth/"); // invite/callback/set-password — no session yet when these run
 
   if (!user && !isPublicRoute) {
     const loginUrl = request.nextUrl.clone();
