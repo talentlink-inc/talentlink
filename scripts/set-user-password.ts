@@ -7,7 +7,7 @@
 import "dotenv/config";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { supabaseAdmin } from "../src/lib/supabase/admin";
+import { getSupabaseAdmin } from "../src/lib/supabase/admin";
 
 // Not masked (a solo dev's own local terminal, not shared/recorded) — keeps
 // this script simple and robust rather than fighting readline internals.
@@ -25,7 +25,7 @@ async function main() {
     process.exit(1);
   }
 
-  const { data, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+  const { data, error: listError } = await getSupabaseAdmin().auth.admin.listUsers();
   if (listError) throw listError;
 
   const user = data.users.find((u) => u.email === email);
@@ -46,7 +46,7 @@ async function main() {
     process.exit(1);
   }
 
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, { password });
+  const { error } = await getSupabaseAdmin().auth.admin.updateUserById(user.id, { password });
   if (error) throw error;
 
   console.log(`Password set for ${email}. You can now sign in at /login.`);

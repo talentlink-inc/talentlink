@@ -12,7 +12,7 @@ import {
   isQualifyingPlacementStatus,
   shouldClearPlacementId,
 } from "@/lib/recruitment";
-import { supabaseAdmin, RESUME_BUCKET } from "@/lib/supabase/admin";
+import { getSupabaseAdmin, RESUME_BUCKET } from "@/lib/supabase/admin";
 import { createHash } from "node:crypto";
 
 const MAX_RESUME_BYTES = 10 * 1024 * 1024; // 10MB, matches ITStaffing's cap
@@ -81,8 +81,8 @@ async function uploadResumeIfPresent(
 
   const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const storagePath = `${tenantId}/${candidateId}/${fileSha256}-${safeFileName}`;
-  const { error } = await supabaseAdmin.storage
-    .from(RESUME_BUCKET)
+  const { error } = await getSupabaseAdmin()
+    .storage.from(RESUME_BUCKET)
     .upload(storagePath, buffer, { upsert: true, contentType: file.type });
   if (error) throw new Error(`Resume upload failed: ${error.message}`);
 

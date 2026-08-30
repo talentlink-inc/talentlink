@@ -23,7 +23,7 @@ import {
   candidateIdentityHash,
   sha256Buffer,
 } from "./lib/parse";
-import { supabaseAdmin, RESUME_BUCKET } from "../src/lib/supabase/admin";
+import { getSupabaseAdmin, RESUME_BUCKET } from "../src/lib/supabase/admin";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const SKIP_FILES = process.argv.includes("--skip-files");
@@ -238,8 +238,8 @@ async function main() {
 
       const safeFileName = args.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
       const storagePath = `${args.tenantId}/${args.candidateId}/${fileSha256}-${safeFileName}`;
-      const { error } = await supabaseAdmin.storage
-        .from(RESUME_BUCKET)
+      const { error } = await getSupabaseAdmin()
+        .storage.from(RESUME_BUCKET)
         .upload(storagePath, buffer, { upsert: true });
       if (error) throw error;
 
