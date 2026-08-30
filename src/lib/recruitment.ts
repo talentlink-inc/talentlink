@@ -56,3 +56,49 @@ export const REQUIREMENT_STATUSES = [
   "Closed",
   "Filled",
 ] as const;
+
+export const VISA_STATUSES = [
+  "USC",
+  "GC",
+  "H1B",
+  "OPT",
+  "CPT",
+  "TN",
+  "L1",
+  "L2",
+  "EAD",
+  "GC-EAD",
+  "N/A",
+] as const;
+
+export const REJECT_REASON_OPTIONS = [
+  "Visa_Mismatch",
+  "Skill_Mismatch",
+  "Location_Mismatch",
+  "Rate_Too_High",
+  "Experience_Mismatch",
+  "Domain_Mismatch",
+  "Communication",
+  "Availability",
+  "Overqualified",
+  "Underqualified",
+  "Client_Circumvention",
+] as const;
+
+export function isQualifyingPlacementStatus(status: string) {
+  return (QUALIFYING_PLACEMENT_STATUSES as readonly string[]).includes(status);
+}
+
+export function isRejectedStatus(status: string) {
+  return (REJECTED_STATUSES as readonly string[]).includes(status);
+}
+
+// Matches ITStaffing's Recruitment.js rule: moving into a qualifying status
+// assigns a durable PlacementID (kept forever, even through a later reject —
+// that's tracked as "fell through" rather than erased). Moving to any other
+// non-qualifying, non-rejected status (i.e. back into the ordinary pipeline)
+// wipes it, since that's a genuine regression out of the placement pipeline.
+export function shouldClearPlacementId(nextStatus: string, hadPlacementId: boolean) {
+  if (!hadPlacementId) return false;
+  return !isQualifyingPlacementStatus(nextStatus) && !isRejectedStatus(nextStatus);
+}
