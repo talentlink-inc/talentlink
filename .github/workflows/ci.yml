@@ -9,9 +9,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Placeholder only — `prisma generate` reads schema, it doesn't connect.
-      # No real database is touched during CI.
-      DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
+      # Placeholder only — `prisma generate`/`prisma validate` read the schema,
+      # they don't connect. No real database is touched during CI.
+      DIRECT_URL: "postgresql://user:pass@localhost:5432/db"
     steps:
       - uses: actions/checkout@v4
 
