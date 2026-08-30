@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SubmissionModal } from "./SubmissionModal";
+import { formatDate } from "@/lib/format";
 import type { SerializedSubmission } from "./types";
 import type { SerializedRequirement } from "../requirements/types";
 
@@ -51,7 +52,7 @@ export function SubmissionsTable({
                 <td className="px-4 py-2">{s.candidate.name}</td>
                 <td className="px-4 py-2">{s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "—"}</td>
                 <td className="px-4 py-2">{s.status}</td>
-                <td className="px-4 py-2">{s.submissionDate?.toLocaleDateString() ?? "—"}</td>
+                <td className="px-4 py-2">{s.submissionDate ? formatDate(s.submissionDate) : "—"}</td>
                 <td className="px-4 py-2">{s.billRate ?? "—"}</td>
               </tr>
             ))}

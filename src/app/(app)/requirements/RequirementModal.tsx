@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { createRequirement, updateRequirement, deleteRequirement } from "./actions";
 import { REQUIREMENT_STATUSES } from "@/lib/recruitment";
 import { NotesSection } from "../notes/NotesSection";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import type { SerializedRequirement } from "./types";
 
 type Mode = "create" | "view" | "edit";
@@ -69,10 +70,8 @@ export function RequirementModal({
               requirement={requirement}
               onEdit={() => setMode("edit")}
               onDelete={async () => {
-                if (confirm(`Delete requirement "${requirement.jobId}"?`)) {
-                  await deleteRequirement(requirement.id);
-                  onClose();
-                }
+                await deleteRequirement(requirement.id);
+                onClose();
               }}
             />
             <NotesSection module="requirement" recordId={requirement.id} currentUserId={currentUserId} />
@@ -247,12 +246,11 @@ function ViewRequirement({
         )}
       </dl>
       <div className="mt-4 flex justify-end gap-2">
-        <button
-          onClick={onDelete}
+        <ConfirmButton
+          onConfirm={onDelete}
+          confirmText={`Delete requirement "${requirement.jobId}"?`}
           className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
-        >
-          Delete
-        </button>
+        />
         <button
           onClick={onEdit}
           className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"

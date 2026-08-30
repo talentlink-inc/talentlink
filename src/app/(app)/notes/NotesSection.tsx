@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { addNote, deleteNote, listNotes, type NoteModule } from "./actions";
+import { formatDateTime } from "@/lib/format";
 
 type Note = Awaited<ReturnType<typeof listNotes>>[number];
 
@@ -83,7 +84,8 @@ export function NotesSection({
                 )}
               </div>
               <p className="mt-0.5 text-xs text-black/40 dark:text-white/40">
-                {note.user.name} · {note.createdAt.toLocaleString()}
+                {note.user.name} ·{" "}
+                {formatDateTime(note.createdAt, Intl.DateTimeFormat().resolvedOptions().timeZone)}
               </p>
             </li>
           ))}

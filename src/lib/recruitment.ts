@@ -35,6 +35,18 @@ export const SUBMISSION_STATUSES = [
   ...REJECTED_STATUSES,
 ] as const;
 
+// Only submissions in these statuses are eligible to schedule an interview
+// against, matching ITStaffing's Interviews.js candidate picker filter.
+export const INTERVIEW_ELIGIBLE_SUBMISSION_STATUSES = [
+  "Internal_Submission",
+  "L1_Interview",
+  "L2_Interview",
+] as const;
+
+export const INTERVIEW_MODES = ["phone", "video", "in_person"] as const;
+
+export const INTERVIEW_TYPES = ["AM_Technical_Screening", "L1", "L2", "Final"] as const;
+
 export const INTERVIEW_STATUSES = [
   "Scheduled",
   "L1_Scheduled",
