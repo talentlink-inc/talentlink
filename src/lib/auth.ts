@@ -2,6 +2,8 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentTenant } from "@/lib/tenant";
+import { hasRootDomainConfigured } from "@/lib/subdomain";
 
 // proxy.ts already redirects unauthenticated requests to /login, so any page
 // this is called from is guaranteed to have a session — but the matching
@@ -29,6 +31,24 @@ export const getCurrentUser = cache(async () => {
   if (user.status !== "active") {
     await supabase.auth.signOut();
     redirect("/login?deactivated=1");
+  }
+
+  // Supabase Auth identities are global (one authUserId maps to exactly one
+  // users row, platform-wide), but proxy.ts resolves the tenant from the
+  // *subdomain in the URL* — those two can disagree if someone signed in on
+  // one workspace's subdomain and then navigates to another's. Trusting the
+  // subdomain alone there would leak this user into a tenant they don't
+  // belong to, so cross-check here before any tenant-scoped query runs.
+  const tenant = await getCurrentTenant();
+  if (user.tenantId !== tenant.id) {
+    await supabase.auth.signOut();
+    if (hasRootDomainConfigured()) {
+      const ownTenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
+      if (ownTenant) {
+        redirect(`https://${ownTenant.subdomain}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/login`);
+      }
+    }
+    redirect("/login?wrong_workspace=1");
   }
 
   return user;
