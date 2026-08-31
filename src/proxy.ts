@@ -46,6 +46,18 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Password-verified but TOTP-enrolled sessions sit at aal1 until the code
+  // is verified — without this check they'd otherwise pass the `user` check
+  // above and reach protected pages without ever completing the second factor.
+  if (user && !isPublicRoute) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== aal.nextLevel) {
+      const verifyUrl = request.nextUrl.clone();
+      verifyUrl.pathname = "/login/verify";
+      return NextResponse.redirect(verifyUrl);
+    }
+  }
+
   return response;
 }
 

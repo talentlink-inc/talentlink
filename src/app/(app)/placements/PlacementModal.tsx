@@ -19,10 +19,12 @@ function toDateInputValue(date: Date | string | null | undefined): string {
 export function PlacementModal({
   placement,
   currentUserId,
+  canEdit,
   onClose,
 }: {
   placement: SerializedSubmission;
   currentUserId: string;
+  canEdit: boolean;
   onClose: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -104,14 +106,16 @@ export function PlacementModal({
                   : null
               )}
             </dl>
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={() => setEditing(true)}
-                className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-              >
-                Edit
-              </button>
-            </div>
+            {canEdit && (
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setEditing(true)}
+                  className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
+                >
+                  Edit
+                </button>
+              </div>
+            )}
             <NotesSection module="submission" recordId={placement.id} currentUserId={currentUserId} />
           </div>
         ) : (

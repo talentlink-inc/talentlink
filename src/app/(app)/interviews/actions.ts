@@ -6,9 +6,12 @@ import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { INTERVIEW_STATUSES } from "@/lib/recruitment";
+import { canManageRecruitment } from "@/lib/users";
+import { syncInterviewToCalendar, deleteInterviewCalendarEvent } from "@/lib/calendarIntegration";
 
 export type InterviewFormState = { error: string | null };
 const initialState: InterviewFormState = { error: null };
+const PERMISSION_ERROR = "Your role only has view access to Interviews.";
 
 const interviewSchema = z.object({
   submissionId: z.string().trim().min(1, "Select a candidate submission"),
@@ -40,6 +43,9 @@ export async function createInterview(
   _prevState: InterviewFormState,
   formData: FormData
 ): Promise<InterviewFormState> {
+  const user = await getCurrentUser();
+  if (!canManageRecruitment(user.role)) return { error: PERMISSION_ERROR };
+
   const parsed = parseForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -47,9 +53,8 @@ export async function createInterview(
   const data = parsed.data;
 
   const tenant = await getCurrentTenant();
-  const user = await getCurrentUser();
 
-  await prisma.interview.create({
+  const interview = await prisma.interview.create({
     data: {
       tenantId: tenant.id,
       submissionId: data.submissionId,
@@ -63,7 +68,10 @@ export async function createInterview(
       scheduledByNameRaw: user.name,
       status: "Scheduled",
     },
+    include: { submission: { include: { candidate: true, requirement: true } } },
   });
+
+  await syncInterviewToCalendar(interview);
 
   revalidatePath("/interviews");
   return initialState;
@@ -74,6 +82,9 @@ export async function updateInterview(
   _prevState: InterviewFormState,
   formData: FormData
 ): Promise<InterviewFormState> {
+  const currentUser = await getCurrentUser();
+  if (!canManageRecruitment(currentUser.role)) return { error: PERMISSION_ERROR };
+
   const parsed = parseForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -82,7 +93,7 @@ export async function updateInterview(
 
   const tenant = await getCurrentTenant();
 
-  await prisma.interview.update({
+  const interview = await prisma.interview.update({
     where: { id, tenantId: tenant.id },
     data: {
       submissionId: data.submissionId,
@@ -95,17 +106,27 @@ export async function updateInterview(
       status: data.status,
       feedback: data.feedback || null,
     },
+    include: { submission: { include: { candidate: true, requirement: true } } },
   });
+
+  await syncInterviewToCalendar(interview);
 
   revalidatePath("/interviews");
   return initialState;
 }
 
 export async function deleteInterview(id: string) {
+  const user = await getCurrentUser();
+  if (!canManageRecruitment(user.role)) throw new Error(PERMISSION_ERROR);
+
   const tenant = await getCurrentTenant();
-  await prisma.interview.update({
+  const interview = await prisma.interview.update({
     where: { id, tenantId: tenant.id },
     data: { deletedAt: new Date() },
+    include: { submission: { include: { candidate: true, requirement: true } } },
   });
+
+  await deleteInterviewCalendarEvent(interview);
+
   revalidatePath("/interviews");
 }

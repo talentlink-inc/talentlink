@@ -5,11 +5,13 @@ import { useState } from "react";
 export function ConfirmButton({
   onConfirm,
   label = "Delete",
+  confirmLabel = "Yes, delete",
   confirmText = "Delete this? This can't be undone.",
   className = "",
 }: {
   onConfirm: () => void;
   label?: string;
+  confirmLabel?: string;
   confirmText?: string;
   className?: string;
 }) {
@@ -31,7 +33,7 @@ export function ConfirmButton({
           onClick={onConfirm}
           className="rounded-md bg-red-600 px-3 py-2 text-sm text-white"
         >
-          Yes, delete
+          {confirmLabel}
         </button>
       </div>
     );

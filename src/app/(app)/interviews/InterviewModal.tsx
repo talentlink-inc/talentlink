@@ -27,12 +27,14 @@ export function InterviewModal({
   interview,
   eligibleSubmissions,
   currentUserId,
+  canEdit,
   onClose,
 }: {
   mode: Mode;
   interview: SerializedInterview | null;
   eligibleSubmissions: SerializedSubmission[];
   currentUserId: string;
+  canEdit: boolean;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -79,6 +81,7 @@ export function InterviewModal({
           <>
             <ViewInterview
               interview={interview}
+              canEdit={canEdit}
               onEdit={() => setMode("edit")}
               onDelete={async () => {
                 await deleteInterview(interview.id);
@@ -236,10 +239,12 @@ function Field({
 
 function ViewInterview({
   interview,
+  canEdit,
   onEdit,
   onDelete,
 }: {
   interview: SerializedInterview;
+  canEdit: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -268,19 +273,21 @@ function ViewInterview({
         {row("Scheduled By", interview.scheduledByNameRaw)}
         {row("Feedback", interview.feedback && <p className="whitespace-pre-wrap">{interview.feedback}</p>)}
       </dl>
-      <div className="mt-4 flex justify-end gap-2">
-        <ConfirmButton
-          onConfirm={onDelete}
-          confirmText={`Delete this interview for "${interview.submission.candidate.name}"?`}
-          className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
-        />
-        <button
-          onClick={onEdit}
-          className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-        >
-          Edit
-        </button>
-      </div>
+      {canEdit && (
+        <div className="mt-4 flex justify-end gap-2">
+          <ConfirmButton
+            onConfirm={onDelete}
+            confirmText={`Delete this interview for "${interview.submission.candidate.name}"?`}
+            className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
+          />
+          <button
+            onClick={onEdit}
+            className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
+          >
+            Edit
+          </button>
+        </div>
+      )}
     </div>
   );
 }

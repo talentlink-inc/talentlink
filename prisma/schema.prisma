@@ -32,8 +32,33 @@ model Tenant {
   submissions  Submission[]
   interviews   Interview[]
   notes        Note[]
+  calendarIntegration CalendarIntegration?
 
   @@map("tenants")
+}
+
+// Admin-configured Microsoft/Google OAuth app credentials + connected-account
+// tokens for auto-creating calendar events (with attendee invites) when an
+// interview is scheduled. One connection per tenant — configured via the
+// gear icon on the Interviews page.
+model CalendarIntegration {
+  id                String    @id @default(uuid())
+  tenantId          String    @unique @map("tenant_id")
+  provider          String?   // "google" | "microsoft"
+  clientId          String?   @map("client_id")
+  clientSecret      String?   @map("client_secret")
+  microsoftTenantId String?   @map("microsoft_tenant_id")
+  accessToken       String?   @map("access_token") @db.Text
+  refreshToken      String?   @map("refresh_token") @db.Text
+  tokenExpiresAt    DateTime? @map("token_expires_at")
+  connectedEmail    String?   @map("connected_email")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("calendar_integrations")
 }
 
 model User {
@@ -182,6 +207,7 @@ model Submission {
   id                String    @id @default(uuid())
   tenantId          String    @map("tenant_id")
   legacyId          Int?      @map("legacy_id")
+  submissionId      String?   @map("submission_id") // human-readable "SUB-0001" style, assigned on create
   candidateId       String    @map("candidate_id")
   resumeId          String?   @map("resume_id")
   requirementId     String?   @map("requirement_id")
@@ -231,6 +257,7 @@ model Submission {
   interviews  Interview[]
 
   @@unique([tenantId, legacyId])
+  @@unique([tenantId, submissionId])
   @@index([tenantId, requirementId])
   @@index([tenantId, status])
   @@index([tenantId, placementId])
@@ -256,7 +283,8 @@ model Interview {
   scheduledByUserId  String? @map("scheduled_by_user_id")
   scheduledByNameRaw String? @map("scheduled_by_name_raw")
 
-  outlookEventId     String? @map("outlook_event_id")
+  outlookEventId     String? @map("outlook_event_id") // Microsoft Graph calendar event id
+  googleEventId      String? @map("google_event_id")
   infoAlertEventIds  String? @map("info_alert_event_ids")
 
   createdAt DateTime  @default(now()) @map("created_at")

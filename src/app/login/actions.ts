@@ -14,6 +14,13 @@ export async function signIn(_prevState: string | null, formData: FormData) {
     return error.message;
   }
 
+  // Password verified — but if this account has TOTP enrolled, the session
+  // is only aal1 until the 6-digit code is verified too.
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== aal.nextLevel) {
+    redirect("/login/verify");
+  }
+
   redirect("/requirements");
 }
 

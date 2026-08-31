@@ -11,9 +11,11 @@ const EMPLOYMENT_TYPES = ["FTE", "W2", "1099", "C2C", "C2H"];
 export function RequirementsTable({
   requirements,
   currentUserId,
+  canEdit,
 }: {
   requirements: SerializedRequirement[];
   currentUserId: string;
+  canEdit: boolean;
 }) {
   const [modal, setModal] = useState<{
     mode: "create" | "view" | "edit";
@@ -45,12 +47,14 @@ export function RequirementsTable({
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Requirements</h1>
-        <button
-          onClick={() => setModal({ mode: "create", requirement: null })}
-          className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-        >
-          + Add Requirement
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setModal({ mode: "create", requirement: null })}
+            className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
+          >
+            + Add Requirement
+          </button>
+        )}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -131,6 +135,7 @@ export function RequirementsTable({
           mode={modal.mode}
           requirement={modal.requirement}
           currentUserId={currentUserId}
+          canEdit={canEdit}
           onClose={() => setModal(null)}
         />
       )}

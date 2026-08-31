@@ -13,9 +13,11 @@ import {
   shouldClearPlacementId,
 } from "@/lib/recruitment";
 import { getSupabaseAdmin, RESUME_BUCKET } from "@/lib/supabase/admin";
+import { canManageRecruitment } from "@/lib/users";
 import { createHash } from "node:crypto";
 
 const MAX_RESUME_BYTES = 10 * 1024 * 1024; // 10MB, matches ITStaffing's cap
+const PERMISSION_ERROR = "Your role only has view access to Submissions.";
 
 export type SubmissionFormState = {
   error: string | null;
@@ -105,6 +107,9 @@ export async function createSubmission(
   _prevState: SubmissionFormState,
   formData: FormData
 ): Promise<SubmissionFormState> {
+  const user = await getCurrentUser();
+  if (!canManageRecruitment(user.role)) return { ...initialFormState, error: PERMISSION_ERROR };
+
   const parsed = parseForm(formData);
   if (!parsed.success) {
     return { ...initialFormState, error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -113,7 +118,6 @@ export async function createSubmission(
   const force = formData.get("force") === "true";
 
   const tenant = await getCurrentTenant();
-  const user = await getCurrentUser();
 
   const email = data.email || null;
   const phone = data.phone || null;
@@ -184,9 +188,13 @@ export async function createSubmission(
     return { ...initialFormState, error: err instanceof Error ? err.message : "Resume upload failed." };
   }
 
+  const submissionCount = await prisma.submission.count({ where: { tenantId: tenant.id } });
+  const submissionId = `SUB-${String(submissionCount + 1).padStart(4, "0")}`;
+
   await prisma.submission.create({
     data: {
       tenantId: tenant.id,
+      submissionId,
       candidateId: candidate.id,
       requirementId: data.requirementId,
       resumeId,
@@ -216,6 +224,9 @@ export async function updateSubmission(
   _prevState: SubmissionFormState,
   formData: FormData
 ): Promise<SubmissionFormState> {
+  const currentUser = await getCurrentUser();
+  if (!canManageRecruitment(currentUser.role)) return { ...initialFormState, error: PERMISSION_ERROR };
+
   const parsed = editSchema.safeParse({
     ...Object.fromEntries(formData.entries()),
     totalExperienceYears: formData.get("totalExperienceYears") || null,
@@ -294,6 +305,9 @@ export async function updateSubmission(
 }
 
 export async function deleteSubmission(id: string) {
+  const user = await getCurrentUser();
+  if (!canManageRecruitment(user.role)) throw new Error(PERMISSION_ERROR);
+
   const tenant = await getCurrentTenant();
   await prisma.submission.update({
     where: { id, tenantId: tenant.id },

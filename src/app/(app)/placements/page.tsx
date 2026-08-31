@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
+import { canManageRecruitment } from "@/lib/users";
 import { PlacementsTable } from "./PlacementsTable";
 import { serializeSubmission } from "../submissions/types";
 
@@ -27,6 +28,10 @@ export default async function PlacementsPage() {
   });
 
   return (
-    <PlacementsTable placements={placements.map(serializeSubmission)} currentUserId={currentUser.id} />
+    <PlacementsTable
+      placements={placements.map(serializeSubmission)}
+      currentUserId={currentUser.id}
+      canEdit={canManageRecruitment(currentUser.role)}
+    />
   );
 }

@@ -5,6 +5,7 @@ import { SubmissionModal } from "./SubmissionModal";
 import { formatDate } from "@/lib/format";
 import { VISA_STATUSES } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
+import type { DataPermissions } from "@/lib/users";
 import type { SerializedSubmission } from "./types";
 import type { SerializedRequirement } from "../requirements/types";
 
@@ -14,10 +15,14 @@ export function SubmissionsTable({
   submissions,
   requirements,
   currentUserId,
+  canEdit,
+  permissions,
 }: {
   submissions: SerializedSubmission[];
   requirements: SerializedRequirement[];
   currentUserId: string;
+  canEdit: boolean;
+  permissions: DataPermissions;
 }) {
   const [modal, setModal] = useState<{
     mode: "create" | "view" | "edit";
@@ -38,9 +43,9 @@ export function SubmissionsTable({
       if (visaFilter && s.candidate.visaStatus !== visaFilter) return false;
       if (empTypeFilter && s.employmentType !== empTypeFilter) return false;
       if (q) {
-        const haystack = `${s.candidate.name} ${s.candidate.email ?? ""} ${s.candidate.phone ?? ""} ${
-          s.candidate.currentLocation ?? ""
-        }`.toLowerCase();
+        const haystack = `${s.submissionId ?? ""} ${s.candidate.name} ${s.candidate.email ?? ""} ${
+          s.candidate.phone ?? ""
+        } ${s.candidate.currentLocation ?? ""}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
@@ -51,12 +56,14 @@ export function SubmissionsTable({
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Submissions</h1>
-        <button
-          onClick={() => setModal({ mode: "create", submission: null })}
-          className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-        >
-          + Submit Candidate
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setModal({ mode: "create", submission: null })}
+            className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
+          >
+            + Submit Candidate
+          </button>
+        )}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -96,6 +103,7 @@ export function SubmissionsTable({
         <table className="w-full min-w-[840px] text-left text-sm">
           <thead className="bg-black/5 dark:bg-white/5">
             <tr>
+              <th className="px-4 py-2">Submission ID</th>
               <th className="px-4 py-2">Candidate</th>
               <th className="px-4 py-2">Requirement</th>
               <th className="px-4 py-2">Status</th>
@@ -110,6 +118,7 @@ export function SubmissionsTable({
                 onClick={() => setModal({ mode: "view", submission: s })}
                 className="cursor-pointer border-t border-black/10 hover:bg-black/[0.03] dark:border-white/10 dark:hover:bg-white/[0.03]"
               >
+                <td className="px-4 py-2 font-mono text-xs">{s.submissionId ?? "—"}</td>
                 <td className="px-4 py-2">{s.candidate.name}</td>
                 <td className="px-4 py-2">{s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "—"}</td>
                 <td className="px-4 py-2">{s.status}</td>
@@ -119,7 +128,7 @@ export function SubmissionsTable({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
+                <td colSpan={6} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
                   {submissions.length === 0 ? "No submissions yet." : "No submissions match your filters."}
                 </td>
               </tr>
@@ -134,6 +143,8 @@ export function SubmissionsTable({
           submission={modal.submission}
           requirements={requirements}
           currentUserId={currentUserId}
+          canEdit={canEdit}
+          permissions={permissions}
           onClose={() => setModal(null)}
         />
       )}

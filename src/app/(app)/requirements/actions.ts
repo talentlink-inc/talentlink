@@ -6,6 +6,9 @@ import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { REQUIREMENT_STATUSES } from "@/lib/recruitment";
+import { canManageRecruitment } from "@/lib/users";
+
+const PERMISSION_ERROR = "Your role only has view access to Requirements.";
 
 const requirementSchema = z.object({
   jobId: z.string().trim().min(1, "Job ID is required"),
@@ -48,13 +51,15 @@ function parseForm(formData: FormData) {
 }
 
 export async function createRequirement(_prevState: string | null, formData: FormData) {
+  const user = await getCurrentUser();
+  if (!canManageRecruitment(user.role)) return PERMISSION_ERROR;
+
   const parsed = parseForm(formData);
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input";
   }
 
   const tenant = await getCurrentTenant();
-  const user = await getCurrentUser();
 
   try {
     await prisma.requirement.create({
@@ -80,6 +85,9 @@ export async function updateRequirement(
   _prevState: string | null,
   formData: FormData
 ) {
+  const user = await getCurrentUser();
+  if (!canManageRecruitment(user.role)) return PERMISSION_ERROR;
+
   const parsed = parseForm(formData);
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input";
@@ -104,6 +112,9 @@ export async function updateRequirement(
 }
 
 export async function deleteRequirement(id: string) {
+  const user = await getCurrentUser();
+  if (!canManageRecruitment(user.role)) throw new Error(PERMISSION_ERROR);
+
   const tenant = await getCurrentTenant();
   await prisma.requirement.update({
     where: { id, tenantId: tenant.id },

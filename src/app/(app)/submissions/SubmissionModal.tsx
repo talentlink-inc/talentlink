@@ -10,6 +10,7 @@ import {
 } from "@/lib/recruitment";
 import { NotesSection } from "../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import type { DataPermissions } from "@/lib/users";
 import type { SerializedSubmission } from "./types";
 import type { SerializedRequirement } from "../requirements/types";
 
@@ -24,12 +25,16 @@ export function SubmissionModal({
   submission,
   requirements,
   currentUserId,
+  canEdit,
+  permissions,
   onClose,
 }: {
   mode: Mode;
   submission: SerializedSubmission | null;
   requirements: SerializedRequirement[];
   currentUserId: string;
+  canEdit: boolean;
+  permissions: DataPermissions;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -76,7 +81,9 @@ export function SubmissionModal({
               ? "Submit Candidate"
               : mode === "edit"
                 ? "Edit Submission"
-                : submission?.candidate.name}
+                : submission?.submissionId
+                  ? `${submission.submissionId} — ${submission.candidate.name}`
+                  : submission?.candidate.name}
           </h2>
           <button
             onClick={onClose}
@@ -91,6 +98,8 @@ export function SubmissionModal({
           <>
             <ViewSubmission
               submission={submission}
+              permissions={permissions}
+              canEdit={canEdit}
               onEdit={() => setMode("edit")}
               onDelete={async () => {
                 await deleteSubmission(submission.id);
@@ -302,10 +311,14 @@ function Field({
 
 function ViewSubmission({
   submission,
+  permissions,
+  canEdit,
   onEdit,
   onDelete,
 }: {
   submission: SerializedSubmission;
+  permissions: DataPermissions;
+  canEdit: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -319,9 +332,10 @@ function ViewSubmission({
   return (
     <div>
       <dl className="divide-y divide-black/5 dark:divide-white/5">
+        {row("Submission ID", submission.submissionId)}
         {row("Requirement", submission.requirement?.jobTitle ?? submission.requirementJobIdRaw)}
-        {row("Email", submission.candidate.email)}
-        {row("Phone", submission.candidate.phone)}
+        {row("Email", permissions.canViewEmail ? submission.candidate.email : "Restricted")}
+        {row("Phone", permissions.canViewPhone ? submission.candidate.phone : "Restricted")}
         {row("Location", submission.candidate.currentLocation)}
         {row("Experience", submission.candidate.totalExperienceYears && `${submission.candidate.totalExperienceYears} yrs`)}
         {row("Visa", submission.candidate.visaStatus)}
@@ -341,31 +355,49 @@ function ViewSubmission({
         {row("Placement ID", submission.placementId)}
         {row(
           "Resume",
-          submission.resume && (
-            <a
-              href={`/api/resumes/${submission.resume.id}`}
-              target="_blank"
-              className="text-blue-600 underline"
-            >
-              {submission.resume.fileName}
-            </a>
+          !submission.resume ? (
+            <span className="text-black/40 dark:text-white/40">No resume uploaded</span>
+          ) : !permissions.canViewResume ? (
+            "Restricted"
+          ) : (
+            <div className="flex items-center gap-3">
+              <span>{submission.resume.fileName}</span>
+              <a
+                href={`/api/resumes/${submission.resume.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md border border-black/15 px-2 py-1 text-xs hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+              >
+                View
+              </a>
+              {permissions.canDownloadResume && (
+                <a
+                  href={`/api/resumes/${submission.resume.id}?download=1`}
+                  className="rounded-md border border-black/15 px-2 py-1 text-xs hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+                >
+                  Download
+                </a>
+              )}
+            </div>
           )
         )}
         {row("Role/Skills", submission.roleWithSkills && <p className="whitespace-pre-wrap">{submission.roleWithSkills}</p>)}
       </dl>
-      <div className="mt-4 flex justify-end gap-2">
-        <ConfirmButton
-          onConfirm={onDelete}
-          confirmText={`Delete this submission for "${submission.candidate.name}"?`}
-          className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
-        />
-        <button
-          onClick={onEdit}
-          className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-        >
-          Edit
-        </button>
-      </div>
+      {canEdit && (
+        <div className="mt-4 flex justify-end gap-2">
+          <ConfirmButton
+            onConfirm={onDelete}
+            confirmText={`Delete this submission for "${submission.candidate.name}"?`}
+            className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
+          />
+          <button
+            onClick={onEdit}
+            className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
+          >
+            Edit
+          </button>
+        </div>
+      )}
     </div>
   );
 }

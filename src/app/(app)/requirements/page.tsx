@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
+import { canManageRecruitment } from "@/lib/users";
 import { RequirementsTable } from "./RequirementsTable";
 import { serializeRequirement } from "./types";
 
@@ -19,6 +20,7 @@ export default async function RequirementsPage() {
     <RequirementsTable
       requirements={requirements.map(serializeRequirement)}
       currentUserId={currentUser.id}
+      canEdit={canManageRecruitment(currentUser.role)}
     />
   );
 }

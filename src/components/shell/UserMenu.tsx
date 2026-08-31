@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, UserCog } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 
 export function UserMenu({ user }: { user: { name: string; email: string; role: string } }) {
@@ -37,6 +38,14 @@ export function UserMenu({ user }: { user: { name: string; email: string; role: 
           <div className="border-b border-black/10 px-3 py-2 text-xs text-black/50 dark:border-white/10 dark:text-white/50">
             {user.email}
           </div>
+          <Link
+            href="/account"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
+          >
+            <UserCog size={14} />
+            My Account
+          </Link>
           <form action={signOut}>
             <button
               type="submit"

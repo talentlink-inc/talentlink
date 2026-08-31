@@ -4,11 +4,13 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
+import { getCurrentUser } from "@/lib/auth";
 import {
   isRejectedStatus,
   isQualifyingPlacementStatus,
   shouldClearPlacementId,
 } from "@/lib/recruitment";
+import { canManageRecruitment } from "@/lib/users";
 
 export type PlacementFormState = { error: string | null };
 const initialState: PlacementFormState = { error: null };
@@ -28,6 +30,11 @@ export async function updatePlacement(
   _prevState: PlacementFormState,
   formData: FormData
 ): Promise<PlacementFormState> {
+  const currentUser = await getCurrentUser();
+  if (!canManageRecruitment(currentUser.role)) {
+    return { error: "Your role only has view access to Placements." };
+  }
+
   const parsed = placementSchema.safeParse({
     status: formData.get("status"),
     doj: formData.get("doj") || undefined,

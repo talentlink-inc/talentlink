@@ -17,11 +17,13 @@ export function RequirementModal({
   mode: initialMode,
   requirement,
   currentUserId,
+  canEdit,
   onClose,
 }: {
   mode: Mode;
   requirement: SerializedRequirement | null;
   currentUserId: string;
+  canEdit: boolean;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -68,6 +70,7 @@ export function RequirementModal({
           <>
             <ViewRequirement
               requirement={requirement}
+              canEdit={canEdit}
               onEdit={() => setMode("edit")}
               onDelete={async () => {
                 await deleteRequirement(requirement.id);
@@ -207,10 +210,12 @@ function Field({
 
 function ViewRequirement({
   requirement,
+  canEdit,
   onEdit,
   onDelete,
 }: {
   requirement: SerializedRequirement;
+  canEdit: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -245,19 +250,21 @@ function ViewRequirement({
           )
         )}
       </dl>
-      <div className="mt-4 flex justify-end gap-2">
-        <ConfirmButton
-          onConfirm={onDelete}
-          confirmText={`Delete requirement "${requirement.jobId}"?`}
-          className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
-        />
-        <button
-          onClick={onEdit}
-          className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-        >
-          Edit
-        </button>
-      </div>
+      {canEdit && (
+        <div className="mt-4 flex justify-end gap-2">
+          <ConfirmButton
+            onConfirm={onDelete}
+            confirmText={`Delete requirement "${requirement.jobId}"?`}
+            className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
+          />
+          <button
+            onClick={onEdit}
+            className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
+          >
+            Edit
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -12,9 +12,11 @@ const FELL_THROUGH = "__fell_through__";
 export function PlacementsTable({
   placements,
   currentUserId,
+  canEdit,
 }: {
   placements: SerializedSubmission[];
   currentUserId: string;
+  canEdit: boolean;
 }) {
   const [selected, setSelected] = useState<SerializedSubmission | null>(null);
   const [search, setSearch] = useState("");
@@ -130,7 +132,12 @@ export function PlacementsTable({
       </div>
 
       {selected && (
-        <PlacementModal placement={selected} currentUserId={currentUserId} onClose={() => setSelected(null)} />
+        <PlacementModal
+          placement={selected}
+          currentUserId={currentUserId}
+          canEdit={canEdit}
+          onClose={() => setSelected(null)}
+        />
       )}
     </div>
   );
