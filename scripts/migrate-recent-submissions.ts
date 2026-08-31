@@ -175,7 +175,14 @@ async function main() {
 
     await prisma.submission.upsert({
       where: { tenantId_legacyId: { tenantId: tenant.id, legacyId } },
-      update: {},
+      // Only patches resumeId, never other fields — a re-run shouldn't clobber
+      // data already edited live in the app. This exists specifically so a
+      // resume that finishes migrating on a retry (after an earlier partial
+      // run already created the submission row without it) gets linked —
+      // previously this was `update: {}`, which silently dropped resumeId on
+      // every re-run and left ~14% of submissions permanently unlinked even
+      // though their resume file had, in fact, been migrated successfully.
+      update: resumeId ? { resumeId } : {},
       create: {
         tenantId: tenant.id,
         legacyId,
