@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { InterviewModal } from "./InterviewModal";
 import { formatDateTime } from "@/lib/format";
+import { INTERVIEW_STATUSES, INTERVIEW_TYPES } from "@/lib/recruitment";
+import { useOpenParam } from "@/lib/useOpenParam";
 import type { SerializedInterview } from "./types";
 import type { SerializedSubmission } from "../submissions/types";
 
@@ -19,6 +21,27 @@ export function InterviewsTable({
     mode: "create" | "view" | "edit";
     interview: SerializedInterview | null;
   } | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+
+  useOpenParam((id) => {
+    const found = interviews.find((i) => i.id === id);
+    if (found) setModal({ mode: "view", interview: found });
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return interviews.filter((i) => {
+      if (statusFilter && i.status !== statusFilter) return false;
+      if (typeFilter && i.interviewType !== typeFilter) return false;
+      if (q) {
+        const haystack = `${i.submission.candidate.name} ${i.clientCompany ?? ""}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [interviews, search, statusFilter, typeFilter]);
 
   return (
     <div>
@@ -31,6 +54,40 @@ export function InterviewsTable({
           + Schedule Interview
         </button>
       </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search candidate, company..."
+          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        >
+          <option value="">All Status</option>
+          {INTERVIEW_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        >
+          <option value="">All Types</option>
+          {INTERVIEW_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
         <table className="w-full min-w-[840px] text-left text-sm">
           <thead className="bg-black/5 dark:bg-white/5">
@@ -44,7 +101,7 @@ export function InterviewsTable({
             </tr>
           </thead>
           <tbody>
-            {interviews.map((i) => (
+            {filtered.map((i) => (
               <tr
                 key={i.id}
                 onClick={() => setModal({ mode: "view", interview: i })}
@@ -60,10 +117,10 @@ export function InterviewsTable({
                 <td className="px-4 py-2">{i.status}</td>
               </tr>
             ))}
-            {interviews.length === 0 && (
+            {filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
-                  No interviews yet.
+                  {interviews.length === 0 ? "No interviews yet." : "No interviews match your filters."}
                 </td>
               </tr>
             )}

@@ -43,8 +43,18 @@ model User {
   email        String
   name         String
   role         String // Admin | Manager | Recruiter | BenchSales | HR
-  status       String    @default("active")
+  status       String    @default("active") // active | inactive
+  phone        String?
   legacyId     Int?      @map("legacy_id")
+
+  // Data-visibility flags for candidate PII, mirroring the source app's
+  // per-user permission model (UserManagement.js) — schema only for now,
+  // enforcement is a later phase.
+  canViewResume     Boolean @default(true) @map("can_view_resume")
+  canDownloadResume Boolean @default(true) @map("can_download_resume")
+  canViewPhone      Boolean @default(true) @map("can_view_phone")
+  canViewEmail      Boolean @default(true) @map("can_view_email")
+
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 

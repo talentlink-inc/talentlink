@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { RequirementModal } from "./RequirementModal";
+import { REQUIREMENT_STATUSES } from "@/lib/recruitment";
+import { useOpenParam } from "@/lib/useOpenParam";
 import type { SerializedRequirement } from "./types";
+
+const EMPLOYMENT_TYPES = ["FTE", "W2", "1099", "C2C", "C2H"];
 
 export function RequirementsTable({
   requirements,
@@ -15,6 +19,27 @@ export function RequirementsTable({
     mode: "create" | "view" | "edit";
     requirement: SerializedRequirement | null;
   } | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [empTypeFilter, setEmpTypeFilter] = useState("");
+
+  useOpenParam((id) => {
+    const found = requirements.find((r) => r.id === id);
+    if (found) setModal({ mode: "view", requirement: found });
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return requirements.filter((r) => {
+      if (statusFilter && r.status !== statusFilter) return false;
+      if (empTypeFilter && r.employmentType !== empTypeFilter) return false;
+      if (q) {
+        const haystack = `${r.jobId} ${r.jobTitle} ${r.clientName ?? ""}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [requirements, search, statusFilter, empTypeFilter]);
 
   return (
     <div>
@@ -27,6 +52,40 @@ export function RequirementsTable({
           + Add Requirement
         </button>
       </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search job title, client..."
+          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        >
+          <option value="">All Status</option>
+          {REQUIREMENT_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <select
+          value={empTypeFilter}
+          onChange={(e) => setEmpTypeFilter(e.target.value)}
+          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        >
+          <option value="">All Employment Type</option>
+          {EMPLOYMENT_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="bg-black/5 dark:bg-white/5">
@@ -40,7 +99,7 @@ export function RequirementsTable({
             </tr>
           </thead>
           <tbody>
-            {requirements.map((r) => (
+            {filtered.map((r) => (
               <tr
                 key={r.id}
                 onClick={() => setModal({ mode: "view", requirement: r })}
@@ -54,10 +113,12 @@ export function RequirementsTable({
                 <td className="px-4 py-2">{r.billRate?.toString() ?? "—"}</td>
               </tr>
             ))}
-            {requirements.length === 0 && (
+            {filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
-                  No requirements yet. Add one, or run the migration script to pull recent JDs in.
+                  {requirements.length === 0
+                    ? "No requirements yet. Add one, or run the migration script to pull recent JDs in."
+                    : "No requirements match your filters."}
                 </td>
               </tr>
             )}

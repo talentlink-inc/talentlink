@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 
@@ -21,5 +22,14 @@ export const getCurrentUser = cache(async () => {
       `Authenticated as ${authUser.email} but no matching users row (authUserId=${authUser.id}).`
     );
   }
+
+  // An Admin deactivating a user (User Management) should actually end their
+  // access, not just relabel them — matching ITStaffing's "force-logs-out on
+  // deactivation" behavior.
+  if (user.status !== "active") {
+    await supabase.auth.signOut();
+    redirect("/login?deactivated=1");
+  }
+
   return user;
 });
