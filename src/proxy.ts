@@ -50,5 +50,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Excludes framework internals and static files served from /public (e.g.
+  // the logo shown on the login page itself, which must load before any
+  // session exists) from the auth gate entirely.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp|gif)$).*)"],
 };
