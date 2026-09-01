@@ -20,7 +20,11 @@ function WorkspaceNotFoundContent() {
       {reason === "no-subdomain" ? (
         <p className="text-sm text-black/60 dark:text-white/60">
           Enter your workspace&apos;s address to continue — for example{" "}
-          <span className="font-mono">yourcompany.talentlink.com</span>.
+          <span className="font-mono">yourcompany.talentlink.com</span> — or{" "}
+          <a href="/signup" className="underline">
+            create a new workspace
+          </a>
+          .
         </p>
       ) : (
         <p className="text-sm text-black/60 dark:text-white/60">
@@ -31,7 +35,11 @@ function WorkspaceNotFoundContent() {
               at <span className="font-mono">{subdomain}</span>
             </>
           ) : null}
-          . Check the address, or contact your workspace admin for an invite link.
+          . Check the address, contact your workspace admin for an invite link, or{" "}
+          <a href="/signup" className="underline">
+            create a new workspace
+          </a>
+          .
         </p>
       )}
     </div>

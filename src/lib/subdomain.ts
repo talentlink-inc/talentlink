@@ -41,3 +41,30 @@ export function hasRootDomainConfigured(): boolean {
 export function rootDomain(): string | undefined {
   return ROOT_DOMAIN;
 }
+
+/** True when `host` (as sent by the browser, port included) is a *.localhost
+ *  or bare localhost dev address — used to allow local testing of
+ *  subdomain-dependent flows (like signup) before a root domain is attached. */
+export function isLocalDevHost(host: string | null | undefined): boolean {
+  if (!host) return false;
+  const hostname = host.split(":")[0].toLowerCase();
+  return hostname === "localhost" || hostname.endsWith(".localhost");
+}
+
+// Names that would collide with real routes/infrastructure if claimed as a
+// tenant's workspace subdomain.
+const RESERVED_SUBDOMAINS = new Set([
+  "www", "app", "api", "admin", "login", "signup", "auth", "static", "assets",
+  "workspace-not-found", "workspace-suspended", "mail", "support", "help",
+  "docs", "blog", "status", "health", "root", "localhost",
+]);
+
+export function isReservedSubdomain(sub: string): boolean {
+  return RESERVED_SUBDOMAINS.has(sub);
+}
+
+/** Lowercase letters, digits, and internal hyphens only; 3-63 chars; can't
+ *  start or end with a hyphen — the same shape as a valid DNS label. */
+export function isValidSubdomainFormat(sub: string): boolean {
+  return /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/.test(sub);
+}

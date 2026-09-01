@@ -14,13 +14,15 @@ import { extractSubdomain, hasRootDomainConfigured } from "@/lib/subdomain";
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // These render before any tenant is known (or after a tenant lookup has
-  // already failed), so they must never be re-entered into tenant resolution
-  // themselves — that would loop.
-  const isWorkspaceStatusRoute =
-    pathname.startsWith("/workspace-not-found") || pathname.startsWith("/workspace-suspended");
+  // These run before any tenant exists (signup) or after tenant resolution
+  // has already failed (the status pages) — none of them can go through
+  // tenant resolution themselves without looping or blocking signup outright.
+  const bypassesTenantResolution =
+    pathname.startsWith("/workspace-not-found") ||
+    pathname.startsWith("/workspace-suspended") ||
+    pathname.startsWith("/signup");
 
-  if (!isWorkspaceStatusRoute) {
+  if (!bypassesTenantResolution) {
     const host = request.headers.get("host");
     const subdomain = extractSubdomain(host);
 
@@ -96,7 +98,7 @@ export async function proxy(request: NextRequest) {
   const isAuthRoute = pathname.startsWith("/login");
   const isPublicRoute =
     isAuthRoute ||
-    isWorkspaceStatusRoute ||
+    bypassesTenantResolution ||
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/auth/"); // invite/callback/set-password — no session yet when these run
 
