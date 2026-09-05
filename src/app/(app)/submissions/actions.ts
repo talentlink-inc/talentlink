@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { candidateIdentityHash } from "@/lib/candidates";
@@ -77,8 +77,9 @@ async function uploadResumeIfPresent(
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const fileSha256 = createHash("sha256").update(buffer).digest("hex");
+  const db = await getTenantDb();
 
-  const existing = await prisma.resume.findFirst({ where: { tenantId, fileSha256 } });
+  const existing = await db.resume.findFirst({ where: { tenantId, fileSha256 } });
   if (existing) return existing.id;
 
   const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -88,7 +89,7 @@ async function uploadResumeIfPresent(
     .upload(storagePath, buffer, { upsert: true, contentType: file.type });
   if (error) throw new Error(`Resume upload failed: ${error.message}`);
 
-  const resume = await prisma.resume.create({
+  const resume = await db.resume.create({
     data: {
       tenantId,
       candidateId,
@@ -118,17 +119,18 @@ export async function createSubmission(
   const force = formData.get("force") === "true";
 
   const tenant = await getCurrentTenant();
+  const db = await getTenantDb();
 
   const email = data.email || null;
   const phone = data.phone || null;
   const identityHash = candidateIdentityHash(email, phone, data.candidateName);
 
-  const existingCandidate = await prisma.candidate.findUnique({
+  const existingCandidate = await db.candidate.findUnique({
     where: { tenantId_identityHash: { tenantId: tenant.id, identityHash } },
   });
 
   if (existingCandidate) {
-    const existingForSameRequirement = await prisma.submission.findFirst({
+    const existingForSameRequirement = await db.submission.findFirst({
       where: {
         tenantId: tenant.id,
         candidateId: existingCandidate.id,
@@ -144,7 +146,7 @@ export async function createSubmission(
     }
 
     if (!force) {
-      const otherSubmissionCount = await prisma.submission.count({
+      const otherSubmissionCount = await db.submission.count({
         where: { tenantId: tenant.id, candidateId: existingCandidate.id, deletedAt: null },
       });
       if (otherSubmissionCount > 0) {
@@ -157,7 +159,7 @@ export async function createSubmission(
     }
   }
 
-  const candidate = await prisma.candidate.upsert({
+  const candidate = await db.candidate.upsert({
     where: { tenantId_identityHash: { tenantId: tenant.id, identityHash } },
     update: {
       name: data.candidateName,
@@ -188,10 +190,10 @@ export async function createSubmission(
     return { ...initialFormState, error: err instanceof Error ? err.message : "Resume upload failed." };
   }
 
-  const submissionCount = await prisma.submission.count({ where: { tenantId: tenant.id } });
+  const submissionCount = await db.submission.count({ where: { tenantId: tenant.id } });
   const submissionId = `SUB-${String(submissionCount + 1).padStart(4, "0")}`;
 
-  await prisma.submission.create({
+  await db.submission.create({
     data: {
       tenantId: tenant.id,
       submissionId,
@@ -243,7 +245,8 @@ export async function updateSubmission(
   }
 
   const tenant = await getCurrentTenant();
-  const existing = await prisma.submission.findUnique({ where: { id, tenantId: tenant.id } });
+  const db = await getTenantDb();
+  const existing = await db.submission.findUnique({ where: { id, tenantId: tenant.id } });
   if (!existing) {
     return { ...initialFormState, error: "Submission not found." };
   }
@@ -263,13 +266,13 @@ export async function updateSubmission(
   if (clearPlacement) {
     placementId = null;
   } else if (assignPlacement) {
-    const count = await prisma.submission.count({
+    const count = await db.submission.count({
       where: { tenantId: tenant.id, placementId: { not: null } },
     });
     placementId = `PLC-${String(count + 1).padStart(4, "0")}`;
   }
 
-  await prisma.candidate.update({
+  await db.candidate.update({
     where: { id: existing.candidateId },
     data: {
       name: data.candidateName,
@@ -282,7 +285,7 @@ export async function updateSubmission(
     },
   });
 
-  await prisma.submission.update({
+  await db.submission.update({
     where: { id, tenantId: tenant.id },
     data: {
       requirementId: data.requirementId,
@@ -309,7 +312,8 @@ export async function deleteSubmission(id: string) {
   if (!canManageRecruitment(user.role)) throw new Error(PERMISSION_ERROR);
 
   const tenant = await getCurrentTenant();
-  await prisma.submission.update({
+  const db = await getTenantDb();
+  await db.submission.update({
     where: { id, tenantId: tenant.id },
     data: { deletedAt: new Date() },
   });

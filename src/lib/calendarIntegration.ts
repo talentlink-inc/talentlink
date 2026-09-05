@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { getTenantDbFor } from "@/lib/tenantDb";
 import type { CalendarIntegration } from "@/generated/prisma/client";
 
 type AuthResult = { provider: "google" | "microsoft"; accessToken: string };
@@ -19,7 +19,7 @@ async function refreshGoogleToken(integration: CalendarIntegration): Promise<Aut
   const data = await res.json();
   if (!res.ok) return null;
 
-  await prisma.calendarIntegration.update({
+  await getTenantDbFor(integration.tenantId).calendarIntegration.update({
     where: { tenantId: integration.tenantId },
     data: {
       accessToken: data.access_token,
@@ -56,7 +56,7 @@ async function refreshMicrosoftToken(integration: CalendarIntegration): Promise<
   const data = await res.json();
   if (!res.ok) return null;
 
-  await prisma.calendarIntegration.update({
+  await getTenantDbFor(integration.tenantId).calendarIntegration.update({
     where: { tenantId: integration.tenantId },
     data: {
       accessToken: data.access_token,
@@ -68,7 +68,7 @@ async function refreshMicrosoftToken(integration: CalendarIntegration): Promise<
 }
 
 async function getValidAuth(tenantId: string): Promise<AuthResult | null> {
-  const integration = await prisma.calendarIntegration.findUnique({ where: { tenantId } });
+  const integration = await getTenantDbFor(tenantId).calendarIntegration.findUnique({ where: { tenantId } });
   if (!integration || !integration.provider || !integration.accessToken) return null;
 
   const stillValid =
@@ -140,7 +140,10 @@ export async function syncInterviewToCalendar(interview: InterviewForSync): Prom
       });
       if (res.ok && !existingId) {
         const data = await res.json();
-        await prisma.interview.update({ where: { id: interview.id }, data: { googleEventId: data.id } });
+        await getTenantDbFor(interview.tenantId).interview.update({
+          where: { id: interview.id },
+          data: { googleEventId: data.id },
+        });
       }
     } else if (auth.provider === "microsoft") {
       const body = {
@@ -168,7 +171,10 @@ export async function syncInterviewToCalendar(interview: InterviewForSync): Prom
       });
       if (res.ok && !existingId) {
         const data = await res.json();
-        await prisma.interview.update({ where: { id: interview.id }, data: { outlookEventId: data.id } });
+        await getTenantDbFor(interview.tenantId).interview.update({
+          where: { id: interview.id },
+          data: { outlookEventId: data.id },
+        });
       }
     }
   } catch {

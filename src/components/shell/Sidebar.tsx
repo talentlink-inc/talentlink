@@ -9,6 +9,7 @@ import {
   CalendarClock,
   Briefcase,
   ShieldCheck,
+  Building2,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -20,7 +21,13 @@ const RECRUITMENT_NAV = [
   { href: "/placements", label: "Placements", icon: Briefcase },
 ];
 
-export function Sidebar({ canManageUsers }: { canManageUsers: boolean }) {
+export function Sidebar({
+  canManageUsers,
+  canAccessOps,
+}: {
+  canManageUsers: boolean;
+  canAccessOps: boolean;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -100,6 +107,17 @@ export function Sidebar({ canManageUsers }: { canManageUsers: boolean }) {
               </div>
             )}
             <ul className="space-y-0.5">{navItem("/users", "User Management", ShieldCheck)}</ul>
+          </>
+        )}
+
+        {canAccessOps && (
+          <>
+            {!collapsed && (
+              <div className="px-2 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-white/40">
+                PLATFORM
+              </div>
+            )}
+            <ul className="space-y-0.5">{navItem("/ops", "Platform Ops", Building2)}</ul>
           </>
         )}
       </div>

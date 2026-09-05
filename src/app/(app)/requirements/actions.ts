@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { REQUIREMENT_STATUSES } from "@/lib/recruitment";
@@ -60,9 +60,10 @@ export async function createRequirement(_prevState: string | null, formData: For
   }
 
   const tenant = await getCurrentTenant();
+  const db = await getTenantDb();
 
   try {
-    await prisma.requirement.create({
+    await db.requirement.create({
       data: {
         ...parsed.data,
         tenantId: tenant.id,
@@ -94,9 +95,10 @@ export async function updateRequirement(
   }
 
   const tenant = await getCurrentTenant();
+  const db = await getTenantDb();
 
   try {
-    await prisma.requirement.update({
+    await db.requirement.update({
       where: { id, tenantId: tenant.id },
       data: parsed.data,
     });
@@ -116,7 +118,8 @@ export async function deleteRequirement(id: string) {
   if (!canManageRecruitment(user.role)) throw new Error(PERMISSION_ERROR);
 
   const tenant = await getCurrentTenant();
-  await prisma.requirement.update({
+  const db = await getTenantDb();
+  await db.requirement.update({
     where: { id, tenantId: tenant.id },
     data: { deletedAt: new Date() },
   });

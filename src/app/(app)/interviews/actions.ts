@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { INTERVIEW_STATUSES } from "@/lib/recruitment";
@@ -53,8 +53,9 @@ export async function createInterview(
   const data = parsed.data;
 
   const tenant = await getCurrentTenant();
+  const db = await getTenantDb();
 
-  const interview = await prisma.interview.create({
+  const interview = await db.interview.create({
     data: {
       tenantId: tenant.id,
       submissionId: data.submissionId,
@@ -92,8 +93,9 @@ export async function updateInterview(
   const data = parsed.data;
 
   const tenant = await getCurrentTenant();
+  const db = await getTenantDb();
 
-  const interview = await prisma.interview.update({
+  const interview = await db.interview.update({
     where: { id, tenantId: tenant.id },
     data: {
       submissionId: data.submissionId,
@@ -120,7 +122,8 @@ export async function deleteInterview(id: string) {
   if (!canManageRecruitment(user.role)) throw new Error(PERMISSION_ERROR);
 
   const tenant = await getCurrentTenant();
-  const interview = await prisma.interview.update({
+  const db = await getTenantDb();
+  const interview = await db.interview.update({
     where: { id, tenantId: tenant.id },
     data: { deletedAt: new Date() },
     include: { submission: { include: { candidate: true, requirement: true } } },

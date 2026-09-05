@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageUsers } from "@/lib/users";
@@ -22,7 +22,8 @@ async function requireAdmin() {
 
 export async function getIntegrationStatus(): Promise<IntegrationStatus> {
   const tenant = await getCurrentTenant();
-  const integration = await prisma.calendarIntegration.findUnique({ where: { tenantId: tenant.id } });
+  const db = await getTenantDb();
+  const integration = await db.calendarIntegration.findUnique({ where: { tenantId: tenant.id } });
   if (!integration) {
     return { provider: null, connectedEmail: null, hasCredentials: false, isConnected: false };
   }
@@ -56,7 +57,8 @@ export async function saveIntegrationCredentials(
   }
 
   const tenant = await getCurrentTenant();
-  await prisma.calendarIntegration.upsert({
+  const db = await getTenantDb();
+  await db.calendarIntegration.upsert({
     where: { tenantId: tenant.id },
     create: {
       tenantId: tenant.id,
@@ -86,7 +88,8 @@ export async function saveIntegrationCredentials(
 export async function disconnectIntegration(): Promise<{ error: string | null }> {
   await requireAdmin();
   const tenant = await getCurrentTenant();
-  await prisma.calendarIntegration.update({
+  const db = await getTenantDb();
+  await db.calendarIntegration.update({
     where: { tenantId: tenant.id },
     data: { accessToken: null, refreshToken: null, tokenExpiresAt: null, connectedEmail: null },
   });

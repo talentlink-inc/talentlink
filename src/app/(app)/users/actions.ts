@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -60,8 +60,9 @@ export async function createUser(
   }
   const data = parsed.data;
   const tenant = await getCurrentTenant();
+  const db = await getTenantDb();
 
-  const existing = await prisma.user.findFirst({
+  const existing = await db.user.findFirst({
     where: { tenantId: tenant.id, email: { equals: data.email, mode: "insensitive" } },
   });
   if (existing) {
@@ -79,7 +80,7 @@ export async function createUser(
   }
 
   try {
-    await prisma.user.create({
+    await db.user.create({
       data: {
         tenantId: tenant.id,
         authUserId: authData.user.id,
@@ -115,11 +116,12 @@ export async function updateUser(
   }
   const data = parsed.data;
   const tenant = await getCurrentTenant();
+  const db = await getTenantDb();
 
-  const existing = await prisma.user.findUnique({ where: { id, tenantId: tenant.id } });
+  const existing = await db.user.findUnique({ where: { id, tenantId: tenant.id } });
   if (!existing) return { error: "User not found." };
 
-  const emailTaken = await prisma.user.findFirst({
+  const emailTaken = await db.user.findFirst({
     where: {
       tenantId: tenant.id,
       email: { equals: data.email, mode: "insensitive" },
@@ -140,7 +142,7 @@ export async function updateUser(
     }
   }
 
-  await prisma.user.update({
+  await db.user.update({
     where: { id, tenantId: tenant.id },
     data: {
       name: data.name,
@@ -165,10 +167,11 @@ export async function toggleUserStatus(id: string): Promise<{ error: string | nu
     return { error: "You cannot deactivate your own account." };
   }
   const tenant = await getCurrentTenant();
-  const existing = await prisma.user.findUnique({ where: { id, tenantId: tenant.id } });
+  const db = await getTenantDb();
+  const existing = await db.user.findUnique({ where: { id, tenantId: tenant.id } });
   if (!existing) return { error: "User not found." };
 
-  await prisma.user.update({
+  await db.user.update({
     where: { id, tenantId: tenant.id },
     data: { status: existing.status === "active" ? "inactive" : "active" },
   });
@@ -181,7 +184,8 @@ export async function resetUserPassword(
 ): Promise<{ error: string | null; password?: string }> {
   await requireAdmin();
   const tenant = await getCurrentTenant();
-  const existing = await prisma.user.findUnique({ where: { id, tenantId: tenant.id } });
+  const db = await getTenantDb();
+  const existing = await db.user.findUnique({ where: { id, tenantId: tenant.id } });
   if (!existing) return { error: "User not found." };
   if (!existing.authUserId) return { error: "This user has no login account to reset." };
 
@@ -200,11 +204,12 @@ export async function deleteUser(id: string): Promise<{ error: string | null }> 
     return { error: "You cannot delete your own account." };
   }
   const tenant = await getCurrentTenant();
-  const existing = await prisma.user.findUnique({ where: { id, tenantId: tenant.id } });
+  const db = await getTenantDb();
+  const existing = await db.user.findUnique({ where: { id, tenantId: tenant.id } });
   if (!existing) return { error: "User not found." };
 
   try {
-    await prisma.user.delete({ where: { id, tenantId: tenant.id } });
+    await db.user.delete({ where: { id, tenantId: tenant.id } });
   } catch (err) {
     if (err instanceof Error && err.message.includes("Foreign key constraint")) {
       return {

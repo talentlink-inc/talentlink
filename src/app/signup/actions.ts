@@ -89,6 +89,10 @@ export async function signUp(
       const newTenant = await tx.tenant.create({
         data: { name: data.companyName, subdomain: data.subdomain, plan: "trial", status: "active" },
       });
+      // The users table's RLS policy requires tenant_id to match
+      // app.tenant_id on insert (see the RLS migration) — set it to the
+      // tenant just created, in this same transaction, before the insert.
+      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${newTenant.id}, true)`;
       await tx.user.create({
         data: {
           tenantId: newTenant.id,

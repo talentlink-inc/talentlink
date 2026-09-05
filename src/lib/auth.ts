@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenant } from "@/lib/tenant";
+import { getAuthBypassDb } from "@/lib/tenantDb";
 import { hasRootDomainConfigured } from "@/lib/subdomain";
 
 // proxy.ts already redirects unauthenticated requests to /login, so any page
@@ -18,7 +19,12 @@ export const getCurrentUser = cache(async () => {
     throw new Error("No authenticated session — this should be unreachable past proxy.ts.");
   }
 
-  const user = await prisma.user.findUnique({ where: { authUserId: authUser.id } });
+  // authUserId is looked up before we know which tenant (if any) this
+  // session actually belongs to — that's determined by the mismatch check
+  // below — so the `users` RLS policy can't be scoped to a tenant here yet.
+  // getAuthBypassDb() is the one sanctioned exception to that policy.
+  const bypassDb = await getAuthBypassDb();
+  const user = await bypassDb.user.findUnique({ where: { authUserId: authUser.id } });
   if (!user) {
     throw new Error(
       `Authenticated as ${authUser.email} but no matching users row (authUserId=${authUser.id}).`

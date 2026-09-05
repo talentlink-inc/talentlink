@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageUsers, canViewUsers } from "@/lib/users";
@@ -14,7 +14,8 @@ export default async function UsersPage() {
   }
 
   const tenant = await getCurrentTenant();
-  const users = await prisma.user.findMany({
+  const db = await getTenantDb();
+  const users = await db.user.findMany({
     where: { tenantId: tenant.id },
     orderBy: { createdAt: "desc" },
   });

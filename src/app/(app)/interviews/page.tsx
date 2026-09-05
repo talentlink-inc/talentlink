@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { INTERVIEW_ELIGIBLE_SUBMISSION_STATUSES } from "@/lib/recruitment";
@@ -19,15 +19,16 @@ export default async function InterviewsPage({
   const currentUser = await getCurrentUser();
   const params = await searchParams;
   const canManageIntegration = canManageUsers(currentUser.role);
+  const db = await getTenantDb();
 
   const [interviews, eligibleSubmissions, integrationStatus] = await Promise.all([
-    prisma.interview.findMany({
+    db.interview.findMany({
       where: { tenantId: tenant.id, deletedAt: null },
       include: { submission: { include: { candidate: true, requirement: true, resume: true } } },
       orderBy: { scheduledAt: "desc" },
       take: 100,
     }),
-    prisma.submission.findMany({
+    db.submission.findMany({
       where: {
         tenantId: tenant.id,
         deletedAt: null,

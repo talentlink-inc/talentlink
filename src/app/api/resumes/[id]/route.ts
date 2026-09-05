@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupabaseAdmin, RESUME_BUCKET } from "@/lib/supabase/admin";
@@ -18,7 +18,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "You don't have permission to access resumes." }, { status: 403 });
   }
 
-  const resume = await prisma.resume.findUnique({ where: { id } });
+  const db = await getTenantDb();
+  const resume = await db.resume.findUnique({ where: { id } });
   if (!resume || resume.tenantId !== tenant.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

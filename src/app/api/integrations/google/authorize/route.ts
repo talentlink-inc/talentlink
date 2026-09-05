@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageUsers } from "@/lib/users";
@@ -11,7 +11,8 @@ export async function GET(request: Request) {
   }
 
   const tenant = await getCurrentTenant();
-  const integration = await prisma.calendarIntegration.findUnique({ where: { tenantId: tenant.id } });
+  const db = await getTenantDb();
+  const integration = await db.calendarIntegration.findUnique({ where: { tenantId: tenant.id } });
   if (!integration?.clientId) {
     return NextResponse.redirect(new URL("/interviews?integration_error=missing_credentials", request.url));
   }

@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -54,7 +54,8 @@ export async function updatePlacement(
   }
 
   const tenant = await getCurrentTenant();
-  const existing = await prisma.submission.findUnique({ where: { id, tenantId: tenant.id } });
+  const db = await getTenantDb();
+  const existing = await db.submission.findUnique({ where: { id, tenantId: tenant.id } });
   if (!existing) return { error: "Placement not found." };
 
   const clearPlacement = shouldClearPlacementId(data.status, !!existing.placementId);
@@ -64,13 +65,13 @@ export async function updatePlacement(
   if (clearPlacement) {
     placementId = null;
   } else if (assignPlacement) {
-    const count = await prisma.submission.count({
+    const count = await db.submission.count({
       where: { tenantId: tenant.id, placementId: { not: null } },
     });
     placementId = `PLC-${String(count + 1).padStart(4, "0")}`;
   }
 
-  await prisma.submission.update({
+  await db.submission.update({
     where: { id, tenantId: tenant.id },
     data: {
       status: data.status,

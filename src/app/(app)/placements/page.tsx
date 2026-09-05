@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageRecruitment } from "@/lib/users";
@@ -16,7 +16,8 @@ export const dynamic = "force-dynamic";
 export default async function PlacementsPage() {
   const tenant = await getCurrentTenant();
   const currentUser = await getCurrentUser();
-  const placements = await prisma.submission.findMany({
+  const db = await getTenantDb();
+  const placements = await db.submission.findMany({
     where: {
       tenantId: tenant.id,
       deletedAt: null,

@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewUsers } from "@/lib/users";
@@ -25,9 +25,10 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
   const canSeeUsers = canViewUsers(currentUser.role);
 
   const insensitive = { contains: q, mode: "insensitive" as const };
+  const db = await getTenantDb();
 
   const [requirements, submissions, interviews, users] = await Promise.all([
-    prisma.requirement.findMany({
+    db.requirement.findMany({
       where: {
         tenantId: tenant.id,
         deletedAt: null,
@@ -41,7 +42,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       },
       take: 5,
     }),
-    prisma.submission.findMany({
+    db.submission.findMany({
       where: {
         tenantId: tenant.id,
         deletedAt: null,
@@ -56,7 +57,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       include: { candidate: true, requirement: true },
       take: 8,
     }),
-    prisma.interview.findMany({
+    db.interview.findMany({
       where: {
         tenantId: tenant.id,
         deletedAt: null,
@@ -66,7 +67,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       take: 5,
     }),
     canSeeUsers
-      ? prisma.user.findMany({
+      ? db.user.findMany({
           where: {
             tenantId: tenant.id,
             OR: [{ name: insensitive }, { email: insensitive }, { role: insensitive }],
