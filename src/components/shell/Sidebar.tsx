@@ -10,6 +10,7 @@ import {
   Briefcase,
   ShieldCheck,
   Building2,
+  Rocket,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -24,9 +25,11 @@ const RECRUITMENT_NAV = [
 export function Sidebar({
   canManageUsers,
   canAccessOps,
+  tenantName,
 }: {
   canManageUsers: boolean;
   canAccessOps: boolean;
+  tenantName: string;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -84,14 +87,16 @@ export function Sidebar({
             <div className="truncate text-[15px] leading-tight font-semibold">
               Talent<span className="text-orange-400">Link</span>
             </div>
-            <div className="truncate text-[10px] leading-tight text-white/50">Digital Links Inc</div>
+            <div className="truncate text-[10px] leading-tight text-white/50">{tenantName}</div>
           </div>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-2">
+        <ul className="space-y-0.5 pt-2">{navItem("/onboarding", "Getting Started", Rocket)}</ul>
+
         {!collapsed && (
-          <div className="px-2 pt-3 pb-1 text-[10px] font-semibold tracking-wider text-white/40">
+          <div className="px-2 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-white/40">
             RECRUITMENT
           </div>
         )}
