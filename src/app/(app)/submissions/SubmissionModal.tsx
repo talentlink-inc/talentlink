@@ -58,6 +58,32 @@ export function SubmissionModal({
     warningMessage: null,
   });
 
+  // Every text field here is controlled — a validation error (or the
+  // duplicate-submission error) is a normal outcome, not just the "confirm?"
+  // case below, and React clears uncontrolled fields after every action
+  // dispatch regardless of which kind of result comes back. (The resume
+  // file input is the one exception — browsers won't let JS set a file
+  // input's value at all, controlled or not, so that one has to be
+  // re-selected after any failed submit.)
+  const [values, setValues] = useState({
+    requirementId: submission?.requirementId ?? "",
+    candidateName: submission?.candidate.name ?? "",
+    email: submission?.candidate.email ?? "",
+    phone: submission?.candidate.phone ?? "",
+    currentLocation: submission?.candidate.currentLocation ?? "",
+    totalExperienceYears: submission?.candidate.totalExperienceYears?.toString() ?? "",
+    visaStatus: submission?.candidate.visaStatus ?? "",
+    linkedinUrl: submission?.candidate.linkedinUrl ?? "",
+    employmentType: submission?.employmentType ?? "",
+    billRate: submission?.billRate?.toString() ?? "",
+    payRate: submission?.payRate?.toString() ?? "",
+    roleWithSkills: submission?.roleWithSkills ?? "",
+    rejectReason: submission?.rejectReason ?? "",
+  });
+  function set<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
+    setValues((v) => ({ ...v, [key]: value }));
+  }
+
   // React resets uncontrolled form fields after every action dispatch, even
   // when our own action just returns a soft "confirm?" state rather than
   // throwing — so by the time the user sees the warning and clicks "Submit
@@ -133,7 +159,8 @@ export function SubmissionModal({
               <label className={labelClass}>Requirement *</label>
               <select
                 name="requirementId"
-                defaultValue={submission?.requirementId ?? ""}
+                value={values.requirementId}
+                onChange={(e) => set("requirementId", e.target.value)}
                 required
                 className={inputClass}
               >
@@ -149,19 +176,33 @@ export function SubmissionModal({
               </select>
             </div>
 
-            <Field label="Candidate Name" name="candidateName" defaultValue={submission?.candidate.name} required />
+            <Field
+              label="Candidate Name"
+              name="candidateName"
+              value={values.candidateName}
+              onChange={(v) => set("candidateName", v)}
+              required
+            />
             <Field
               label="Email"
               name="email"
               type="email"
-              defaultValue={submission?.candidate.email ?? ""}
+              value={values.email}
+              onChange={(v) => set("email", v)}
               required
             />
-            <Field label="Phone" name="phone" defaultValue={submission?.candidate.phone ?? ""} required />
+            <Field
+              label="Phone"
+              name="phone"
+              value={values.phone}
+              onChange={(v) => set("phone", v)}
+              required
+            />
             <Field
               label="Current Location"
               name="currentLocation"
-              defaultValue={submission?.candidate.currentLocation ?? ""}
+              value={values.currentLocation}
+              onChange={(v) => set("currentLocation", v)}
               required
             />
             <Field
@@ -169,14 +210,17 @@ export function SubmissionModal({
               name="totalExperienceYears"
               type="number"
               step="0.1"
-              defaultValue={submission?.candidate.totalExperienceYears ?? ""}
+              min="0"
+              value={values.totalExperienceYears}
+              onChange={(v) => set("totalExperienceYears", v)}
               required
             />
             <div>
               <label className={labelClass}>Visa Status *</label>
               <select
                 name="visaStatus"
-                defaultValue={submission?.candidate.visaStatus ?? ""}
+                value={values.visaStatus}
+                onChange={(e) => set("visaStatus", e.target.value)}
                 required
                 className={inputClass}
               >
@@ -190,20 +234,36 @@ export function SubmissionModal({
                 ))}
               </select>
             </div>
-            <Field label="LinkedIn URL" name="linkedinUrl" defaultValue={submission?.candidate.linkedinUrl ?? ""} />
+            <Field
+              label="LinkedIn URL"
+              name="linkedinUrl"
+              value={values.linkedinUrl}
+              onChange={(v) => set("linkedinUrl", v)}
+            />
             <Field
               label="Employment Type"
               name="employmentType"
-              defaultValue={submission?.employmentType ?? ""}
+              value={values.employmentType}
+              onChange={(v) => set("employmentType", v)}
               required
             />
-            <Field label="Bill Rate" name="billRate" type="number" step="0.01" defaultValue={submission?.billRate ?? ""} />
+            <Field
+              label="Bill Rate"
+              name="billRate"
+              type="number"
+              step="0.01"
+              min="0"
+              value={values.billRate}
+              onChange={(v) => set("billRate", v)}
+            />
             <Field
               label="Pay Rate"
               name="payRate"
               type="number"
               step="0.01"
-              defaultValue={submission?.payRate ?? ""}
+              min="0"
+              value={values.payRate}
+              onChange={(v) => set("payRate", v)}
               required
             />
 
@@ -211,7 +271,8 @@ export function SubmissionModal({
               <label className={labelClass}>Role with Skills *</label>
               <textarea
                 name="roleWithSkills"
-                defaultValue={submission?.roleWithSkills ?? ""}
+                value={values.roleWithSkills}
+                onChange={(e) => set("roleWithSkills", e.target.value)}
                 rows={3}
                 required
                 className={inputClass}
@@ -254,7 +315,8 @@ export function SubmissionModal({
                     <label className={labelClass}>Reject Reason *</label>
                     <select
                       name="rejectReason"
-                      defaultValue={submission?.rejectReason ?? ""}
+                      value={values.rejectReason}
+                      onChange={(e) => set("rejectReason", e.target.value)}
                       required
                       className={inputClass}
                     >
@@ -332,17 +394,21 @@ export function SubmissionModal({
 function Field({
   label,
   name,
-  defaultValue,
+  value,
+  onChange,
   required,
   type = "text",
   step,
+  min,
 }: {
   label: string;
   name: string;
-  defaultValue?: string;
+  value: string;
+  onChange: (value: string) => void;
   required?: boolean;
   type?: string;
   step?: string;
+  min?: string;
 }) {
   return (
     <div>
@@ -354,7 +420,9 @@ function Field({
         name={name}
         type={type}
         step={step}
-        defaultValue={defaultValue}
+        min={min}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         required={required}
         className={inputClass}
       />

@@ -31,14 +31,37 @@ export function RequirementModal({
   const isForm = mode === "create" || mode === "edit";
   useEscapeToClose(onClose);
 
+  // Every field here is controlled (rather than defaultValue) so a failed
+  // save — a validation error is just as likely as a duplicate-ID error —
+  // doesn't wipe what the user typed. React clears uncontrolled fields after
+  // every action dispatch, error or not; controlled state is immune to that
+  // since the rendered value always comes from here, not the DOM node.
+  const [values, setValues] = useState({
+    jobTitle: requirement?.jobTitle ?? "",
+    clientName: requirement?.clientName ?? "",
+    status: requirement?.status ?? "Open",
+    priority: requirement?.priority?.toString() ?? "0",
+    employmentType: requirement?.employmentType ?? "",
+    duration: requirement?.duration ?? "",
+    visa: requirement?.visa ?? "",
+    workLocation: requirement?.workLocation ?? "",
+    country: requirement?.country ?? "",
+    isRemote: requirement?.isRemote ?? false,
+    billRate: requirement?.billRate?.toString() ?? "",
+    payRate: requirement?.payRate?.toString() ?? "",
+    cpocRaw: requirement?.cpocRaw ?? "",
+    mandatorySkills: requirement?.mandatorySkills ?? "",
+    jobDescription: requirement?.jobDescription ?? "",
+  });
+  function set<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
+    setValues((v) => ({ ...v, [key]: value }));
+  }
+
   // Visa is only mandatory for USA roles, and Work Location is only
   // mandatory when the role isn't Remote — mirrors the original app's
-  // conditional validation, so these need to be watched to toggle both the
-  // `required` attribute and the "*" marker live as the user edits.
-  const [country, setCountry] = useState(requirement?.country ?? "");
-  const [isRemote, setIsRemote] = useState(requirement?.isRemote ?? false);
-  const visaRequired = country.toUpperCase().includes("USA");
-  const workLocationRequired = !isRemote;
+  // conditional validation.
+  const visaRequired = values.country.toUpperCase().includes("USA");
+  const workLocationRequired = !values.isRemote;
 
   const action = requirement ? updateRequirement.bind(null, requirement.id) : createRequirement;
   const [error, formAction, pending] = useActionState(action, null);
@@ -94,11 +117,28 @@ export function RequirementModal({
 
         {isForm && (
           <form action={formAction} className="grid grid-cols-2 gap-4">
-            <Field label="Job Title" name="jobTitle" defaultValue={requirement?.jobTitle} required />
-            <Field label="Client Name" name="clientName" defaultValue={requirement?.clientName ?? ""} required />
+            <Field
+              label="Job Title"
+              name="jobTitle"
+              value={values.jobTitle}
+              onChange={(v) => set("jobTitle", v)}
+              required
+            />
+            <Field
+              label="Client Name"
+              name="clientName"
+              value={values.clientName}
+              onChange={(v) => set("clientName", v)}
+              required
+            />
             <div>
               <label className={labelClass}>Status</label>
-              <select name="status" defaultValue={requirement?.status ?? "Open"} className={inputClass}>
+              <select
+                name="status"
+                value={values.status}
+                onChange={(e) => set("status", e.target.value)}
+                className={inputClass}
+              >
                 {REQUIREMENT_STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -113,21 +153,30 @@ export function RequirementModal({
                 name="priority"
                 min={0}
                 max={5}
-                defaultValue={requirement?.priority ?? 0}
+                value={values.priority}
+                onChange={(e) => set("priority", e.target.value)}
                 className={inputClass}
               />
             </div>
             <Field
               label="Employment Type"
               name="employmentType"
-              defaultValue={requirement?.employmentType ?? ""}
+              value={values.employmentType}
+              onChange={(v) => set("employmentType", v)}
               required
             />
-            <Field label="Duration" name="duration" defaultValue={requirement?.duration ?? ""} required />
+            <Field
+              label="Duration"
+              name="duration"
+              value={values.duration}
+              onChange={(v) => set("duration", v)}
+              required
+            />
             <Field
               label="Visa"
               name="visa"
-              defaultValue={requirement?.visa ?? ""}
+              value={values.visa}
+              onChange={(v) => set("visa", v)}
               required={visaRequired}
             />
             <div>
@@ -137,7 +186,8 @@ export function RequirementModal({
               </label>
               <input
                 name="workLocation"
-                defaultValue={requirement?.workLocation ?? ""}
+                value={values.workLocation}
+                onChange={(e) => set("workLocation", e.target.value)}
                 required={workLocationRequired}
                 className={inputClass}
               />
@@ -146,8 +196,8 @@ export function RequirementModal({
               <label className={labelClass}>Country *</label>
               <input
                 name="country"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
+                value={values.country}
+                onChange={(e) => set("country", e.target.value)}
                 required
                 className={inputClass}
               />
@@ -157,7 +207,9 @@ export function RequirementModal({
               name="billRate"
               type="number"
               step="0.01"
-              defaultValue={requirement?.billRate?.toString() ?? ""}
+              min="0"
+              value={values.billRate}
+              onChange={(v) => set("billRate", v)}
               required
             />
             <Field
@@ -165,15 +217,22 @@ export function RequirementModal({
               name="payRate"
               type="number"
               step="0.01"
-              defaultValue={requirement?.payRate?.toString() ?? ""}
+              min="0"
+              value={values.payRate}
+              onChange={(v) => set("payRate", v)}
             />
-            <Field label="CPOC" name="cpocRaw" defaultValue={requirement?.cpocRaw ?? ""} />
+            <Field
+              label="CPOC"
+              name="cpocRaw"
+              value={values.cpocRaw}
+              onChange={(v) => set("cpocRaw", v)}
+            />
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 name="isRemote"
-                checked={isRemote}
-                onChange={(e) => setIsRemote(e.target.checked)}
+                checked={values.isRemote}
+                onChange={(e) => set("isRemote", e.target.checked)}
               />
               Remote
             </label>
@@ -181,7 +240,8 @@ export function RequirementModal({
               <label className={labelClass}>Mandatory Skills *</label>
               <textarea
                 name="mandatorySkills"
-                defaultValue={requirement?.mandatorySkills ?? ""}
+                value={values.mandatorySkills}
+                onChange={(e) => set("mandatorySkills", e.target.value)}
                 rows={2}
                 required
                 className={inputClass}
@@ -191,9 +251,11 @@ export function RequirementModal({
               <label className={labelClass}>Job Description *</label>
               <textarea
                 name="jobDescription"
-                defaultValue={requirement?.jobDescription ?? ""}
+                value={values.jobDescription}
+                onChange={(e) => set("jobDescription", e.target.value)}
                 rows={5}
                 required
+                maxLength={20000}
                 className={inputClass}
               />
             </div>
@@ -226,17 +288,21 @@ export function RequirementModal({
 function Field({
   label,
   name,
-  defaultValue,
+  value,
+  onChange,
   required,
   type = "text",
   step,
+  min,
 }: {
   label: string;
   name: string;
-  defaultValue?: string;
+  value: string;
+  onChange: (value: string) => void;
   required?: boolean;
   type?: string;
   step?: string;
+  min?: string;
 }) {
   return (
     <div>
@@ -248,7 +314,9 @@ function Field({
         name={name}
         type={type}
         step={step}
-        defaultValue={defaultValue}
+        min={min}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         required={required}
         className={inputClass}
       />
