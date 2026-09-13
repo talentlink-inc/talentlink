@@ -80,6 +80,13 @@ model User {
   canViewPhone      Boolean @default(true) @map("can_view_phone")
   canViewEmail      Boolean @default(true) @map("can_view_email")
 
+  // Login lockout — mirrors the original app's Auth.js (MAX_LOGIN_ATTEMPTS=5,
+  // LOCKOUT_DURATION=15min), just durable in Postgres instead of a Cache
+  // Service entry, since a serverless deploy has no shared in-memory cache
+  // across instances. See src/app/login/actions.ts.
+  failedLoginCount Int       @default(0) @map("failed_login_count")
+  lockedUntil      DateTime? @map("locked_until")
+
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
