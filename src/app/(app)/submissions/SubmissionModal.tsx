@@ -87,6 +87,28 @@ export function SubmissionModal({
     setValues((v) => ({ ...v, [key]: value }));
   }
 
+  // Requirement picker is a search-as-you-type combobox (matching the
+  // original app's Select Requirement popup) rather than a plain <select>,
+  // since scrolling a native dropdown to find one of 49+ requirements by Job
+  // ID/Title/Client is exactly what that popup's search box was for.
+  const [reqQuery, setReqQuery] = useState("");
+  const [reqOpen, setReqOpen] = useState(false);
+  const reqBoxRef = useRef<HTMLDivElement>(null);
+  const selectedRequirement = eligibleRequirements.find((r) => r.id === values.requirementId) ?? null;
+  const reqFiltered = eligibleRequirements.filter((r) => {
+    const q = reqQuery.trim().toLowerCase();
+    if (!q) return true;
+    return `${r.jobId} ${r.jobTitle} ${r.clientName ?? ""}`.toLowerCase().includes(q);
+  });
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (reqBoxRef.current && !reqBoxRef.current.contains(e.target as Node)) setReqOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
   // React resets uncontrolled form fields after every action dispatch, even
   // when our own action just returns a soft "confirm?" state rather than
   // throwing — so by the time the user sees the warning and clicks "Submit
@@ -158,25 +180,56 @@ export function SubmissionModal({
             }}
             className="grid grid-cols-2 gap-4"
           >
-            <div className="col-span-2">
+            <div className="relative col-span-2" ref={reqBoxRef}>
               <label className={labelClass}>Requirement *</label>
-              <select
-                name="requirementId"
-                value={values.requirementId}
-                onChange={(e) => set("requirementId", e.target.value)}
-                required
+              <input type="hidden" name="requirementId" value={values.requirementId} />
+              <input
+                type="text"
+                value={reqOpen ? reqQuery : selectedRequirement ? `${selectedRequirement.jobId} — ${selectedRequirement.jobTitle}` : ""}
+                onChange={(e) => {
+                  setReqQuery(e.target.value);
+                  setReqOpen(true);
+                }}
+                onFocus={() => {
+                  setReqQuery("");
+                  setReqOpen(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && reqOpen) {
+                    e.stopPropagation();
+                    setReqOpen(false);
+                  }
+                }}
+                required={!values.requirementId}
+                placeholder="Search Job ID / Job Title / Client..."
                 className={inputClass}
-              >
-                <option value="" disabled>
-                  Select a requirement
-                </option>
-                {eligibleRequirements.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.jobId} — {r.jobTitle}
-                    {r.status === "Closed" || r.status === "Filled" ? ` (${r.status})` : ""}
-                  </option>
-                ))}
-              </select>
+              />
+              {reqOpen && (
+                <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-black/10 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-neutral-900">
+                  {reqFiltered.length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-black/50 dark:text-white/50">No matching requirements.</p>
+                  ) : (
+                    reqFiltered.map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => {
+                          set("requirementId", r.id);
+                          setReqOpen(false);
+                        }}
+                        className="block w-full px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
+                      >
+                        <span className="font-mono text-xs text-black/60 dark:text-white/60">{r.jobId}</span>{" "}
+                        {r.jobTitle}
+                        {r.clientName && <span className="text-black/40 dark:text-white/40"> — {r.clientName}</span>}
+                        {(r.status === "Closed" || r.status === "Filled") && (
+                          <span className="ml-1 text-black/40 dark:text-white/40">({r.status})</span>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             <Field
