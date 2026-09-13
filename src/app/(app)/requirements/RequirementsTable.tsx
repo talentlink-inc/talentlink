@@ -60,7 +60,7 @@ export function RequirementsTable({
             onClick={() => setModal({ mode: "create", requirement: null })}
             className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
           >
-            + Add Requirement
+            + New Requirement
           </button>
         )}
       </div>

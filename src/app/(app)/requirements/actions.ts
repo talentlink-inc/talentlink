@@ -14,10 +14,11 @@ const PERMISSION_ERROR = "Your role only has view access to Requirements.";
 // Requirements form validation (PageRecruitment.html: reqSaveRequirement) —
 // Client Name, Job Description, Duration, Mandatory Skills, Country, Bill
 // Rate, and Employment Type are all required there, plus Visa (only when
-// Country includes USA) and Work Location (only when not Remote).
+// Country includes USA) and Work Location (only when not Remote). Job ID
+// isn't part of the form at all there — it's auto-generated (generateJobId
+// in the original Recruitment.js), see generateJobId below.
 const requirementSchema = z
   .object({
-    jobId: z.string().trim().min(1, "Job ID is required"),
     jobTitle: z.string().trim().min(1, "Job title is required"),
     clientName: z.string().trim().min(1, "Client name is required"),
     status: z.enum(REQUIREMENT_STATUSES),
@@ -53,7 +54,6 @@ const requirementSchema = z
 
 function parseForm(formData: FormData) {
   return requirementSchema.safeParse({
-    jobId: formData.get("jobId"),
     jobTitle: formData.get("jobTitle"),
     clientName: formData.get("clientName") ?? "",
     status: formData.get("status"),
@@ -72,6 +72,33 @@ function parseForm(formData: FormData) {
   });
 }
 
+// Mirrors the original app's generateJobId (a monotonic counter that's never
+// reused after a delete), but zero-padded to 4 digits — "JOB-0001" — to match
+// this app's own SUB-0001/PLC-0001 convention rather than the original's
+// 3-digit one. There's no Script Properties equivalent here, but
+// requirements are only ever soft-deleted (deletedAt), so the max JobID
+// already on record — deleted rows included — gives the same never-reused
+// guarantee without a separate counter to maintain. See
+// scripts/renumber-job-ids.ts, which brought existing rows onto this scheme.
+async function generateJobId(
+  db: Awaited<ReturnType<typeof getTenantDb>>,
+  tenantId: string
+): Promise<string> {
+  const rows = await db.requirement.findMany({
+    where: { tenantId },
+    select: { jobId: true },
+  });
+  let max = 0;
+  for (const { jobId } of rows) {
+    const match = jobId.match(/^JOB-(\d+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > max) max = num;
+    }
+  }
+  return `JOB-${String(max + 1).padStart(4, "0")}`;
+}
+
 export async function createRequirement(_prevState: string | null, formData: FormData) {
   const user = await getCurrentUser();
   if (!canManageRecruitment(user.role)) return PERMISSION_ERROR;
@@ -84,23 +111,27 @@ export async function createRequirement(_prevState: string | null, formData: For
   const tenant = await getCurrentTenant();
   const db = await getTenantDb();
 
-  try {
-    await db.requirement.create({
-      data: {
-        ...parsed.data,
-        tenantId: tenant.id,
-        postedByUserId: user.id,
-      },
-    });
-  } catch (err) {
-    if (err instanceof Error && err.message.includes("Unique constraint")) {
-      return `Job ID "${parsed.data.jobId}" already exists.`;
+  // Retries a few times in the rare case two requirements are created in
+  // the same instant and land on the same generated Job ID.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const jobId = await generateJobId(db, tenant.id);
+    try {
+      await db.requirement.create({
+        data: {
+          ...parsed.data,
+          jobId,
+          tenantId: tenant.id,
+          postedByUserId: user.id,
+        },
+      });
+      revalidatePath("/requirements");
+      return null;
+    } catch (err) {
+      const isConflict = err instanceof Error && err.message.includes("Unique constraint");
+      if (!isConflict || attempt === 4) throw err;
     }
-    throw err;
   }
-
-  revalidatePath("/requirements");
-  return null;
+  throw new Error("Could not generate a unique Job ID after several attempts.");
 }
 
 export async function updateRequirement(
@@ -119,17 +150,12 @@ export async function updateRequirement(
   const tenant = await getCurrentTenant();
   const db = await getTenantDb();
 
-  try {
-    await db.requirement.update({
-      where: { id, tenantId: tenant.id },
-      data: parsed.data,
-    });
-  } catch (err) {
-    if (err instanceof Error && err.message.includes("Unique constraint")) {
-      return `Job ID "${parsed.data.jobId}" already exists.`;
-    }
-    throw err;
-  }
+  // Job ID is immutable once created (never part of the edit form), so the
+  // update never touches it.
+  await db.requirement.update({
+    where: { id, tenantId: tenant.id },
+    data: parsed.data,
+  });
 
   revalidatePath("/requirements");
   return null;

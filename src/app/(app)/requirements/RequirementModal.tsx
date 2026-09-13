@@ -63,9 +63,9 @@ export function RequirementModal({
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">
             {mode === "create"
-              ? "Add Requirement"
+              ? "New Requirement"
               : mode === "edit"
-                ? "Edit Requirement"
+                ? `Edit Requirement - ${requirement?.jobId}`
                 : requirement?.jobTitle}
           </h2>
           <button
@@ -94,7 +94,6 @@ export function RequirementModal({
 
         {isForm && (
           <form action={formAction} className="grid grid-cols-2 gap-4">
-            <Field label="Job ID" name="jobId" defaultValue={requirement?.jobId} required />
             <Field label="Job Title" name="jobTitle" defaultValue={requirement?.jobTitle} required />
             <Field label="Client Name" name="clientName" defaultValue={requirement?.clientName ?? ""} required />
             <div>
