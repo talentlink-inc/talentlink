@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { SubmissionModal } from "./SubmissionModal";
 import { formatDate } from "@/lib/format";
 import { VISA_STATUSES } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
+import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import type { DataPermissions } from "@/lib/users";
 import type { SerializedSubmission } from "./types";
 import type { SerializedRequirement } from "../requirements/types";
@@ -31,10 +32,17 @@ export function SubmissionsTable({
   const [search, setSearch] = useState("");
   const [visaFilter, setVisaFilter] = useState("");
   const [empTypeFilter, setEmpTypeFilter] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useOpenParam((id) => {
     const found = submissions.find((s) => s.id === id);
     if (found) setModal({ mode: "view", submission: found });
+  });
+
+  usePageShortcuts({
+    onNew: canEdit ? () => setModal({ mode: "create", submission: null }) : undefined,
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onClearSearch: () => setSearch(""),
   });
 
   const filtered = useMemo(() => {
@@ -68,6 +76,7 @@ export function SubmissionsTable({
 
       <div className="mb-4 flex flex-wrap gap-2">
         <input
+          ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, email, phone, location..."

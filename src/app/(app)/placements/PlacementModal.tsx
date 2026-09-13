@@ -5,6 +5,7 @@ import { updatePlacement } from "./actions";
 import { SUBMISSION_STATUSES, REJECT_REASON_OPTIONS, isRejectedStatus } from "@/lib/recruitment";
 import { NotesSection } from "../notes/NotesSection";
 import { formatDate } from "@/lib/format";
+import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import type { SerializedSubmission } from "../submissions/types";
 
 const inputClass =
@@ -31,6 +32,7 @@ export function PlacementModal({
   const [state, formAction, pending] = useActionState(updatePlacement.bind(null, placement.id), {
     error: null,
   });
+  useEscapeToClose(onClose);
   const [status, setStatus] = useState(placement.status);
   const [billRate, setBillRate] = useState(placement.billRate ?? "");
   const [payRate, setPayRate] = useState(placement.payRate ?? "");

@@ -7,6 +7,7 @@ import {
   getIntegrationStatus,
 } from "./integration-actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import type { IntegrationStatus } from "./integration-actions";
 
 const inputClass =
@@ -26,6 +27,7 @@ export function IntegrationSettingsModal({
   const [localStatus, setLocalStatus] = useState(status);
   const [state, formAction, pending] = useActionState(saveIntegrationCredentials, { error: null });
   const [disconnecting, setDisconnecting] = useState(false);
+  useEscapeToClose(onClose);
 
   const wasSaving = useRef(false);
   useEffect(() => {
@@ -106,16 +108,16 @@ export function IntegrationSettingsModal({
               </select>
             </div>
             <div>
-              <label className={labelClass}>Client ID</label>
+              <label className={labelClass}>Client ID *</label>
               <input name="clientId" required className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>Client Secret</label>
+              <label className={labelClass}>Client Secret *</label>
               <input name="clientSecret" type="password" required className={inputClass} />
             </div>
             {provider === "microsoft" && (
               <div>
-                <label className={labelClass}>Tenant ID</label>
+                <label className={labelClass}>Tenant ID *</label>
                 <input name="microsoftTenantId" required className={inputClass} />
               </div>
             )}

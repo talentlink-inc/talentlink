@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Settings, Table as TableIcon, Calendar as CalendarIcon } from "lucide-react";
 import { InterviewModal } from "./InterviewModal";
@@ -9,6 +9,7 @@ import { IntegrationSettingsModal } from "./IntegrationSettingsModal";
 import { formatDateTime } from "@/lib/format";
 import { INTERVIEW_STATUSES, INTERVIEW_TYPES } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
+import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import type { SerializedInterview } from "./types";
 import type { SerializedSubmission } from "../submissions/types";
 import type { IntegrationStatus } from "./integration-actions";
@@ -49,6 +50,7 @@ export function InterviewsTable({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -62,6 +64,12 @@ export function InterviewsTable({
   useOpenParam((id) => {
     const found = interviews.find((i) => i.id === id);
     if (found) setModal({ mode: "view", interview: found });
+  });
+
+  usePageShortcuts({
+    onNew: canEdit ? () => setModal({ mode: "create", interview: null }) : undefined,
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onClearSearch: () => setSearch(""),
   });
 
   const filtered = useMemo(() => {
@@ -131,6 +139,7 @@ export function InterviewsTable({
 
       <div className="mb-4 flex flex-wrap gap-2">
         <input
+          ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search candidate, company..."

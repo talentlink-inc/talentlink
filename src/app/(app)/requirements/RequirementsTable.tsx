@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { RequirementModal } from "./RequirementModal";
 import { REQUIREMENT_STATUSES } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
+import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import type { SerializedRequirement } from "./types";
 
 const EMPLOYMENT_TYPES = ["FTE", "W2", "1099", "C2C", "C2H"];
@@ -24,10 +25,17 @@ export function RequirementsTable({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [empTypeFilter, setEmpTypeFilter] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useOpenParam((id) => {
     const found = requirements.find((r) => r.id === id);
     if (found) setModal({ mode: "view", requirement: found });
+  });
+
+  usePageShortcuts({
+    onNew: canEdit ? () => setModal({ mode: "create", requirement: null }) : undefined,
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onClearSearch: () => setSearch(""),
   });
 
   const filtered = useMemo(() => {
@@ -59,6 +67,7 @@ export function RequirementsTable({
 
       <div className="mb-4 flex flex-wrap gap-2">
         <input
+          ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search job title, client..."

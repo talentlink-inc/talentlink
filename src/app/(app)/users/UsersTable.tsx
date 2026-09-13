@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { UserModal } from "./UserModal";
 import { USER_ROLES } from "@/lib/users";
 import { formatDate } from "@/lib/format";
 import { useOpenParam } from "@/lib/useOpenParam";
+import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import type { User } from "@/generated/prisma/client";
 
 export function UsersTable({
@@ -26,10 +27,17 @@ export function UsersTable({
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useOpenParam((id) => {
     const found = users.find((u) => u.id === id);
     if (found) setModal({ mode: "view", userId: found.id });
+  });
+
+  usePageShortcuts({
+    onNew: canEdit ? () => setModal({ mode: "create", userId: null }) : undefined,
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onClearSearch: () => setSearch(""),
   });
 
   const modalUser = modal?.userId ? (users.find((u) => u.id === modal.userId) ?? null) : null;
@@ -63,6 +71,7 @@ export function UsersTable({
 
       <div className="mb-4 flex flex-wrap gap-2">
         <input
+          ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, email, or role..."

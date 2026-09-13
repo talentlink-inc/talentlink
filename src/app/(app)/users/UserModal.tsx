@@ -12,6 +12,7 @@ import {
 import { USER_ROLES, USER_STATUSES } from "@/lib/users";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { formatDateTime } from "@/lib/format";
+import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import type { User } from "@/generated/prisma/client";
 
 type Mode = "create" | "view" | "edit";
@@ -41,6 +42,7 @@ export function UserModal({
   const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  useEscapeToClose(onClose);
 
   const action = user ? updateUser.bind(null, user.id) : createUser;
   const [state, formAction, formPending] = useActionState<UserFormState, FormData>(action, {

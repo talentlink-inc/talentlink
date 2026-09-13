@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { LogOut, UserCog } from "lucide-react";
+import { Keyboard, LogOut, UserCog } from "lucide-react";
 import { signOut } from "@/app/login/actions";
+import { useEscapeToClose } from "@/lib/useEscapeToClose";
+import { useShortcutsHelp } from "@/lib/keyboardShortcuts";
 
 export function UserMenu({ user }: { user: { name: string; email: string; role: string } }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { setHelpOpen } = useShortcutsHelp();
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -16,6 +19,8 @@ export function UserMenu({ user }: { user: { name: string; email: string; role: 
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
+
+  useEscapeToClose(() => setOpen(false));
 
   const initial = user.name.trim().charAt(0).toUpperCase() || "?";
 
@@ -46,6 +51,17 @@ export function UserMenu({ user }: { user: { name: string; email: string; role: 
             <UserCog size={14} />
             My Account
           </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setHelpOpen(true);
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
+          >
+            <Keyboard size={14} />
+            Keyboard Shortcuts
+          </button>
           <form action={signOut}>
             <button
               type="submit"

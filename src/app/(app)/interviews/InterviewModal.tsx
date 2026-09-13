@@ -6,6 +6,7 @@ import { INTERVIEW_STATUSES, INTERVIEW_MODES, INTERVIEW_TYPES } from "@/lib/recr
 import { NotesSection } from "../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { formatDateTime } from "@/lib/format";
+import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import type { SerializedInterview } from "./types";
 import type { SerializedSubmission } from "../submissions/types";
 
@@ -39,6 +40,7 @@ export function InterviewModal({
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const isForm = mode === "create" || mode === "edit";
+  useEscapeToClose(onClose);
 
   const action = interview ? updateInterview.bind(null, interview.id) : createInterview;
   const [state, formAction, pending] = useActionState(action, { error: null });
@@ -160,11 +162,15 @@ export function InterviewModal({
               />
             </div>
 
-            <Field
-              label="Timezone"
-              name="timezone"
-              defaultValue={interview?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}
-            />
+            <div>
+              <label className={labelClass}>Timezone *</label>
+              <input
+                name="timezone"
+                defaultValue={interview?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}
+                required
+                className={inputClass}
+              />
+            </div>
             <Field
               label="Client Company"
               name="clientCompany"

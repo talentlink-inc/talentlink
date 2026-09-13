@@ -10,42 +10,64 @@ import { canManageRecruitment } from "@/lib/users";
 
 const PERMISSION_ERROR = "Your role only has view access to Requirements.";
 
-const requirementSchema = z.object({
-  jobId: z.string().trim().min(1, "Job ID is required"),
-  jobTitle: z.string().trim().min(1, "Job title is required"),
-  clientName: z.string().trim().optional(),
-  status: z.enum(REQUIREMENT_STATUSES),
-  priority: z.coerce.number().int().min(0).max(5),
-  employmentType: z.string().trim().optional(),
-  duration: z.string().trim().optional(),
-  visa: z.string().trim().optional(),
-  workLocation: z.string().trim().optional(),
-  country: z.string().trim().optional(),
-  isRemote: z.coerce.boolean().optional(),
-  billRate: z.coerce.number().optional().nullable(),
-  payRate: z.coerce.number().optional().nullable(),
-  mandatorySkills: z.string().trim().optional(),
-  jobDescription: z.string().trim().optional(),
-  cpocRaw: z.string().trim().optional(),
-});
+// Mandatory-field set mirrors the original ITStaffing (Google Apps Script)
+// Requirements form validation (PageRecruitment.html: reqSaveRequirement) —
+// Client Name, Job Description, Duration, Mandatory Skills, Country, Bill
+// Rate, and Employment Type are all required there, plus Visa (only when
+// Country includes USA) and Work Location (only when not Remote).
+const requirementSchema = z
+  .object({
+    jobId: z.string().trim().min(1, "Job ID is required"),
+    jobTitle: z.string().trim().min(1, "Job title is required"),
+    clientName: z.string().trim().min(1, "Client name is required"),
+    status: z.enum(REQUIREMENT_STATUSES),
+    priority: z.coerce.number().int().min(0).max(5),
+    employmentType: z.string().trim().min(1, "Employment type is required"),
+    duration: z.string().trim().min(1, "Duration is required"),
+    visa: z.string().trim().optional(),
+    workLocation: z.string().trim().optional(),
+    country: z.string().trim().min(1, "Country is required"),
+    isRemote: z.coerce.boolean().optional(),
+    billRate: z.string().trim().min(1, "Bill rate is required").transform(Number),
+    payRate: z.coerce.number().optional().nullable(),
+    mandatorySkills: z.string().trim().min(1, "Mandatory skills is required"),
+    jobDescription: z.string().trim().min(1, "Job description is required"),
+    cpocRaw: z.string().trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.isRemote && !data.workLocation) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["workLocation"],
+        message: "Work location is required (or check Remote)",
+      });
+    }
+    if (data.country.toUpperCase().includes("USA") && !data.visa) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["visa"],
+        message: "Visa is required for USA roles",
+      });
+    }
+  });
 
 function parseForm(formData: FormData) {
   return requirementSchema.safeParse({
     jobId: formData.get("jobId"),
     jobTitle: formData.get("jobTitle"),
-    clientName: formData.get("clientName") || undefined,
+    clientName: formData.get("clientName") ?? "",
     status: formData.get("status"),
     priority: formData.get("priority"),
-    employmentType: formData.get("employmentType") || undefined,
-    duration: formData.get("duration") || undefined,
+    employmentType: formData.get("employmentType") ?? "",
+    duration: formData.get("duration") ?? "",
     visa: formData.get("visa") || undefined,
     workLocation: formData.get("workLocation") || undefined,
-    country: formData.get("country") || undefined,
+    country: formData.get("country") ?? "",
     isRemote: formData.get("isRemote") === "on",
-    billRate: formData.get("billRate") || null,
+    billRate: formData.get("billRate") ?? "",
     payRate: formData.get("payRate") || null,
-    mandatorySkills: formData.get("mandatorySkills") || undefined,
-    jobDescription: formData.get("jobDescription") || undefined,
+    mandatorySkills: formData.get("mandatorySkills") ?? "",
+    jobDescription: formData.get("jobDescription") ?? "",
     cpocRaw: formData.get("cpocRaw") || undefined,
   });
 }

@@ -13,7 +13,13 @@ import {
   Rocket,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react";
+
+// How often to poll for a newer deployed version. New builds happen at most
+// a few times a day, so this favors keeping the check cheap over near-instant
+// detection — a manual page refresh always shows the on-focus check anyway.
+const VERSION_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 const RECRUITMENT_NAV = [
   { href: "/requirements", label: "Requirements", icon: FileText },
@@ -26,14 +32,46 @@ export function Sidebar({
   canManageUsers,
   canAccessOps,
   tenantName,
+  appVersion,
 }: {
   canManageUsers: boolean;
   canAccessOps: boolean;
   tenantName: string;
+  appVersion: string;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+
+  // Detects a newer deployment the same way the original GAS app's release
+  // badge does — poll a version endpoint and compare against what this tab
+  // loaded with; a mismatch means the server has redeployed underneath us.
+  useEffect(() => {
+    let cancelled = false;
+    async function check() {
+      try {
+        const res = await fetch("/api/version", { cache: "no-store" });
+        const data = await res.json();
+        if (!cancelled && data.version && data.version !== appVersion) {
+          setUpdateAvailable(true);
+        }
+      } catch {
+        // Offline or a blip — next interval/focus retries, nothing to show.
+      }
+    }
+    function onVisible() {
+      if (document.visibilityState === "visible") check();
+    }
+    check();
+    const interval = setInterval(check, VERSION_CHECK_INTERVAL_MS);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [appVersion]);
 
   // Reads localStorage after mount (not during the lazy useState initializer)
   // so the server-rendered and first-client-render markup match — collapse
@@ -80,14 +118,37 @@ export function Sidebar({
       style={{ background: "linear-gradient(180deg, #0d1257 0%, #1a237e 50%, #1a237e 100%)" }}
     >
       <div className="flex items-center gap-2 px-4 py-5">
-        {/* eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size local icon, no need for next/image's optimizer */}
-        <img src="/logo-icon-dark.png" alt="TalentLink" width={28} height={20} className="shrink-0" />
+        <div className="relative shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size local icon, no need for next/image's optimizer */}
+          <img src="/logo-icon-dark.png" alt="TalentLink" width={28} height={20} />
+          {collapsed && updateAvailable && (
+            <span
+              title="An update is available"
+              className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2 ring-[#0d1257]"
+            />
+          )}
+        </div>
         {!collapsed && (
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="truncate text-[15px] leading-tight font-semibold">
               Talent<span className="text-orange-400">Link</span>
             </div>
             <div className="truncate text-[10px] leading-tight text-white/50">{tenantName}</div>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="truncate font-mono text-[10px] leading-tight text-emerald-400">
+                v{appVersion}
+              </span>
+              {updateAvailable && (
+                <button
+                  onClick={() => window.location.reload()}
+                  title="A new version has been deployed — click to refresh"
+                  className="flex items-center gap-1 rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] font-semibold text-black hover:bg-yellow-300"
+                >
+                  <RefreshCw size={10} />
+                  Update
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

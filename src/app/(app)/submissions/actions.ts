@@ -31,35 +31,41 @@ const initialFormState: SubmissionFormState = {
   warningMessage: null,
 };
 
+// Mandatory-field set mirrors the original ITStaffing (Google Apps Script)
+// Submissions form (PageRecruitment.html: REC_MANDATORY_FIELD_IDS / recSubmitResume) —
+// Email, Contact Number, Current Location, Total Experience, Pay Rate, Visa
+// Status, Employment Type, and Role with Skills are all required there
+// (Recruiter Name is too, but that's the current logged-in user here, not a
+// form field). Bill Rate and LinkedIn URL were never on that mandatory list.
 const candidateSchema = z.object({
   requirementId: z.string().trim().min(1, "Select a requirement"),
   candidateName: z.string().trim().min(1, "Candidate name is required"),
-  email: z.string().trim().optional(),
-  phone: z.string().trim().optional(),
-  currentLocation: z.string().trim().optional(),
-  totalExperienceYears: z.coerce.number().optional().nullable(),
-  visaStatus: z.string().trim().optional(),
+  email: z.string().trim().min(1, "Email is required"),
+  phone: z.string().trim().min(1, "Contact number is required"),
+  currentLocation: z.string().trim().min(1, "Current location is required"),
+  totalExperienceYears: z.string().trim().min(1, "Total experience is required").transform(Number),
+  visaStatus: z.string().trim().min(1, "Visa status is required"),
   linkedinUrl: z.string().trim().optional(),
-  employmentType: z.string().trim().optional(),
-  roleWithSkills: z.string().trim().optional(),
+  employmentType: z.string().trim().min(1, "Employment type is required"),
+  roleWithSkills: z.string().trim().min(1, "Role with skills is required"),
   billRate: z.coerce.number().optional().nullable(),
-  payRate: z.coerce.number().optional().nullable(),
+  payRate: z.string().trim().min(1, "Pay rate is required").transform(Number),
 });
 
 function parseForm(formData: FormData) {
   return candidateSchema.safeParse({
     requirementId: formData.get("requirementId"),
     candidateName: formData.get("candidateName"),
-    email: formData.get("email") || undefined,
-    phone: formData.get("phone") || undefined,
-    currentLocation: formData.get("currentLocation") || undefined,
-    totalExperienceYears: formData.get("totalExperienceYears") || null,
-    visaStatus: formData.get("visaStatus") || undefined,
+    email: formData.get("email") ?? "",
+    phone: formData.get("phone") ?? "",
+    currentLocation: formData.get("currentLocation") ?? "",
+    totalExperienceYears: formData.get("totalExperienceYears") ?? "",
+    visaStatus: formData.get("visaStatus") ?? "",
     linkedinUrl: formData.get("linkedinUrl") || undefined,
-    employmentType: formData.get("employmentType") || undefined,
-    roleWithSkills: formData.get("roleWithSkills") || undefined,
+    employmentType: formData.get("employmentType") ?? "",
+    roleWithSkills: formData.get("roleWithSkills") ?? "",
     billRate: formData.get("billRate") || null,
-    payRate: formData.get("payRate") || null,
+    payRate: formData.get("payRate") ?? "",
   });
 }
 
@@ -117,6 +123,14 @@ export async function createSubmission(
   }
   const data = parsed.data;
   const force = formData.get("force") === "true";
+
+  // Resume upload is required on the original app's Add path (there's
+  // nothing to fall back to yet — on Edit, an already-attached resume
+  // satisfies the same check, so it isn't re-required there).
+  const resumeFile = formData.get("resume");
+  if (!(resumeFile instanceof File) || resumeFile.size === 0) {
+    return { ...initialFormState, error: "Resume upload is required." };
+  }
 
   const tenant = await getCurrentTenant();
   const db = await getTenantDb();
@@ -231,9 +245,9 @@ export async function updateSubmission(
 
   const parsed = editSchema.safeParse({
     ...Object.fromEntries(formData.entries()),
-    totalExperienceYears: formData.get("totalExperienceYears") || null,
+    totalExperienceYears: formData.get("totalExperienceYears") ?? "",
     billRate: formData.get("billRate") || null,
-    payRate: formData.get("payRate") || null,
+    payRate: formData.get("payRate") ?? "",
   });
   if (!parsed.success) {
     return { ...initialFormState, error: parsed.error.issues[0]?.message ?? "Invalid input" };

@@ -19,7 +19,9 @@ const interviewSchema = z.object({
   scheduledAt: z.string().trim().min(1, "Date/time is required"),
   durationMinutes: z.coerce.number().int().positive().optional().nullable(),
   mode: z.string().trim().optional(),
-  timezone: z.string().trim().optional(),
+  // Required in the original app's Interview form ("Timezone *") — dropped
+  // here during the port even though the field itself stayed.
+  timezone: z.string().trim().min(1, "Timezone is required"),
   clientCompany: z.string().trim().optional(),
   status: z.enum(INTERVIEW_STATUSES).optional(),
   feedback: z.string().trim().optional(),
@@ -32,7 +34,7 @@ function parseForm(formData: FormData) {
     scheduledAt: formData.get("scheduledAt"),
     durationMinutes: formData.get("durationMinutes") || null,
     mode: formData.get("mode") || undefined,
-    timezone: formData.get("timezone") || undefined,
+    timezone: formData.get("timezone") ?? "",
     clientCompany: formData.get("clientCompany") || undefined,
     status: formData.get("status") || undefined,
     feedback: formData.get("feedback") || undefined,

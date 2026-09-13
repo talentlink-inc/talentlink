@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { globalSearch, type SearchResult } from "@/app/(app)/search/actions";
+import { useEscapeToClose } from "@/lib/useEscapeToClose";
+import { useGlobalSearchShortcuts } from "@/lib/keyboardShortcuts";
 
 export function GlobalSearch() {
   const [query, setQuery] = useState("");
@@ -12,6 +14,7 @@ export function GlobalSearch() {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -21,6 +24,21 @@ export function GlobalSearch() {
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
+
+  useEscapeToClose(() => setOpen(false));
+
+  useGlobalSearchShortcuts({
+    onFocus: () => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+      if (results.length > 0) setOpen(true);
+    },
+    onClear: () => {
+      setQuery("");
+      setResults([]);
+      setOpen(false);
+    },
+  });
 
   function handleChange(value: string) {
     setQuery(value);
@@ -56,6 +74,7 @@ export function GlobalSearch() {
       <div className="flex items-center gap-2 rounded-md border border-black/15 bg-black/[0.02] px-3 py-2 dark:border-white/15 dark:bg-white/5">
         <Search size={16} className="shrink-0 text-black/40 dark:text-white/40" />
         <input
+          ref={inputRef}
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}

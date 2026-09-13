@@ -10,6 +10,7 @@ import {
 } from "@/lib/recruitment";
 import { NotesSection } from "../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import type { DataPermissions } from "@/lib/users";
 import type { SerializedSubmission } from "./types";
 import type { SerializedRequirement } from "../requirements/types";
@@ -39,6 +40,7 @@ export function SubmissionModal({
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const isForm = mode === "create" || mode === "edit";
+  useEscapeToClose(onClose);
 
   const action = submission ? updateSubmission.bind(null, submission.id) : createSubmission;
   const [state, formAction, pending] = useActionState(action, {
@@ -138,12 +140,19 @@ export function SubmissionModal({
             </div>
 
             <Field label="Candidate Name" name="candidateName" defaultValue={submission?.candidate.name} required />
-            <Field label="Email" name="email" type="email" defaultValue={submission?.candidate.email ?? ""} />
-            <Field label="Phone" name="phone" defaultValue={submission?.candidate.phone ?? ""} />
+            <Field
+              label="Email"
+              name="email"
+              type="email"
+              defaultValue={submission?.candidate.email ?? ""}
+              required
+            />
+            <Field label="Phone" name="phone" defaultValue={submission?.candidate.phone ?? ""} required />
             <Field
               label="Current Location"
               name="currentLocation"
               defaultValue={submission?.candidate.currentLocation ?? ""}
+              required
             />
             <Field
               label="Total Experience (yrs)"
@@ -151,15 +160,19 @@ export function SubmissionModal({
               type="number"
               step="0.1"
               defaultValue={submission?.candidate.totalExperienceYears ?? ""}
+              required
             />
             <div>
-              <label className={labelClass}>Visa Status</label>
+              <label className={labelClass}>Visa Status *</label>
               <select
                 name="visaStatus"
                 defaultValue={submission?.candidate.visaStatus ?? ""}
+                required
                 className={inputClass}
               >
-                <option value="">—</option>
+                <option value="" disabled>
+                  Select visa status
+                </option>
                 {VISA_STATUSES.map((v) => (
                   <option key={v} value={v}>
                     {v}
@@ -168,26 +181,43 @@ export function SubmissionModal({
               </select>
             </div>
             <Field label="LinkedIn URL" name="linkedinUrl" defaultValue={submission?.candidate.linkedinUrl ?? ""} />
-            <Field label="Employment Type" name="employmentType" defaultValue={submission?.employmentType ?? ""} />
+            <Field
+              label="Employment Type"
+              name="employmentType"
+              defaultValue={submission?.employmentType ?? ""}
+              required
+            />
             <Field label="Bill Rate" name="billRate" type="number" step="0.01" defaultValue={submission?.billRate ?? ""} />
-            <Field label="Pay Rate" name="payRate" type="number" step="0.01" defaultValue={submission?.payRate ?? ""} />
+            <Field
+              label="Pay Rate"
+              name="payRate"
+              type="number"
+              step="0.01"
+              defaultValue={submission?.payRate ?? ""}
+              required
+            />
 
             <div className="col-span-2">
-              <label className={labelClass}>Role with Skills</label>
+              <label className={labelClass}>Role with Skills *</label>
               <textarea
                 name="roleWithSkills"
                 defaultValue={submission?.roleWithSkills ?? ""}
                 rows={3}
+                required
                 className={inputClass}
               />
             </div>
 
             <div className="col-span-2">
-              <label className={labelClass}>Resume {submission?.resume && "(replace)"}</label>
+              <label className={labelClass}>
+                Resume {submission?.resume && "(replace)"}
+                {!submission && " *"}
+              </label>
               <input
                 type="file"
                 name="resume"
                 accept=".pdf,.doc,.docx"
+                required={!submission}
                 className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-black/5 file:px-3 file:py-2 file:text-sm dark:file:bg-white/10"
               />
             </div>

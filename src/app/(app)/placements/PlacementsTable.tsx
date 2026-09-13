@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PlacementModal } from "./PlacementModal";
 import { formatDate } from "@/lib/format";
 import { QUALIFYING_PLACEMENT_STATUSES, isRejectedStatus } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
+import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import type { SerializedSubmission } from "../submissions/types";
 
 const FELL_THROUGH = "__fell_through__";
@@ -22,10 +23,18 @@ export function PlacementsTable({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [salesByFilter, setSalesByFilter] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useOpenParam((id) => {
     const found = placements.find((p) => p.id === id);
     if (found) setSelected(found);
+  });
+
+  // No onNew here — placements aren't created directly, they fall out of a
+  // Submission's status change (see the README's "not a separate table" note).
+  usePageShortcuts({
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onClearSearch: () => setSearch(""),
   });
 
   const salesByOptions = useMemo(() => {
@@ -59,6 +68,7 @@ export function PlacementsTable({
 
       <div className="mb-4 flex flex-wrap gap-2">
         <input
+          ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by candidate, client, role..."
