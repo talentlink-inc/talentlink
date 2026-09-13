@@ -17,12 +17,19 @@ import { canManageRecruitment } from "@/lib/users";
 import { createHash } from "node:crypto";
 
 const MAX_RESUME_BYTES = 10 * 1024 * 1024; // 10MB, matches ITStaffing's cap
+const ALLOWED_RESUME_EXTENSIONS = [".pdf", ".doc", ".docx"];
+const ALLOWED_RESUME_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
 const PERMISSION_ERROR = "Your role only has view access to Submissions.";
 
 export type SubmissionFormState = {
   error: string | null;
   needsConfirmation: boolean;
   warningMessage: string | null;
+  duplicateSubmissionId?: string;
 };
 
 const initialFormState: SubmissionFormState = {
@@ -37,19 +44,37 @@ const initialFormState: SubmissionFormState = {
 // Status, Employment Type, and Role with Skills are all required there
 // (Recruiter Name is too, but that's the current logged-in user here, not a
 // form field). Bill Rate and LinkedIn URL were never on that mandatory list.
+const LINKEDIN_URL_PATTERN = /^https?:\/\/([a-z]{2,3}\.)?linkedin\.com\/.+/i;
+
 const candidateSchema = z.object({
   requirementId: z.string().trim().min(1, "Select a requirement"),
   candidateName: z.string().trim().min(1, "Candidate name is required"),
   email: z.string().trim().min(1, "Email is required"),
   phone: z.string().trim().min(1, "Contact number is required"),
   currentLocation: z.string().trim().min(1, "Current location is required"),
-  totalExperienceYears: z.string().trim().min(1, "Total experience is required").transform(Number),
+  totalExperienceYears: z
+    .string()
+    .trim()
+    .min(1, "Total experience is required")
+    .transform(Number)
+    .pipe(z.number().nonnegative("Total experience cannot be negative")),
   visaStatus: z.string().trim().min(1, "Visa status is required"),
-  linkedinUrl: z.string().trim().optional(),
+  linkedinUrl: z
+    .string()
+    .trim()
+    .optional()
+    .refine((v) => !v || LINKEDIN_URL_PATTERN.test(v), {
+      message: "Please enter a valid LinkedIn profile URL (e.g. https://www.linkedin.com/in/username)",
+    }),
   employmentType: z.string().trim().min(1, "Employment type is required"),
   roleWithSkills: z.string().trim().min(1, "Role with skills is required"),
-  billRate: z.coerce.number().optional().nullable(),
-  payRate: z.string().trim().min(1, "Pay rate is required").transform(Number),
+  billRate: z.coerce.number().nonnegative("Bill rate must be 0 or greater").optional().nullable(),
+  payRate: z
+    .string()
+    .trim()
+    .min(1, "Pay rate is required")
+    .transform(Number)
+    .pipe(z.number().nonnegative("Pay rate must be 0 or greater")),
 });
 
 function parseForm(formData: FormData) {
@@ -81,12 +106,30 @@ async function uploadResumeIfPresent(
     throw new Error("Resume must be under 10MB.");
   }
 
+  const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  const mimeAllowed = !file.type || ALLOWED_RESUME_MIME_TYPES.has(file.type);
+  if (!ALLOWED_RESUME_EXTENSIONS.includes(extension) || !mimeAllowed) {
+    throw new Error("Resume must be a .pdf, .doc, or .docx file.");
+  }
+
   const buffer = Buffer.from(await file.arrayBuffer());
   const fileSha256 = createHash("sha256").update(buffer).digest("hex");
   const db = await getTenantDb();
 
   const existing = await db.resume.findFirst({ where: { tenantId, fileSha256 } });
-  if (existing) return existing.id;
+  if (existing) {
+    // Same bytes, but re-uploaded under a different name (e.g. renamed before
+    // resubmitting) — the stored metadata should reflect what was actually
+    // just uploaded, not silently keep showing the first name that content
+    // hash was ever seen under.
+    if (existing.fileName !== file.name) {
+      await db.resume.update({
+        where: { id: existing.id },
+        data: { fileName: file.name, fileMime: file.type || existing.fileMime },
+      });
+    }
+    return existing.id;
+  }
 
   const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const storagePath = `${tenantId}/${candidateId}/${fileSha256}-${safeFileName}`;
@@ -156,6 +199,7 @@ export async function createSubmission(
       return {
         ...initialFormState,
         error: `${data.candidateName} is already submitted against this requirement (status: ${existingForSameRequirement.status}). Edit the existing submission instead.`,
+        duplicateSubmissionId: existingForSameRequirement.id,
       };
     }
 

@@ -19,7 +19,7 @@ const PERMISSION_ERROR = "Your role only has view access to Requirements.";
 // in the original Recruitment.js), see generateJobId below.
 const requirementSchema = z
   .object({
-    jobTitle: z.string().trim().min(1, "Job title is required"),
+    jobTitle: z.string().trim().min(1, "Job title is required").max(200, "Job title cannot exceed 200 characters"),
     clientName: z.string().trim().min(1, "Client name is required"),
     status: z.enum(REQUIREMENT_STATUSES),
     priority: z.coerce.number().int().min(0).max(5),
@@ -29,10 +29,19 @@ const requirementSchema = z
     workLocation: z.string().trim().optional(),
     country: z.string().trim().min(1, "Country is required"),
     isRemote: z.coerce.boolean().optional(),
-    billRate: z.string().trim().min(1, "Bill rate is required").transform(Number),
-    payRate: z.coerce.number().optional().nullable(),
+    billRate: z
+      .string()
+      .trim()
+      .min(1, "Bill rate is required")
+      .transform(Number)
+      .pipe(z.number().nonnegative("Bill rate must be 0 or greater")),
+    payRate: z.coerce.number().nonnegative("Pay rate must be 0 or greater").optional().nullable(),
     mandatorySkills: z.string().trim().min(1, "Mandatory skills is required"),
-    jobDescription: z.string().trim().min(1, "Job description is required"),
+    jobDescription: z
+      .string()
+      .trim()
+      .min(1, "Job description is required")
+      .max(20000, "Job description cannot exceed 20,000 characters"),
     cpocRaw: z.string().trim().optional(),
   })
   .superRefine((data, ctx) => {

@@ -16,6 +16,7 @@ export function NotesSection({
   currentUserId: string;
 }) {
   const [notes, setNotes] = useState<Note[] | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const boundAddNote = addNote.bind(null, module, recordId);
@@ -71,15 +72,22 @@ export function NotesSection({
                 <p className="whitespace-pre-wrap">{note.body}</p>
                 {(note.userId === currentUserId) && (
                   <button
-                    onClick={() =>
+                    disabled={deletingId === note.id}
+                    onClick={() => {
+                      if (deletingId) return;
+                      setDeletingId(note.id);
                       startTransition(async () => {
-                        await deleteNote(note.id);
-                        refresh();
-                      })
-                    }
-                    className="shrink-0 text-xs text-black/40 hover:text-red-600 dark:text-white/40"
+                        try {
+                          await deleteNote(note.id);
+                          refresh();
+                        } finally {
+                          setDeletingId(null);
+                        }
+                      });
+                    }}
+                    className="shrink-0 text-xs text-black/40 hover:text-red-600 disabled:opacity-40 dark:text-white/40"
                   >
-                    Delete
+                    {deletingId === note.id ? "Deleting…" : "Delete"}
                   </button>
                 )}
               </div>

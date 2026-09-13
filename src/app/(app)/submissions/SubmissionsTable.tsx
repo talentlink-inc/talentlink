@@ -155,6 +155,10 @@ export function SubmissionsTable({
           canEdit={canEdit}
           permissions={permissions}
           onClose={() => setModal(null)}
+          onOpenExisting={(id) => {
+            const found = submissions.find((s) => s.id === id);
+            if (found) setModal({ mode: "view", submission: found });
+          }}
         />
       )}
     </div>

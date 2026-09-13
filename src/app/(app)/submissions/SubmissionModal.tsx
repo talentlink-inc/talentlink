@@ -29,6 +29,7 @@ export function SubmissionModal({
   canEdit,
   permissions,
   onClose,
+  onOpenExisting,
 }: {
   mode: Mode;
   submission: SerializedSubmission | null;
@@ -37,10 +38,18 @@ export function SubmissionModal({
   canEdit: boolean;
   permissions: DataPermissions;
   onClose: () => void;
+  onOpenExisting: (id: string) => void;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const isForm = mode === "create" || mode === "edit";
   useEscapeToClose(onClose);
+
+  // A Closed/Filled requirement shouldn't take new submissions — but if this
+  // submission is already assigned to one (closed after the fact), keep it
+  // selectable here so editing doesn't make it vanish from its own dropdown.
+  const eligibleRequirements = requirements.filter(
+    (r) => (r.status !== "Closed" && r.status !== "Filled") || r.id === submission?.requirementId
+  );
 
   const action = submission ? updateSubmission.bind(null, submission.id) : createSubmission;
   const [state, formAction, pending] = useActionState(action, {
@@ -131,9 +140,10 @@ export function SubmissionModal({
                 <option value="" disabled>
                   Select a requirement
                 </option>
-                {requirements.map((r) => (
+                {eligibleRequirements.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.jobId} — {r.jobTitle}
+                    {r.status === "Closed" || r.status === "Filled" ? ` (${r.status})` : ""}
                   </option>
                 ))}
               </select>
@@ -262,7 +272,20 @@ export function SubmissionModal({
               </>
             )}
 
-            {state.error && <p className="col-span-2 text-sm text-red-600">{state.error}</p>}
+            {state.error && (
+              <div className="col-span-2 flex items-center justify-between gap-3 rounded-md bg-red-50 px-3 py-2 dark:bg-red-950">
+                <p className="text-sm text-red-600">{state.error}</p>
+                {state.duplicateSubmissionId && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenExisting(state.duplicateSubmissionId!)}
+                    className="shrink-0 rounded-md border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-900"
+                  >
+                    Edit Existing Submission
+                  </button>
+                )}
+              </div>
+            )}
             {state.needsConfirmation && (
               <p className="col-span-2 text-sm text-amber-600">{state.warningMessage}</p>
             )}
