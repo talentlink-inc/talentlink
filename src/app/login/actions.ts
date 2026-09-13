@@ -18,6 +18,23 @@ function minutesRemaining(lockedUntil: Date): number {
   return Math.max(1, Math.ceil((lockedUntil.getTime() - Date.now()) / 60000));
 }
 
+const LOCKOUT_DB_TIMEOUT_MS = 4000;
+
+// Lockout tracking is a secondary feature layered on top of Supabase's own
+// auth — a slow/unavailable Postgres connection here must never be able to
+// block the actual sign-in, which is why every call to this is raced
+// against a timeout rather than awaited directly. A `null` result just
+// means "skip lockout enforcement for this attempt," not an auth failure.
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]).catch((err) => {
+    console.error("Login lockout lookup failed (ignored, sign-in proceeds without it):", err);
+    return null;
+  });
+}
+
 export async function signIn(_prevState: string | null, formData: FormData) {
   // Copy-pasting a password often carries an accidental leading/trailing
   // space along, which then fails auth even though the "real" password is
@@ -27,9 +44,10 @@ export async function signIn(_prevState: string | null, formData: FormData) {
 
   const tenant = await getCurrentTenant();
   const db = getTenantDbFor(tenant.id);
-  const existingUser = await db.user.findUnique({
-    where: { tenantId_email: { tenantId: tenant.id, email } },
-  });
+  const existingUser = await withTimeout(
+    db.user.findUnique({ where: { tenantId_email: { tenantId: tenant.id, email } } }),
+    LOCKOUT_DB_TIMEOUT_MS
+  );
 
   if (existingUser?.lockedUntil && existingUser.lockedUntil.getTime() > Date.now()) {
     return `Account locked due to too many failed attempts. Try again in ${minutesRemaining(existingUser.lockedUntil)} minute(s).`;
@@ -42,13 +60,16 @@ export async function signIn(_prevState: string | null, formData: FormData) {
     if (existingUser) {
       const failCount = existingUser.failedLoginCount + 1;
       const locked = failCount >= MAX_LOGIN_ATTEMPTS;
-      await db.user.update({
-        where: { id: existingUser.id, tenantId: tenant.id },
-        data: {
-          failedLoginCount: locked ? 0 : failCount,
-          lockedUntil: locked ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
-        },
-      });
+      await withTimeout(
+        db.user.update({
+          where: { id: existingUser.id, tenantId: tenant.id },
+          data: {
+            failedLoginCount: locked ? 0 : failCount,
+            lockedUntil: locked ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
+          },
+        }),
+        LOCKOUT_DB_TIMEOUT_MS
+      );
       if (locked) {
         return "Account locked due to too many failed attempts. Try again in 15 minutes.";
       }
@@ -61,10 +82,13 @@ export async function signIn(_prevState: string | null, formData: FormData) {
   }
 
   if (existingUser && (existingUser.failedLoginCount > 0 || existingUser.lockedUntil)) {
-    await db.user.update({
-      where: { id: existingUser.id, tenantId: tenant.id },
-      data: { failedLoginCount: 0, lockedUntil: null },
-    });
+    await withTimeout(
+      db.user.update({
+        where: { id: existingUser.id, tenantId: tenant.id },
+        data: { failedLoginCount: 0, lockedUntil: null },
+      }),
+      LOCKOUT_DB_TIMEOUT_MS
+    );
   }
 
   // Password verified — but if this account has TOTP enrolled, the session
