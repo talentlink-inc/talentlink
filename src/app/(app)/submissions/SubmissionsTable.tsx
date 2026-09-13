@@ -3,14 +3,14 @@
 import { useMemo, useRef, useState } from "react";
 import { SubmissionModal } from "./SubmissionModal";
 import { formatDate } from "@/lib/format";
-import { VISA_STATUSES } from "@/lib/recruitment";
+import { VISA_STATUSES, SUBMISSION_EMPLOYMENT_TYPES, parseEmploymentTypes } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
+import { usePagination } from "@/lib/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import type { DataPermissions } from "@/lib/users";
 import type { SerializedSubmission } from "./types";
 import type { SerializedRequirement } from "../requirements/types";
-
-const EMPLOYMENT_TYPES = ["C2C", "W2", "1099", "FTE"];
 
 export function SubmissionsTable({
   submissions,
@@ -49,7 +49,7 @@ export function SubmissionsTable({
     const q = search.trim().toLowerCase();
     return submissions.filter((s) => {
       if (visaFilter && s.candidate.visaStatus !== visaFilter) return false;
-      if (empTypeFilter && s.employmentType !== empTypeFilter) return false;
+      if (empTypeFilter && !parseEmploymentTypes(s.employmentType).includes(empTypeFilter)) return false;
       if (q) {
         const haystack = `${s.submissionId ?? ""} ${s.candidate.name} ${s.candidate.email ?? ""} ${
           s.candidate.phone ?? ""
@@ -59,6 +59,8 @@ export function SubmissionsTable({
       return true;
     });
   }, [submissions, search, visaFilter, empTypeFilter]);
+
+  const { page, setPage, paged, totalPages, start, end, total } = usePagination(filtered, 25);
 
   return (
     <div>
@@ -100,9 +102,9 @@ export function SubmissionsTable({
           className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
         >
           <option value="">All Employment Type</option>
-          {EMPLOYMENT_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {SUBMISSION_EMPLOYMENT_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
             </option>
           ))}
         </select>
@@ -121,7 +123,7 @@ export function SubmissionsTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((s) => (
+            {paged.map((s) => (
               <tr
                 key={s.id}
                 onClick={() => setModal({ mode: "view", submission: s })}
@@ -145,6 +147,7 @@ export function SubmissionsTable({
           </tbody>
         </table>
       </div>
+      <PaginationControls page={page} totalPages={totalPages} start={start} end={end} total={total} onPageChange={setPage} />
 
       {modal && (
         <SubmissionModal

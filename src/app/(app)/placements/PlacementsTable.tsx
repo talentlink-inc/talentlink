@@ -6,6 +6,8 @@ import { formatDate } from "@/lib/format";
 import { QUALIFYING_PLACEMENT_STATUSES, isRejectedStatus } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
+import { usePagination } from "@/lib/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import type { SerializedSubmission } from "../submissions/types";
 
 const FELL_THROUGH = "__fell_through__";
@@ -62,6 +64,8 @@ export function PlacementsTable({
     });
   }, [placements, search, statusFilter, salesByFilter]);
 
+  const { page, setPage, paged, totalPages, start, end, total } = usePagination(filtered, 25);
+
   return (
     <div>
       <h1 className="mb-6 text-xl font-semibold">Placements</h1>
@@ -115,7 +119,7 @@ export function PlacementsTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => (
+            {paged.map((p) => (
               <tr
                 key={p.id}
                 onClick={() => setSelected(p)}
@@ -140,6 +144,7 @@ export function PlacementsTable({
           </tbody>
         </table>
       </div>
+      <PaginationControls page={page} totalPages={totalPages} start={start} end={end} total={total} onPageChange={setPage} />
 
       {selected && (
         <PlacementModal

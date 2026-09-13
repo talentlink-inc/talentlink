@@ -6,6 +6,9 @@ import {
   SUBMISSION_STATUSES,
   REJECT_REASON_OPTIONS,
   VISA_STATUSES,
+  SUBMISSION_EMPLOYMENT_TYPES,
+  parseEmploymentTypes,
+  toggleEmploymentType,
   isRejectedStatus,
 } from "@/lib/recruitment";
 import { NotesSection } from "../notes/NotesSection";
@@ -194,6 +197,7 @@ export function SubmissionModal({
             <Field
               label="Phone"
               name="phone"
+              type="tel"
               value={values.phone}
               onChange={(v) => set("phone", v)}
               required
@@ -240,13 +244,22 @@ export function SubmissionModal({
               value={values.linkedinUrl}
               onChange={(v) => set("linkedinUrl", v)}
             />
-            <Field
-              label="Employment Type"
-              name="employmentType"
-              value={values.employmentType}
-              onChange={(v) => set("employmentType", v)}
-              required
-            />
+            <div className="col-span-2">
+              <label className={labelClass}>Employment Type *</label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {SUBMISSION_EMPLOYMENT_TYPES.map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={parseEmploymentTypes(values.employmentType).includes(opt.value)}
+                      onChange={() => set("employmentType", toggleEmploymentType(values.employmentType, opt.value))}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+              <input type="hidden" name="employmentType" value={values.employmentType} />
+            </div>
             <Field
               label="Bill Rate"
               name="billRate"

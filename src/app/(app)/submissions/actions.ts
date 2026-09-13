@@ -45,12 +45,17 @@ const initialFormState: SubmissionFormState = {
 // (Recruiter Name is too, but that's the current logged-in user here, not a
 // form field). Bill Rate and LinkedIn URL were never on that mandatory list.
 const LINKEDIN_URL_PATTERN = /^https?:\/\/([a-z]{2,3}\.)?linkedin\.com\/.+/i;
+const PHONE_PATTERN = /^[0-9+\-() ]+$/;
 
 const candidateSchema = z.object({
   requirementId: z.string().trim().min(1, "Select a requirement"),
   candidateName: z.string().trim().min(1, "Candidate name is required"),
   email: z.string().trim().min(1, "Email is required"),
-  phone: z.string().trim().min(1, "Contact number is required"),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Contact number is required")
+    .regex(PHONE_PATTERN, "Phone number can only contain digits, spaces, and + - ( )"),
   currentLocation: z.string().trim().min(1, "Current location is required"),
   totalExperienceYears: z
     .string()

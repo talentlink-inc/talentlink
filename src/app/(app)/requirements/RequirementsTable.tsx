@@ -2,12 +2,12 @@
 
 import { useMemo, useRef, useState } from "react";
 import { RequirementModal } from "./RequirementModal";
-import { REQUIREMENT_STATUSES } from "@/lib/recruitment";
+import { REQUIREMENT_STATUSES, REQUIREMENT_EMPLOYMENT_TYPES, parseEmploymentTypes } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
+import { usePagination } from "@/lib/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import type { SerializedRequirement } from "./types";
-
-const EMPLOYMENT_TYPES = ["FTE", "W2", "1099", "C2C", "C2H"];
 
 export function RequirementsTable({
   requirements,
@@ -42,7 +42,7 @@ export function RequirementsTable({
     const q = search.trim().toLowerCase();
     return requirements.filter((r) => {
       if (statusFilter && r.status !== statusFilter) return false;
-      if (empTypeFilter && r.employmentType !== empTypeFilter) return false;
+      if (empTypeFilter && !parseEmploymentTypes(r.employmentType).includes(empTypeFilter)) return false;
       if (q) {
         const haystack = `${r.jobId} ${r.jobTitle} ${r.clientName ?? ""}`.toLowerCase();
         if (!haystack.includes(q)) return false;
@@ -50,6 +50,8 @@ export function RequirementsTable({
       return true;
     });
   }, [requirements, search, statusFilter, empTypeFilter]);
+
+  const { page, setPage, paged, totalPages, start, end, total } = usePagination(filtered, 25);
 
   return (
     <div>
@@ -91,9 +93,9 @@ export function RequirementsTable({
           className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
         >
           <option value="">All Employment Type</option>
-          {EMPLOYMENT_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {REQUIREMENT_EMPLOYMENT_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
             </option>
           ))}
         </select>
@@ -112,7 +114,7 @@ export function RequirementsTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r) => (
+            {paged.map((r) => (
               <tr
                 key={r.id}
                 onClick={() => setModal({ mode: "view", requirement: r })}
@@ -138,6 +140,7 @@ export function RequirementsTable({
           </tbody>
         </table>
       </div>
+      <PaginationControls page={page} totalPages={totalPages} start={start} end={end} total={total} onPageChange={setPage} />
 
       {modal && (
         <RequirementModal

@@ -114,3 +114,35 @@ export function shouldClearPlacementId(nextStatus: string, hadPlacementId: boole
   if (!hadPlacementId) return false;
   return !isQualifyingPlacementStatus(nextStatus) && !isRejectedStatus(nextStatus);
 }
+
+// Employment Type is a checkbox group in the original app (reqEmpTypeChk /
+// recHiringModel), stored as a comma-joined string of whichever were
+// checked (e.g. "W2, C2C") — not free text, and not a single-select. Same
+// 5 options on Requirements; Submissions additionally offers
+// "Others-Referral".
+export const REQUIREMENT_EMPLOYMENT_TYPES = [
+  { value: "W2", label: "W2" },
+  { value: "C2C", label: "C2C" },
+  { value: "1099", label: "1099" },
+  { value: "FTE", label: "Full-time" },
+  { value: "C2H", label: "C2H" },
+] as const;
+
+export const SUBMISSION_EMPLOYMENT_TYPES = [
+  ...REQUIREMENT_EMPLOYMENT_TYPES,
+  { value: "Others-Referral", label: "Others-Referral" },
+] as const;
+
+export function parseEmploymentTypes(value: string | null | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+export function toggleEmploymentType(current: string, value: string): string {
+  const set = new Set(parseEmploymentTypes(current));
+  if (set.has(value)) set.delete(value);
+  else set.add(value);
+  return Array.from(set).join(", ");
+}

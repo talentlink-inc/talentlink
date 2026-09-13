@@ -2,7 +2,12 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { createRequirement, updateRequirement, deleteRequirement } from "./actions";
-import { REQUIREMENT_STATUSES } from "@/lib/recruitment";
+import {
+  REQUIREMENT_STATUSES,
+  REQUIREMENT_EMPLOYMENT_TYPES,
+  parseEmploymentTypes,
+  toggleEmploymentType,
+} from "@/lib/recruitment";
 import { NotesSection } from "../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
@@ -158,13 +163,24 @@ export function RequirementModal({
                 className={inputClass}
               />
             </div>
-            <Field
-              label="Employment Type"
-              name="employmentType"
-              value={values.employmentType}
-              onChange={(v) => set("employmentType", v)}
-              required
-            />
+            <div className="col-span-2">
+              <label className={labelClass}>Employment Type *</label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {REQUIREMENT_EMPLOYMENT_TYPES.map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={parseEmploymentTypes(values.employmentType).includes(opt.value)}
+                      onChange={() => set("employmentType", toggleEmploymentType(values.employmentType, opt.value))}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+              {/* Hidden mirror so the checkbox group still posts one comma-joined
+                  value under the field name the server action expects. */}
+              <input type="hidden" name="employmentType" value={values.employmentType} />
+            </div>
             <Field
               label="Duration"
               name="duration"

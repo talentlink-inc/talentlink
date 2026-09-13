@@ -10,6 +10,8 @@ import { formatDateTime } from "@/lib/format";
 import { INTERVIEW_STATUSES, INTERVIEW_TYPES } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
+import { usePagination } from "@/lib/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import type { SerializedInterview } from "./types";
 import type { SerializedSubmission } from "../submissions/types";
 import type { IntegrationStatus } from "./integration-actions";
@@ -84,6 +86,8 @@ export function InterviewsTable({
       return true;
     });
   }, [interviews, search, statusFilter, typeFilter]);
+
+  const { page, setPage, paged, totalPages, start, end, total } = usePagination(filtered, 25);
 
   return (
     <div>
@@ -185,7 +189,7 @@ export function InterviewsTable({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((i) => (
+              {paged.map((i) => (
                 <tr
                   key={i.id}
                   onClick={() => setModal({ mode: "view", interview: i })}
@@ -210,6 +214,14 @@ export function InterviewsTable({
               )}
             </tbody>
           </table>
+          <PaginationControls
+            page={page}
+            totalPages={totalPages}
+            start={start}
+            end={end}
+            total={total}
+            onPageChange={setPage}
+          />
         </div>
       ) : (
         <InterviewCalendar interviews={filtered} onSelect={(i) => setModal({ mode: "view", interview: i })} />
