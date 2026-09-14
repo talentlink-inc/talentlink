@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Copy } from "lucide-react";
 import { RequirementModal } from "./RequirementModal";
 import { updateRequirementPriority } from "./actions";
 import { REQUIREMENT_STATUSES, REQUIREMENT_EMPLOYMENT_TYPES, parseEmploymentTypes } from "@/lib/recruitment";
@@ -74,18 +75,37 @@ export function RequirementsTable({
 
   const { page, setPage, paged, totalPages, start, end, total } = usePagination(filtered, 25);
 
+  // Mirrors GAS's Excel-style row select: the Clone icon only shows while
+  // exactly one row is genuinely highlighted on the current page — checked
+  // against `paged` (what's actually rendered) rather than just trusting
+  // `selectedId`, since a filter/search/page change can leave `selectedId`
+  // pointing at a row that's no longer visible.
+  const selectedRequirement = paged.find((r) => r.id === selectedId) ?? null;
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Requirements</h1>
-        {canEdit && (
-          <button
-            onClick={() => setModal({ mode: "create", requirement: null })}
-            className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-          >
-            + New Requirement
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {canEdit && selectedRequirement && (
+            <button
+              onClick={() => setModal({ mode: "create", requirement: null, cloneFrom: selectedRequirement })}
+              title="Clone selected requirement"
+              aria-label="Clone selected requirement"
+              className="rounded-md border border-black/15 p-2 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+            >
+              <Copy size={16} />
+            </button>
+          )}
+          {canEdit && (
+            <button
+              onClick={() => setModal({ mode: "create", requirement: null })}
+              className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
+            >
+              + New Requirement
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -138,13 +158,22 @@ export function RequirementsTable({
             {paged.map((r) => (
               <tr
                 key={r.id}
-                onClick={() => {
-                  setSelectedId(r.id);
-                  setModal({ mode: "view", requirement: r });
-                }}
+                onClick={() => setSelectedId((id) => (id === r.id ? null : r.id))}
                 className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(r.id === selectedId)}`}
               >
-                <td className="px-4 py-2 font-mono text-xs">{r.jobId}</td>
+                <td className="px-4 py-2 font-mono text-xs">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModal({ mode: "view", requirement: r });
+                    }}
+                    className="hover:underline"
+                    title="View details"
+                  >
+                    {r.jobId}
+                  </button>
+                </td>
                 <td className="px-4 py-2">{r.jobTitle}</td>
                 <td className="px-4 py-2">{r.clientName ?? "—"}</td>
                 <td className="px-4 py-2">{r.status}</td>
