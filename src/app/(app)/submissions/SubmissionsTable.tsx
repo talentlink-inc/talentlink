@@ -161,6 +161,7 @@ export function SubmissionsTable({
 
       {modal && (
         <SubmissionModal
+          key={`${modal.mode}-${modal.submission?.id ?? "new"}`}
           mode={modal.mode}
           submission={modal.submission}
           requirements={requirements}

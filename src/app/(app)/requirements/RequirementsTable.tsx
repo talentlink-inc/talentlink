@@ -192,6 +192,7 @@ export function RequirementsTable({
 
       {modal && (
         <RequirementModal
+          key={`${modal.mode}-${modal.requirement?.id ?? "new"}-${modal.cloneFrom?.id ?? "none"}`}
           mode={modal.mode}
           requirement={modal.requirement}
           cloneFrom={modal.cloneFrom}
