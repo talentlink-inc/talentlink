@@ -15,6 +15,7 @@ import {
   ChevronRight,
   RefreshCw,
   LogOut,
+  Settings,
 } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 
@@ -32,13 +33,17 @@ const RECRUITMENT_NAV = [
 
 export function Sidebar({
   canManageUsers,
+  canManageSettings,
   canAccessOps,
   tenantName,
+  logoStyle,
   appVersion,
 }: {
   canManageUsers: boolean;
+  canManageSettings: boolean;
   canAccessOps: boolean;
   tenantName: string;
+  logoStyle: string;
   appVersion: string;
 }) {
   const pathname = usePathname();
@@ -121,17 +126,19 @@ export function Sidebar({
     >
       <div className="border-b border-white/10 px-4 pt-4 pb-2">
         <div className="flex items-center gap-2">
-          <div className="relative shrink-0">
-            {/* eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size local icon, no need for next/image's optimizer */}
-            <img src="/logo-icon-dark.png" alt="TalentLink" width={28} height={20} />
-            {collapsed && updateAvailable && (
-              <span
-                title="An update is available"
-                className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2 ring-[#0d1257]"
-              />
-            )}
-          </div>
-          {!collapsed && (
+          {logoStyle !== "wordmark" && (
+            <div className="relative shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size local icon, no need for next/image's optimizer */}
+              <img src="/logo-icon-dark.png" alt="TalentLink" width={28} height={20} />
+              {collapsed && updateAvailable && (
+                <span
+                  title="An update is available"
+                  className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2 ring-[#0d1257]"
+                />
+              )}
+            </div>
+          )}
+          {!collapsed && logoStyle !== "people" && (
             <div className="min-w-0 flex-1">
               <div className="truncate text-[15px] leading-tight font-semibold">
                 Talent<span className="text-orange-400">Link</span>
@@ -178,14 +185,17 @@ export function Sidebar({
           {RECRUITMENT_NAV.map((item) => navItem(item.href, item.label, item.icon))}
         </ul>
 
-        {canManageUsers && (
+        {(canManageUsers || canManageSettings) && (
           <>
             {!collapsed && (
               <div className="px-2 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-white/40">
                 ADMIN
               </div>
             )}
-            <ul className="space-y-0.5">{navItem("/users", "User Management", ShieldCheck)}</ul>
+            <ul className="space-y-0.5">
+              {canManageUsers && navItem("/users", "User Management", ShieldCheck)}
+              {canManageSettings && navItem("/settings", "Settings", Settings)}
+            </ul>
           </>
         )}
 

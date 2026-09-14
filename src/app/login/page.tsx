@@ -6,7 +6,7 @@ export default async function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
-      <LoginForm tenantName={tenant.name} />
+      <LoginForm tenantName={tenant.name} logoStyle={tenant.logoStyle} />
     </div>
   );
 }

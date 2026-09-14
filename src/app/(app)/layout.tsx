@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentTenant } from "@/lib/tenant";
-import { canViewUsers } from "@/lib/users";
+import { canViewUsers, canManageUsers } from "@/lib/users";
 import { isPlatformAdmin } from "@/lib/platformAdmin";
 import { ShortcutsProvider } from "@/lib/keyboardShortcuts";
 import { APP_VERSION } from "@/lib/version";
@@ -18,8 +18,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex h-screen overflow-hidden">
         <Sidebar
           canManageUsers={canViewUsers(currentUser.role)}
+          canManageSettings={canManageUsers(currentUser.role)}
           canAccessOps={canAccessOps}
           tenantName={tenant.name}
+          logoStyle={tenant.logoStyle}
           appVersion={APP_VERSION}
         />
         <div className="flex min-w-0 flex-1 flex-col">
