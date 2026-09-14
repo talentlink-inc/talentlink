@@ -100,7 +100,8 @@ export async function proxy(request: NextRequest) {
     isAuthRoute ||
     bypassesTenantResolution ||
     pathname.startsWith("/api/health") ||
-    pathname.startsWith("/auth/"); // invite/callback/set-password — no session yet when these run
+    pathname.startsWith("/auth/") || // invite/callback/set-password — no session yet when these run
+    pathname.startsWith("/apply/"); // public candidate apply-link — no portal session at all, ever
 
   if (!user && !isPublicRoute) {
     const loginUrl = request.nextUrl.clone();
