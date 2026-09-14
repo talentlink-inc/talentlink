@@ -11,6 +11,7 @@ export function GlobalSearch() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,6 +43,7 @@ export function GlobalSearch() {
 
   function handleChange(value: string) {
     setQuery(value);
+    setActiveIndex(-1);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (value.trim().length < 2) {
       setResults([]);
@@ -52,6 +54,7 @@ export function GlobalSearch() {
       startTransition(async () => {
         const r = await globalSearch(value);
         setResults(r);
+        setActiveIndex(-1);
         setOpen(true);
       });
     }, 250);
@@ -62,6 +65,22 @@ export function GlobalSearch() {
     setQuery("");
     setResults([]);
     router.push(href);
+  }
+
+  // ↑/↓ to move through results, Enter to open the highlighted one —
+  // matches the original app's GlobalSearch keyboard handling.
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!open || results.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % results.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? results.length - 1 : i - 1));
+    } else if (e.key === "Enter" && activeIndex >= 0) {
+      e.preventDefault();
+      goTo(results[activeIndex].href);
+    }
   }
 
   const grouped = results.reduce<Record<string, SearchResult[]>>((acc, r) => {
@@ -78,6 +97,7 @@ export function GlobalSearch() {
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
+          onKeyDown={handleKeyDown}
           placeholder="Search requirements, candidates, interviews…"
           className="w-full bg-transparent text-sm outline-none placeholder:text-black/40 dark:placeholder:text-white/40"
         />
@@ -95,17 +115,25 @@ export function GlobalSearch() {
                 <div className="px-3 py-1 text-[10px] font-semibold tracking-wider text-black/40 uppercase dark:text-white/40">
                   {category} ({items.length})
                 </div>
-                {items.map((r) => (
-                  <button
-                    key={`${r.category}-${r.id}`}
-                    type="button"
-                    onClick={() => goTo(r.href)}
-                    className="block w-full px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
-                  >
-                    <div className="font-medium">{r.label}</div>
-                    <div className="text-xs text-black/50 dark:text-white/50">{r.subtitle}</div>
-                  </button>
-                ))}
+                {items.map((r) => {
+                  const flatIndex = results.indexOf(r);
+                  return (
+                    <button
+                      key={`${r.category}-${r.id}`}
+                      type="button"
+                      onClick={() => goTo(r.href)}
+                      onMouseEnter={() => setActiveIndex(flatIndex)}
+                      className={`block w-full px-3 py-2 text-left text-sm ${
+                        flatIndex === activeIndex
+                          ? "bg-black/5 dark:bg-white/10"
+                          : "hover:bg-black/5 dark:hover:bg-white/10"
+                      }`}
+                    >
+                      <div className="font-medium">{r.label}</div>
+                      <div className="text-xs text-black/50 dark:text-white/50">{r.subtitle}</div>
+                    </button>
+                  );
+                })}
               </div>
             ))
           )}

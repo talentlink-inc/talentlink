@@ -49,3 +49,18 @@ export function toggleRegion(current: string, value: string): string {
   else set.add(value);
   return Array.from(set).join(", ");
 }
+
+// A user with no regions set is unrestricted (matches the original's "leave
+// blank to see requirements from all regions"); a requirement with no
+// country set is never hidden by this check either — only actually
+// overlapping, non-empty lists narrow visibility.
+export function userCanSeeRegions(
+  userRegionsCsv: string | null | undefined,
+  targetRegionsCsv: string | null | undefined
+): boolean {
+  const userRegions = parseRegionsCsv(userRegionsCsv);
+  if (userRegions.length === 0) return true;
+  const targetRegions = parseRegionsCsv(targetRegionsCsv);
+  if (targetRegions.length === 0) return true;
+  return targetRegions.some((r) => userRegions.includes(r));
+}

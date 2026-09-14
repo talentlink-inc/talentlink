@@ -25,6 +25,7 @@ const userSchema = z.object({
   canDownloadResume: z.coerce.boolean(),
   canViewPhone: z.coerce.boolean(),
   canViewEmail: z.coerce.boolean(),
+  regions: z.string().trim().optional(),
 });
 
 function parseForm(formData: FormData) {
@@ -38,6 +39,7 @@ function parseForm(formData: FormData) {
     canDownloadResume: formData.get("canDownloadResume") === "on",
     canViewPhone: formData.get("canViewPhone") === "on",
     canViewEmail: formData.get("canViewEmail") === "on",
+    regions: formData.get("regions") || undefined,
   });
 }
 
@@ -93,6 +95,7 @@ export async function createUser(
         canDownloadResume: data.canDownloadResume,
         canViewPhone: data.canViewPhone,
         canViewEmail: data.canViewEmail,
+        regions: data.regions || null,
       },
     });
   } catch (err) {
@@ -154,6 +157,7 @@ export async function updateUser(
       canDownloadResume: data.canDownloadResume,
       canViewPhone: data.canViewPhone,
       canViewEmail: data.canViewEmail,
+      regions: data.regions || null,
     },
   });
 

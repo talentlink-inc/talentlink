@@ -50,6 +50,25 @@ export async function addNote(
   return null;
 }
 
+export async function updateNote(id: string, body: string) {
+  const parsed = bodySchema.safeParse(body);
+  if (!parsed.success) throw new Error("Note can't be empty.");
+
+  const tenant = await getCurrentTenant();
+  const user = await getCurrentUser();
+  const db = await getTenantDb();
+
+  const note = await db.note.findUnique({ where: { id } });
+  if (!note || note.tenantId !== tenant.id) throw new Error("Note not found.");
+  if (note.userId !== user.id) throw new Error("Only the author can edit a note.");
+
+  await db.note.update({ where: { id }, data: { body: parsed.data } });
+  revalidatePath("/requirements");
+  revalidatePath("/submissions");
+  revalidatePath("/interviews");
+  revalidatePath("/placements");
+}
+
 export async function deleteNote(id: string) {
   const tenant = await getCurrentTenant();
   const user = await getCurrentUser();

@@ -10,6 +10,7 @@ import {
   type UserFormState,
 } from "./actions";
 import { USER_ROLES, USER_STATUSES } from "@/lib/users";
+import { SUPPORTED_REGIONS, parseRegionsCsv, toggleRegion } from "@/lib/regions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { formatDateTime } from "@/lib/format";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
@@ -42,6 +43,7 @@ export function UserModal({
   const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [regions, setRegions] = useState(user?.regions ?? "");
   useEscapeToClose(onClose);
 
   const action = user ? updateUser.bind(null, user.id) : createUser;
@@ -203,6 +205,28 @@ export function UserModal({
                   View email addresses
                 </label>
               </div>
+            </div>
+
+            <div className="col-span-2 rounded-md border border-black/10 p-3 dark:border-white/10">
+              <p className="mb-2 text-xs font-medium text-black/60 dark:text-white/60">
+                Region restriction{" "}
+                <span className="font-normal text-black/40 dark:text-white/40">
+                  (leave all unchecked to see requirements from every region)
+                </span>
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                {SUPPORTED_REGIONS.map((r) => (
+                  <label key={r} className="flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={parseRegionsCsv(regions).includes(r)}
+                      onChange={() => setRegions(toggleRegion(regions, r))}
+                    />
+                    {r}
+                  </label>
+                ))}
+              </div>
+              <input type="hidden" name="regions" value={regions} />
             </div>
 
             {state.error && <p className="col-span-2 text-sm text-red-600">{state.error}</p>}
