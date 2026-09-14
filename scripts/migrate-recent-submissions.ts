@@ -94,7 +94,7 @@ async function main() {
       isRemote: parseBool(row.IsRemote),
       ceipalJobId: row.CeipalJobID || null,
       postedByRaw: row.PostedBy || null,
-      cpocRaw: row.CPOC || null,
+      accountManagerRaw: row.CPOC || null,
       regions: {
         other: row.OtherCountryName || null,
         europe: row.EuropeCountries || null,

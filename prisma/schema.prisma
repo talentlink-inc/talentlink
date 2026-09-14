@@ -22,6 +22,17 @@ model Tenant {
   subdomain String   @unique
   plan      String   @default("starter")
   status    String   @default("active")
+
+  // AI-assisted JD parsing / resume autofill (Settings page) — key starts
+  // empty; both features no-op with a "add a key in Settings" message until
+  // an admin sets one. "groq" | "anthropic".
+  aiProvider String  @default("groq") @map("ai_provider")
+  aiApiKey   String? @map("ai_api_key")
+
+  // Which of the 3 original logo variants to render everywhere, incl.
+  // pre-login. "people" | "wordmark" | "full".
+  logoStyle String @default("full") @map("logo_style")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -87,13 +98,20 @@ model User {
   failedLoginCount Int       @default(0) @map("failed_login_count")
   lockedUntil      DateTime? @map("locked_until")
 
+  // Data-scoping permission, mirroring UserManagement.js's Region checkboxes
+  // — comma-joined list of SUPPORTED_REGIONS values (src/lib/regions.ts).
+  // Empty/null means "no restriction, sees every region" (matches the
+  // original's "leave blank to let the user see requirements from all
+  // regions").
+  regions String? // comma-joined, e.g. "USA, Canada"
+
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   postedRequirements    Requirement[] @relation("RequirementPostedBy")
-  cpocRequirements      Requirement[] @relation("RequirementCpoc")
+  accountManagerRequirements Requirement[] @relation("RequirementAccountManager")
   assignedRequirements  RequirementAssignee[]
   recruiterSubmissions  Submission[]   @relation("SubmissionRecruiter")
   assignedSubmissions   Submission[]   @relation("SubmissionAssignedTo")
@@ -117,7 +135,9 @@ model Requirement {
   mandatorySkills  String?   @map("mandatory_skills") @db.Text
   workLocation     String?   @map("work_location")
   billRate         Decimal?  @map("bill_rate") @db.Decimal(10, 2)
+  billRateCurrency String    @default("USD") @map("bill_rate_currency") // ISO 4217, e.g. "USD" — defaults from `country`, editable
   payRate          Decimal?  @map("pay_rate") @db.Decimal(10, 2)
+  payRateCurrency  String    @default("USD") @map("pay_rate_currency")
   clientName       String?   @map("client_name")
   status           String    @default("Open") // Open | Submitted | OnHold | Closed | Filled
   priority         Int       @default(0) // 0-5, normalized from legacy Critical/High/Medium/Low
@@ -127,20 +147,26 @@ model Requirement {
   regions          Json?     // raw region breakdown strings (Europe/APAC/UAE/South America/Other)
   ceipalJobId      String?   @map("ceipal_job_id")
 
+  // Per-requirement candidate screening questions, and the public apply
+  // link that surfaces them — see src/app/apply/[token].
+  screeningQuestions Json?   @map("screening_questions") // [{id, text, type: short|long|rating|yesno, required}]
+  publicApplyToken   String? @unique @map("public_apply_token")
+
   postedByUserId String? @map("posted_by_user_id")
   postedByRaw    String? @map("posted_by_raw") // legacy free-text name when not resolvable to a User
-  cpocUserId     String? @map("cpoc_user_id")
-  cpocRaw        String? @map("cpoc_raw")
+  // Renamed from CPOC (Client Point of Contact) — same field, clearer name.
+  accountManagerUserId String? @map("account_manager_user_id")
+  accountManagerRaw    String? @map("account_manager_raw")
 
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
   deletedAt DateTime?  @map("deleted_at")
 
-  tenant     Tenant                 @relation(fields: [tenantId], references: [id])
-  postedBy   User?                  @relation("RequirementPostedBy", fields: [postedByUserId], references: [id])
-  cpoc       User?                  @relation("RequirementCpoc", fields: [cpocUserId], references: [id])
-  assignees  RequirementAssignee[]
-  submissions Submission[]
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id])
+  postedBy      User?                  @relation("RequirementPostedBy", fields: [postedByUserId], references: [id])
+  accountManager User?                 @relation("RequirementAccountManager", fields: [accountManagerUserId], references: [id])
+  assignees     RequirementAssignee[]
+  submissions   Submission[]
 
   @@unique([tenantId, jobId])
   @@index([tenantId, status])
@@ -240,12 +266,19 @@ model Submission {
   selectedDate         DateTime? @map("selected_date")
   doj                  DateTime? @map("doj") // date of joining
 
-  billRate    Decimal? @map("bill_rate") @db.Decimal(10, 2)
-  payRate     Decimal? @map("pay_rate") @db.Decimal(10, 2)
+  billRate         Decimal? @map("bill_rate") @db.Decimal(10, 2)
+  billRateCurrency String   @default("USD") @map("bill_rate_currency") // defaults from the requirement's country, editable
+  payRate          Decimal? @map("pay_rate") @db.Decimal(10, 2)
+  payRateCurrency  String   @default("USD") @map("pay_rate_currency") // defaults from the candidate's country, editable
   commission  Decimal? @map("commission") @db.Decimal(10, 2)
 
   placementId  String?  @map("placement_id") // "PLC-0001" style, set when status reaches a qualifying placement status
   rejectReason String?  @map("reject_reason")
+
+  // Answers to the requirement's screeningQuestions at submission time —
+  // [{id, text, type, answer}], id/text/type mirrored from the question so
+  // the answer stays readable even if the requirement's questions change later.
+  screeningAnswers Json? @map("screening_answers")
 
   additionalDocUrl  String? @map("additional_doc_url")
   additionalDocName String? @map("additional_doc_name")

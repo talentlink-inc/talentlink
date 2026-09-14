@@ -1,13 +1,24 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { createRequirement, updateRequirement, deleteRequirement } from "./actions";
+import {
+  createRequirement,
+  updateRequirement,
+  deleteRequirement,
+  parseJobDescriptionWithAI,
+  getAccountManagerSuggestions,
+} from "./actions";
 import {
   REQUIREMENT_STATUSES,
   REQUIREMENT_EMPLOYMENT_TYPES,
   parseEmploymentTypes,
   toggleEmploymentType,
+  SCREENING_QUESTION_TYPE_LABELS,
+  type ScreeningQuestion,
+  type ScreeningQuestionType,
 } from "@/lib/recruitment";
+import { SUPPORTED_REGIONS, parseRegionsCsv, toggleRegion } from "@/lib/regions";
+import { SUPPORTED_CURRENCIES, defaultCurrencyForRegions } from "@/lib/currency";
 import { NotesSection } from "../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
@@ -19,22 +30,37 @@ const inputClass =
   "w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent";
 const labelClass = "mb-1 block text-xs font-medium text-black/60 dark:text-white/60";
 
+function screeningQuestionsOf(requirement: SerializedRequirement | null): ScreeningQuestion[] {
+  const raw = requirement?.screeningQuestions;
+  return Array.isArray(raw) ? (raw as unknown as ScreeningQuestion[]) : [];
+}
+
 export function RequirementModal({
   mode: initialMode,
   requirement,
+  cloneFrom,
   currentUserId,
   canEdit,
   onClose,
+  onClone,
 }: {
   mode: Mode;
   requirement: SerializedRequirement | null;
+  // Set only when opened via "Clone" — seeds a fresh create form from an
+  // existing requirement's values, title suffixed "(Copy)", without making
+  // this a real edit (requirement itself stays null so a new Job ID and
+  // record get created).
+  cloneFrom?: SerializedRequirement | null;
   currentUserId: string;
   canEdit: boolean;
   onClose: () => void;
+  onClone?: (source: SerializedRequirement) => void;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const isForm = mode === "create" || mode === "edit";
   useEscapeToClose(onClose);
+
+  const seed = requirement ?? cloneFrom ?? null;
 
   // Every field here is controlled (rather than defaultValue) so a failed
   // save — a validation error is just as likely as a duplicate-ID error —
@@ -42,25 +68,29 @@ export function RequirementModal({
   // every action dispatch, error or not; controlled state is immune to that
   // since the rendered value always comes from here, not the DOM node.
   const [values, setValues] = useState({
-    jobTitle: requirement?.jobTitle ?? "",
-    clientName: requirement?.clientName ?? "",
+    jobTitle: seed?.jobTitle ? (cloneFrom ? `${seed.jobTitle} (Copy)` : seed.jobTitle) : "",
+    clientName: seed?.clientName ?? "",
     status: requirement?.status ?? "Open",
-    priority: requirement?.priority?.toString() ?? "0",
-    employmentType: requirement?.employmentType ?? "",
-    duration: requirement?.duration ?? "",
-    visa: requirement?.visa ?? "",
-    workLocation: requirement?.workLocation ?? "",
-    country: requirement?.country ?? "",
-    isRemote: requirement?.isRemote ?? false,
-    billRate: requirement?.billRate?.toString() ?? "",
-    payRate: requirement?.payRate?.toString() ?? "",
-    cpocRaw: requirement?.cpocRaw ?? "",
-    mandatorySkills: requirement?.mandatorySkills ?? "",
-    jobDescription: requirement?.jobDescription ?? "",
+    priority: seed?.priority?.toString() ?? "0",
+    employmentType: seed?.employmentType ?? "",
+    duration: seed?.duration ?? "",
+    visa: seed?.visa ?? "",
+    workLocation: seed?.workLocation ?? "",
+    country: seed?.country ?? "",
+    isRemote: seed?.isRemote ?? false,
+    billRate: seed?.billRate?.toString() ?? "",
+    billRateCurrency: seed?.billRateCurrency ?? "USD",
+    payRate: seed?.payRate?.toString() ?? "",
+    payRateCurrency: seed?.payRateCurrency ?? "USD",
+    accountManagerRaw: seed?.accountManagerRaw ?? "",
+    mandatorySkills: seed?.mandatorySkills ?? "",
+    jobDescription: seed?.jobDescription ?? "",
   });
   function set<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((v) => ({ ...v, [key]: value }));
   }
+
+  const [questions, setQuestions] = useState<ScreeningQuestion[]>(screeningQuestionsOf(seed));
 
   // Visa is only mandatory for USA roles, and Work Location is only
   // mandatory when the role isn't Remote — mirrors the original app's
@@ -79,6 +109,83 @@ export function RequirementModal({
     wasSubmitting.current = pending;
   }, [pending, error, onClose]);
 
+  // Currency defaults follow Country the first time it's set on a brand-new
+  // requirement — never overrides a value the user (or a clone/edit source)
+  // already has.
+  const currencyTouched = useRef(seed !== null);
+  function handleCountryChange(next: string) {
+    set("country", next);
+    if (!currencyTouched.current) {
+      const currency = defaultCurrencyForRegions(next);
+      setValues((v) => ({ ...v, billRateCurrency: currency, payRateCurrency: currency }));
+    }
+  }
+
+  // ---- Job Description rich-text editor ----
+  // A plain contenteditable div, not a React-controlled input — form-reset-
+  // on-action-dispatch only touches real form controls, so this survives a
+  // failed submit without any special handling. The hidden input below is
+  // what actually posts jobDescription; `values.jobDescription` state (kept
+  // in sync via onInput) is the single source of truth for both that hidden
+  // input and for anything that needs to *set* the editor's content
+  // programmatically (AI parse, clone-seeding on mount).
+  const jdEditorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (jdEditorRef.current) jdEditorRef.current.innerHTML = values.jobDescription;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  function exec(command: string) {
+    jdEditorRef.current?.focus();
+    document.execCommand(command);
+    if (jdEditorRef.current) set("jobDescription", jdEditorRef.current.innerHTML);
+  }
+
+  // ---- AI JD parsing ----
+  const [aiParsing, setAiParsing] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  async function handleParseWithAi() {
+    if (!jdEditorRef.current || !jdEditorRef.current.innerText.trim()) {
+      setAiError("Paste a job description into the field below first, then click Parse with AI.");
+      return;
+    }
+    setAiParsing(true);
+    setAiError(null);
+    try {
+      const parsed = await parseJobDescriptionWithAI(jdEditorRef.current.innerText);
+      setValues((v) => ({
+        ...v,
+        jobTitle: v.jobTitle || parsed.jobTitle || v.jobTitle,
+        visa: v.visa || parsed.visa || v.visa,
+        mandatorySkills: v.mandatorySkills || parsed.mandatorySkills || v.mandatorySkills,
+        isRemote: v.isRemote || parsed.isRemote || v.isRemote,
+        workLocation: v.workLocation || parsed.workLocation || v.workLocation,
+        country: v.country || parsed.country || v.country,
+      }));
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "AI parsing failed.");
+    } finally {
+      setAiParsing(false);
+    }
+  }
+
+  // ---- Account Manager autocomplete ----
+  const [amSuggestions, setAmSuggestions] = useState<string[]>([]);
+  const [amOpen, setAmOpen] = useState(false);
+  const amBoxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    getAccountManagerSuggestions().then(setAmSuggestions);
+  }, []);
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (amBoxRef.current && !amBoxRef.current.contains(e.target as Node)) setAmOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+  const amFiltered = amSuggestions.filter(
+    (n) => !values.accountManagerRaw || n.toLowerCase().includes(values.accountManagerRaw.toLowerCase())
+  );
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -91,7 +198,9 @@ export function RequirementModal({
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">
             {mode === "create"
-              ? "New Requirement"
+              ? cloneFrom
+                ? `New Requirement (cloned from ${cloneFrom.jobId})`
+                : "New Requirement"
               : mode === "edit"
                 ? `Edit Requirement - ${requirement?.jobId}`
                 : requirement?.jobTitle}
@@ -111,6 +220,7 @@ export function RequirementModal({
               requirement={requirement}
               canEdit={canEdit}
               onEdit={() => setMode("edit")}
+              onClone={onClone ? () => onClone(requirement) : undefined}
               onDelete={async () => {
                 await deleteRequirement(requirement.id);
                 onClose();
@@ -152,16 +262,9 @@ export function RequirementModal({
               </select>
             </div>
             <div>
-              <label className={labelClass}>Priority (0–5)</label>
-              <input
-                type="number"
-                name="priority"
-                min={0}
-                max={5}
-                value={values.priority}
-                onChange={(e) => set("priority", e.target.value)}
-                className={inputClass}
-              />
+              <label className={labelClass}>Priority</label>
+              <StarRating value={Number(values.priority)} onChange={(n) => set("priority", String(n))} />
+              <input type="hidden" name="priority" value={values.priority} />
             </div>
             <div className="col-span-2">
               <label className={labelClass}>Employment Type *</label>
@@ -208,41 +311,6 @@ export function RequirementModal({
                 className={inputClass}
               />
             </div>
-            <div>
-              <label className={labelClass}>Country *</label>
-              <input
-                name="country"
-                value={values.country}
-                onChange={(e) => set("country", e.target.value)}
-                required
-                className={inputClass}
-              />
-            </div>
-            <Field
-              label="Bill Rate"
-              name="billRate"
-              type="number"
-              step="0.01"
-              min="0"
-              value={values.billRate}
-              onChange={(v) => set("billRate", v)}
-              required
-            />
-            <Field
-              label="Pay Rate"
-              name="payRate"
-              type="number"
-              step="0.01"
-              min="0"
-              value={values.payRate}
-              onChange={(v) => set("payRate", v)}
-            />
-            <Field
-              label="CPOC"
-              name="cpocRaw"
-              value={values.cpocRaw}
-              onChange={(v) => set("cpocRaw", v)}
-            />
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -252,6 +320,79 @@ export function RequirementModal({
               />
               Remote
             </label>
+
+            <div className="col-span-2">
+              <label className={labelClass}>Country *</label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {SUPPORTED_REGIONS.map((r) => (
+                  <label key={r} className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={parseRegionsCsv(values.country).includes(r)}
+                      onChange={() => handleCountryChange(toggleRegion(values.country, r))}
+                    />
+                    {r}
+                  </label>
+                ))}
+              </div>
+              <input type="hidden" name="country" value={values.country} required />
+            </div>
+
+            <RateField
+              label="Bill Rate"
+              rateName="billRate"
+              currencyName="billRateCurrency"
+              rate={values.billRate}
+              currency={values.billRateCurrency}
+              onRateChange={(v) => set("billRate", v)}
+              onCurrencyChange={(v) => {
+                currencyTouched.current = true;
+                set("billRateCurrency", v);
+              }}
+              required
+            />
+            <RateField
+              label="Pay Rate"
+              rateName="payRate"
+              currencyName="payRateCurrency"
+              rate={values.payRate}
+              currency={values.payRateCurrency}
+              onRateChange={(v) => set("payRate", v)}
+              onCurrencyChange={(v) => {
+                currencyTouched.current = true;
+                set("payRateCurrency", v);
+              }}
+            />
+
+            <div className="relative col-span-2" ref={amBoxRef}>
+              <label className={labelClass}>Account Manager</label>
+              <input
+                name="accountManagerRaw"
+                value={values.accountManagerRaw}
+                onChange={(e) => set("accountManagerRaw", e.target.value)}
+                onFocus={() => setAmOpen(true)}
+                autoComplete="off"
+                className={inputClass}
+              />
+              {amOpen && amFiltered.length > 0 && (
+                <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-black/10 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-neutral-900">
+                  {amFiltered.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        set("accountManagerRaw", name);
+                        setAmOpen(false);
+                      }}
+                      className="block w-full px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="col-span-2">
               <label className={labelClass}>Mandatory Skills *</label>
               <textarea
@@ -263,18 +404,49 @@ export function RequirementModal({
                 className={inputClass}
               />
             </div>
+
             <div className="col-span-2">
-              <label className={labelClass}>Job Description *</label>
-              <textarea
-                name="jobDescription"
-                value={values.jobDescription}
-                onChange={(e) => set("jobDescription", e.target.value)}
-                rows={5}
-                required
-                maxLength={20000}
-                className={inputClass}
+              <div className="mb-1 flex items-center justify-between">
+                <label className={labelClass + " mb-0"}>Job Description *</label>
+                <button
+                  type="button"
+                  onClick={handleParseWithAi}
+                  disabled={aiParsing}
+                  className="rounded-md border border-black/15 px-2 py-1 text-xs font-medium hover:bg-black/5 disabled:opacity-50 dark:border-white/15 dark:hover:bg-white/10"
+                >
+                  {aiParsing ? "Parsing…" : "✨ Parse with AI"}
+                </button>
+              </div>
+              {aiError && <p className="mb-1 text-xs text-red-600">{aiError}</p>}
+              <div className="mb-1 flex gap-1 rounded-t-md border border-b-0 border-black/15 bg-black/[0.02] px-2 py-1 dark:border-white/15 dark:bg-white/[0.03]">
+                <button type="button" onClick={() => exec("bold")} className="rounded px-2 py-0.5 text-xs font-bold hover:bg-black/10 dark:hover:bg-white/10">
+                  B
+                </button>
+                <button type="button" onClick={() => exec("italic")} className="rounded px-2 py-0.5 text-xs italic hover:bg-black/10 dark:hover:bg-white/10">
+                  I
+                </button>
+                <button type="button" onClick={() => exec("underline")} className="rounded px-2 py-0.5 text-xs underline hover:bg-black/10 dark:hover:bg-white/10">
+                  U
+                </button>
+                <span className="mx-1 w-px bg-black/15 dark:bg-white/15" />
+                <button type="button" onClick={() => exec("insertUnorderedList")} className="rounded px-2 py-0.5 text-xs hover:bg-black/10 dark:hover:bg-white/10">
+                  • List
+                </button>
+                <button type="button" onClick={() => exec("insertOrderedList")} className="rounded px-2 py-0.5 text-xs hover:bg-black/10 dark:hover:bg-white/10">
+                  1. List
+                </button>
+              </div>
+              <div
+                ref={jdEditorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(e) => set("jobDescription", e.currentTarget.innerHTML)}
+                className={inputClass + " min-h-[120px] rounded-t-none"}
               />
+              <input type="hidden" name="jobDescription" value={values.jobDescription} required />
             </div>
+
+            <ScreeningQuestionsBuilder questions={questions} onChange={setQuestions} />
 
             {error && <p className="col-span-2 text-sm text-red-600">{error}</p>}
 
@@ -297,6 +469,157 @@ export function RequirementModal({
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+function StarRating({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-1 py-1.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n === value ? 0 : n)}
+          aria-label={`Priority ${n}`}
+          className={`text-xl leading-none ${n <= value ? "text-amber-400" : "text-black/15 dark:text-white/15"}`}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RateField({
+  label,
+  rateName,
+  currencyName,
+  rate,
+  currency,
+  onRateChange,
+  onCurrencyChange,
+  required,
+}: {
+  label: string;
+  rateName: string;
+  currencyName: string;
+  rate: string;
+  currency: string;
+  onRateChange: (v: string) => void;
+  onCurrencyChange: (v: string) => void;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <label className={labelClass}>
+        {label}
+        {required && " *"}
+      </label>
+      <div className="flex gap-1">
+        <select
+          name={currencyName}
+          value={currency}
+          onChange={(e) => onCurrencyChange(e.target.value)}
+          className={inputClass + " w-24 shrink-0"}
+        >
+          {SUPPORTED_CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <input
+          name={rateName}
+          type="number"
+          step="0.01"
+          min="0"
+          value={rate}
+          onChange={(e) => onRateChange(e.target.value)}
+          required={required}
+          className={inputClass}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ScreeningQuestionsBuilder({
+  questions,
+  onChange,
+}: {
+  questions: ScreeningQuestion[];
+  onChange: (q: ScreeningQuestion[]) => void;
+}) {
+  function update(i: number, patch: Partial<ScreeningQuestion>) {
+    onChange(questions.map((q, idx) => (idx === i ? { ...q, ...patch } : q)));
+  }
+  function remove(i: number) {
+    onChange(questions.filter((_, idx) => idx !== i));
+  }
+  function add() {
+    onChange([...questions, { id: `q${Date.now()}`, text: "", type: "short", required: false }]);
+  }
+
+  return (
+    <div className="col-span-2">
+      <div className="mb-1 flex items-center justify-between">
+        <label className={labelClass + " mb-0"}>
+          Screening Questions{" "}
+          <span className="font-normal text-black/40 dark:text-white/40">
+            (shown to candidates on the public apply link)
+          </span>
+        </label>
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-md border border-black/15 px-2 py-1 text-xs font-medium hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+        >
+          + Add Question
+        </button>
+      </div>
+      {questions.length > 0 && (
+        <div className="space-y-2 rounded-md border border-black/10 p-2 dark:border-white/10">
+          {questions.map((q, i) => (
+            <div key={q.id} className="flex items-center gap-2">
+              <input
+                value={q.text}
+                onChange={(e) => update(i, { text: e.target.value })}
+                placeholder="Question text"
+                className={inputClass + " flex-1"}
+              />
+              <select
+                value={q.type}
+                onChange={(e) => update(i, { type: e.target.value as ScreeningQuestionType })}
+                className={inputClass + " w-32 shrink-0"}
+              >
+                {Object.entries(SCREENING_QUESTION_TYPE_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+              <label className="flex shrink-0 items-center gap-1 text-xs text-black/60 dark:text-white/60">
+                <input
+                  type="checkbox"
+                  checked={q.required}
+                  onChange={(e) => update(i, { required: e.target.checked })}
+                />
+                Required
+              </label>
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                className="shrink-0 text-black/40 hover:text-red-600 dark:text-white/40"
+                aria-label="Remove question"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <input type="hidden" name="screeningQuestions" value={JSON.stringify(questions.filter((q) => q.text.trim()))} />
     </div>
   );
 }
@@ -344,11 +667,13 @@ function ViewRequirement({
   requirement,
   canEdit,
   onEdit,
+  onClone,
   onDelete,
 }: {
   requirement: SerializedRequirement;
   canEdit: boolean;
   onEdit: () => void;
+  onClone?: () => void;
   onDelete: () => void;
 }) {
   const row = (label: string, value: React.ReactNode) => (
@@ -358,27 +683,55 @@ function ViewRequirement({
     </div>
   );
 
+  const [copied, setCopied] = useState(false);
+  const applyUrl =
+    requirement.publicApplyToken && typeof window !== "undefined"
+      ? `${window.location.origin}/apply/${requirement.publicApplyToken}`
+      : null;
+
   return (
     <div>
       <dl className="divide-y divide-black/5 dark:divide-white/5">
         {row("Job ID", requirement.jobId)}
         {row("Client", requirement.clientName)}
         {row("Status", requirement.status)}
-        {row("Priority", requirement.priority)}
+        {row("Priority", "★".repeat(requirement.priority) || "—")}
         {row("Employment Type", requirement.employmentType)}
         {row("Duration", requirement.duration)}
         {row("Visa", requirement.visa)}
         {row("Work Location", requirement.workLocation)}
         {row("Country", requirement.country)}
         {row("Remote", requirement.isRemote ? "Yes" : "No")}
-        {row("Bill Rate", requirement.billRate?.toString())}
-        {row("Pay Rate", requirement.payRate?.toString())}
-        {row("CPOC", requirement.cpocRaw)}
+        {row("Bill Rate", requirement.billRate && `${requirement.billRateCurrency} ${requirement.billRate}`)}
+        {row("Pay Rate", requirement.payRate && `${requirement.payRateCurrency} ${requirement.payRate}`)}
+        {row("Account Manager", requirement.accountManagerRaw)}
         {row("Mandatory Skills", requirement.mandatorySkills)}
         {row(
           "Job Description",
           requirement.jobDescription && (
-            <p className="whitespace-pre-wrap">{requirement.jobDescription}</p>
+            <div
+              className="prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+              dangerouslySetInnerHTML={{ __html: requirement.jobDescription }}
+            />
+          )
+        )}
+        {row(
+          "Apply Link",
+          applyUrl && (
+            <div className="flex items-center gap-2">
+              <code className="truncate text-xs">{applyUrl}</code>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(applyUrl);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                }}
+                className="shrink-0 rounded-md border border-black/15 px-2 py-0.5 text-xs hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
           )
         )}
       </dl>
@@ -389,6 +742,14 @@ function ViewRequirement({
             confirmText={`Delete requirement "${requirement.jobId}"?`}
             className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
           />
+          {onClone && (
+            <button
+              onClick={onClone}
+              className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15"
+            >
+              Clone
+            </button>
+          )}
           <button
             onClick={onEdit}
             className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"

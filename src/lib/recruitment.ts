@@ -146,3 +146,28 @@ export function toggleEmploymentType(current: string, value: string): string {
   else set.add(value);
   return Array.from(set).join(", ");
 }
+
+// Per-requirement candidate screening questions — mirrors the original
+// app's reqScreeningQuestions shape exactly (id/text/type/required).
+export type ScreeningQuestionType = "short" | "long" | "rating" | "yesno";
+
+export interface ScreeningQuestion {
+  id: string;
+  text: string;
+  type: ScreeningQuestionType;
+  required: boolean;
+}
+
+export const SCREENING_QUESTION_TYPE_LABELS: Record<ScreeningQuestionType, string> = {
+  short: "Short answer",
+  long: "Long answer",
+  rating: "Rating 1–5",
+  yesno: "Yes / No",
+};
+
+export interface ScreeningAnswer {
+  id: string;
+  text: string;
+  type: ScreeningQuestionType;
+  answer: string;
+}

@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { RequirementModal } from "./RequirementModal";
+import { updateRequirementPriority } from "./actions";
 import { REQUIREMENT_STATUSES, REQUIREMENT_EMPLOYMENT_TYPES, parseEmploymentTypes } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
@@ -21,11 +23,25 @@ export function RequirementsTable({
   const [modal, setModal] = useState<{
     mode: "create" | "view" | "edit";
     requirement: SerializedRequirement | null;
+    cloneFrom?: SerializedRequirement | null;
   } | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [empTypeFilter, setEmpTypeFilter] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [priorityOverrides, setPriorityOverrides] = useState<Record<string, number>>({});
+
+  function handleStarClick(r: SerializedRequirement, n: number) {
+    const current = priorityOverrides[r.id] ?? r.priority;
+    const next = n === current ? 0 : n;
+    setPriorityOverrides((prev) => ({ ...prev, [r.id]: next }));
+    startTransition(async () => {
+      await updateRequirementPriority(r.id, next);
+      router.refresh();
+    });
+  }
 
   useOpenParam((id) => {
     const found = requirements.find((r) => r.id === id);
@@ -124,8 +140,32 @@ export function RequirementsTable({
                 <td className="px-4 py-2">{r.jobTitle}</td>
                 <td className="px-4 py-2">{r.clientName ?? "—"}</td>
                 <td className="px-4 py-2">{r.status}</td>
-                <td className="px-4 py-2">{r.priority}</td>
-                <td className="px-4 py-2">{r.billRate?.toString() ?? "—"}</td>
+                <td className="px-4 py-2">
+                  {canEdit ? (
+                    <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => handleStarClick(r, n)}
+                          aria-label={`Priority ${n}`}
+                          className={`text-sm leading-none ${
+                            n <= (priorityOverrides[r.id] ?? r.priority)
+                              ? "text-amber-400"
+                              : "text-black/15 dark:text-white/15"
+                          }`}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    "★".repeat(r.priority) || "—"
+                  )}
+                </td>
+                <td className="px-4 py-2">
+                  {r.billRate ? `${r.billRateCurrency} ${r.billRate}` : "—"}
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
@@ -146,9 +186,11 @@ export function RequirementsTable({
         <RequirementModal
           mode={modal.mode}
           requirement={modal.requirement}
+          cloneFrom={modal.cloneFrom}
           currentUserId={currentUserId}
           canEdit={canEdit}
           onClose={() => setModal(null)}
+          onClone={(source) => setModal({ mode: "create", requirement: null, cloneFrom: source })}
         />
       )}
     </div>
