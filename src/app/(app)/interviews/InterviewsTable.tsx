@@ -12,6 +12,7 @@ import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { rowSelectClass } from "@/lib/tableRow";
 import type { SerializedInterview } from "./types";
 import type { SerializedSubmission } from "../submissions/types";
 import type { IntegrationStatus } from "./integration-actions";
@@ -53,6 +54,7 @@ export function InterviewsTable({
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -65,7 +67,10 @@ export function InterviewsTable({
 
   useOpenParam((id) => {
     const found = interviews.find((i) => i.id === id);
-    if (found) setModal({ mode: "view", interview: found });
+    if (found) {
+      setSelectedId(found.id);
+      setModal({ mode: "view", interview: found });
+    }
   });
 
   usePageShortcuts({
@@ -192,8 +197,11 @@ export function InterviewsTable({
               {paged.map((i) => (
                 <tr
                   key={i.id}
-                  onClick={() => setModal({ mode: "view", interview: i })}
-                  className="cursor-pointer border-t border-black/10 hover:bg-black/[0.03] dark:border-white/10 dark:hover:bg-white/[0.03]"
+                  onClick={() => {
+                    setSelectedId(i.id);
+                    setModal({ mode: "view", interview: i });
+                  }}
+                  className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(i.id === selectedId)}`}
                 >
                   <td className="px-4 py-2">{i.submission.candidate.name}</td>
                   <td className="px-4 py-2">{i.interviewType}</td>
@@ -224,7 +232,13 @@ export function InterviewsTable({
           />
         </div>
       ) : (
-        <InterviewCalendar interviews={filtered} onSelect={(i) => setModal({ mode: "view", interview: i })} />
+        <InterviewCalendar
+          interviews={filtered}
+          onSelect={(i) => {
+            setSelectedId(i.id);
+            setModal({ mode: "view", interview: i });
+          }}
+        />
       )}
 
       {modal && (

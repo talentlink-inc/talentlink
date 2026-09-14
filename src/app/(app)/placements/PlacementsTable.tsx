@@ -8,6 +8,7 @@ import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { rowSelectClass } from "@/lib/tableRow";
 import type { SerializedSubmission } from "../submissions/types";
 
 const FELL_THROUGH = "__fell_through__";
@@ -26,10 +27,14 @@ export function PlacementsTable({
   const [statusFilter, setStatusFilter] = useState("");
   const [salesByFilter, setSalesByFilter] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useOpenParam((id) => {
     const found = placements.find((p) => p.id === id);
-    if (found) setSelected(found);
+    if (found) {
+      setSelectedId(found.id);
+      setSelected(found);
+    }
   });
 
   // No onNew here — placements aren't created directly, they fall out of a
@@ -122,8 +127,11 @@ export function PlacementsTable({
             {paged.map((p) => (
               <tr
                 key={p.id}
-                onClick={() => setSelected(p)}
-                className="cursor-pointer border-t border-black/10 hover:bg-black/[0.03] dark:border-white/10 dark:hover:bg-white/[0.03]"
+                onClick={() => {
+                  setSelectedId(p.id);
+                  setSelected(p);
+                }}
+                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(p.id === selectedId)}`}
               >
                 <td className="px-4 py-2 font-mono text-xs">{p.placementId ?? "—"}</td>
                 <td className="px-4 py-2">{p.candidate.name}</td>

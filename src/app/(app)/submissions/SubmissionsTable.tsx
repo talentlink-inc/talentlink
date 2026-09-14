@@ -8,6 +8,7 @@ import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { rowSelectClass } from "@/lib/tableRow";
 import type { DataPermissions } from "@/lib/users";
 import type { SerializedSubmission } from "./types";
 import type { SerializedRequirement } from "../requirements/types";
@@ -35,10 +36,14 @@ export function SubmissionsTable({
   const [visaFilter, setVisaFilter] = useState("");
   const [empTypeFilter, setEmpTypeFilter] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useOpenParam((id) => {
     const found = submissions.find((s) => s.id === id);
-    if (found) setModal({ mode: "view", submission: found });
+    if (found) {
+      setSelectedId(found.id);
+      setModal({ mode: "view", submission: found });
+    }
   });
 
   usePageShortcuts({
@@ -128,8 +133,11 @@ export function SubmissionsTable({
             {paged.map((s) => (
               <tr
                 key={s.id}
-                onClick={() => setModal({ mode: "view", submission: s })}
-                className="cursor-pointer border-t border-black/10 hover:bg-black/[0.03] dark:border-white/10 dark:hover:bg-white/[0.03]"
+                onClick={() => {
+                  setSelectedId(s.id);
+                  setModal({ mode: "view", submission: s });
+                }}
+                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(s.id === selectedId)}`}
               >
                 <td className="px-4 py-2 font-mono text-xs">{s.submissionId ?? "—"}</td>
                 <td className="px-4 py-2">{s.candidate.name}</td>

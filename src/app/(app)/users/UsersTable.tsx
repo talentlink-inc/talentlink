@@ -6,6 +6,7 @@ import { USER_ROLES } from "@/lib/users";
 import { formatDate } from "@/lib/format";
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
+import { rowSelectClass } from "@/lib/tableRow";
 import type { User } from "@/generated/prisma/client";
 
 export function UsersTable({
@@ -28,10 +29,14 @@ export function UsersTable({
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useOpenParam((id) => {
     const found = users.find((u) => u.id === id);
-    if (found) setModal({ mode: "view", userId: found.id });
+    if (found) {
+      setSelectedId(found.id);
+      setModal({ mode: "view", userId: found.id });
+    }
   });
 
   usePageShortcuts({
@@ -115,8 +120,11 @@ export function UsersTable({
             {filtered.map((u) => (
               <tr
                 key={u.id}
-                onClick={() => setModal({ mode: "view", userId: u.id })}
-                className="cursor-pointer border-t border-black/10 hover:bg-black/[0.03] dark:border-white/10 dark:hover:bg-white/[0.03]"
+                onClick={() => {
+                  setSelectedId(u.id);
+                  setModal({ mode: "view", userId: u.id });
+                }}
+                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(u.id === selectedId)}`}
               >
                 <td className="px-4 py-2">
                   {u.name}

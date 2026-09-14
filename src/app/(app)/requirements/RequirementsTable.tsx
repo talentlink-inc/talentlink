@@ -9,6 +9,7 @@ import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { rowSelectClass } from "@/lib/tableRow";
 import type { SerializedRequirement } from "./types";
 
 export function RequirementsTable({
@@ -32,6 +33,7 @@ export function RequirementsTable({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [priorityOverrides, setPriorityOverrides] = useState<Record<string, number>>({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   function handleStarClick(r: SerializedRequirement, n: number) {
     const current = priorityOverrides[r.id] ?? r.priority;
@@ -45,7 +47,10 @@ export function RequirementsTable({
 
   useOpenParam((id) => {
     const found = requirements.find((r) => r.id === id);
-    if (found) setModal({ mode: "view", requirement: found });
+    if (found) {
+      setSelectedId(found.id);
+      setModal({ mode: "view", requirement: found });
+    }
   });
 
   usePageShortcuts({
@@ -133,8 +138,11 @@ export function RequirementsTable({
             {paged.map((r) => (
               <tr
                 key={r.id}
-                onClick={() => setModal({ mode: "view", requirement: r })}
-                className="cursor-pointer border-t border-black/10 hover:bg-black/[0.03] dark:border-white/10 dark:hover:bg-white/[0.03]"
+                onClick={() => {
+                  setSelectedId(r.id);
+                  setModal({ mode: "view", requirement: r });
+                }}
+                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(r.id === selectedId)}`}
               >
                 <td className="px-4 py-2 font-mono text-xs">{r.jobId}</td>
                 <td className="px-4 py-2">{r.jobTitle}</td>
