@@ -17,12 +17,14 @@ export function SubmissionsTable({
   requirements,
   currentUserId,
   canEdit,
+  isAdmin,
   permissions,
 }: {
   submissions: SerializedSubmission[];
   requirements: SerializedRequirement[];
   currentUserId: string;
   canEdit: boolean;
+  isAdmin: boolean;
   permissions: DataPermissions;
 }) {
   const [modal, setModal] = useState<{
@@ -134,7 +136,7 @@ export function SubmissionsTable({
                 <td className="px-4 py-2">{s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "—"}</td>
                 <td className="px-4 py-2">{s.status}</td>
                 <td className="px-4 py-2">{s.submissionDate ? formatDate(s.submissionDate) : "—"}</td>
-                <td className="px-4 py-2">{s.billRate ?? "—"}</td>
+                <td className="px-4 py-2">{s.billRate ? `${s.billRateCurrency} ${s.billRate}` : "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
@@ -156,6 +158,7 @@ export function SubmissionsTable({
           requirements={requirements}
           currentUserId={currentUserId}
           canEdit={canEdit}
+          isAdmin={isAdmin}
           permissions={permissions}
           onClose={() => setModal(null)}
           onOpenExisting={(id) => {

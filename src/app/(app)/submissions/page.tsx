@@ -1,7 +1,7 @@
 import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
-import { canManageRecruitment } from "@/lib/users";
+import { canManageRecruitment, canManageUsers } from "@/lib/users";
 import { SubmissionsTable } from "./SubmissionsTable";
 import { serializeSubmission } from "./types";
 import { serializeRequirement } from "../requirements/types";
@@ -31,6 +31,7 @@ export default async function SubmissionsPage() {
       requirements={requirements.map(serializeRequirement)}
       currentUserId={currentUser.id}
       canEdit={canManageRecruitment(currentUser.role)}
+      isAdmin={canManageUsers(currentUser.role)}
       permissions={{
         canViewResume: currentUser.canViewResume,
         canDownloadResume: currentUser.canDownloadResume,

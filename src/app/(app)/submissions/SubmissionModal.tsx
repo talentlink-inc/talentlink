@@ -1,7 +1,13 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { createSubmission, updateSubmission, deleteSubmission } from "./actions";
+import {
+  createSubmission,
+  updateSubmission,
+  deleteSubmission,
+  getRecruiterOptions,
+  parseResumeWithAI,
+} from "./actions";
 import {
   SUBMISSION_STATUSES,
   REJECT_REASON_OPTIONS,
@@ -11,6 +17,8 @@ import {
   toggleEmploymentType,
   isRejectedStatus,
 } from "@/lib/recruitment";
+import { SUPPORTED_REGIONS } from "@/lib/regions";
+import { SUPPORTED_CURRENCIES, defaultCurrencyForRegions } from "@/lib/currency";
 import { NotesSection } from "../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
@@ -30,6 +38,7 @@ export function SubmissionModal({
   requirements,
   currentUserId,
   canEdit,
+  isAdmin,
   permissions,
   onClose,
   onOpenExisting,
@@ -39,6 +48,7 @@ export function SubmissionModal({
   requirements: SerializedRequirement[];
   currentUserId: string;
   canEdit: boolean;
+  isAdmin: boolean;
   permissions: DataPermissions;
   onClose: () => void;
   onOpenExisting: (id: string) => void;
@@ -73,18 +83,92 @@ export function SubmissionModal({
     candidateName: submission?.candidate.name ?? "",
     email: submission?.candidate.email ?? "",
     phone: submission?.candidate.phone ?? "",
+    country: submission?.country ?? "",
     currentLocation: submission?.candidate.currentLocation ?? "",
     totalExperienceYears: submission?.candidate.totalExperienceYears?.toString() ?? "",
     visaStatus: submission?.candidate.visaStatus ?? "",
     linkedinUrl: submission?.candidate.linkedinUrl ?? "",
     employmentType: submission?.employmentType ?? "",
     billRate: submission?.billRate?.toString() ?? "",
+    billRateCurrency: submission?.billRateCurrency ?? "USD",
     payRate: submission?.payRate?.toString() ?? "",
+    payRateCurrency: submission?.payRateCurrency ?? "USD",
     roleWithSkills: submission?.roleWithSkills ?? "",
     rejectReason: submission?.rejectReason ?? "",
+    recruiterUserId: submission?.recruiterUserId ?? "",
   });
   function set<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((v) => ({ ...v, [key]: value }));
+  }
+
+  // Pay Rate's currency defaults from the candidate's own country the first
+  // time it's set on a brand-new submission — mirrors the same "first-set
+  // wins, always overridable" rule used for Requirement's Bill/Pay Rate.
+  const payCurrencyTouched = useRef(submission !== null);
+  function handleCountryChange(next: string) {
+    set("country", next);
+    if (!payCurrencyTouched.current) set("payRateCurrency", defaultCurrencyForRegions(next));
+  }
+
+  // Bill Rate's currency defaults from the *requirement's* country (the
+  // client being billed), separately from Pay Rate's candidate-country
+  // default — handles "UK requirement, USD bill rate, India-based
+  // candidate paid in INR" all at once.
+  const billCurrencyTouched = useRef(submission !== null);
+
+  // ---- Recruiter reassignment (Admin only) ----
+  const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (isAdmin) getRecruiterOptions().then(setRecruiters);
+  }, [isAdmin]);
+
+  // ---- AI resume-parse autofill ----
+  const [aiParsing, setAiParsing] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const resumeInputRef = useRef<HTMLInputElement>(null);
+  async function handleParseResumeWithAi() {
+    const file = resumeInputRef.current?.files?.[0];
+    if (!file) {
+      setAiError("Choose a resume file first, then click Parse with AI.");
+      return;
+    }
+    setAiParsing(true);
+    setAiError(null);
+    try {
+      const fd = new FormData();
+      fd.set("resume", file);
+      const parsed = await parseResumeWithAI(fd);
+      setValues((v) => ({
+        ...v,
+        candidateName: v.candidateName || parsed.candidateName || v.candidateName,
+        email: v.email || parsed.email || v.email,
+        phone: v.phone || parsed.phone || v.phone,
+        country: v.country || parsed.country || v.country,
+        currentLocation: v.currentLocation || parsed.currentLocation || v.currentLocation,
+        linkedinUrl: v.linkedinUrl || parsed.linkedinUrl || v.linkedinUrl,
+        totalExperienceYears:
+          v.totalExperienceYears || (parsed.totalExperienceYears ? String(parsed.totalExperienceYears) : "") || v.totalExperienceYears,
+        visaStatus: v.visaStatus || parsed.visaStatus || v.visaStatus,
+        roleWithSkills: v.roleWithSkills || parsed.roleWithSkills || v.roleWithSkills,
+      }));
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "AI parsing failed.");
+    } finally {
+      setAiParsing(false);
+    }
+  }
+
+  // ---- Resume drag-and-drop ----
+  const [dragOver, setDragOver] = useState(false);
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && resumeInputRef.current) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      resumeInputRef.current.files = dt.files;
+    }
   }
 
   // Requirement picker is a search-as-you-type combobox (matching the
@@ -255,6 +339,22 @@ export function SubmissionModal({
               onChange={(v) => set("phone", v)}
               required
             />
+            <div>
+              <label className={labelClass}>Country</label>
+              <select
+                name="country"
+                value={values.country}
+                onChange={(e) => handleCountryChange(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">—</option>
+                {SUPPORTED_REGIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
             <Field
               label="Current Location"
               name="currentLocation"
@@ -313,25 +413,48 @@ export function SubmissionModal({
               </div>
               <input type="hidden" name="employmentType" value={values.employmentType} />
             </div>
-            <Field
+            <RateField
               label="Bill Rate"
-              name="billRate"
-              type="number"
-              step="0.01"
-              min="0"
-              value={values.billRate}
-              onChange={(v) => set("billRate", v)}
+              rateName="billRate"
+              currencyName="billRateCurrency"
+              rate={values.billRate}
+              currency={values.billRateCurrency}
+              onRateChange={(v) => set("billRate", v)}
+              onCurrencyChange={(v) => {
+                billCurrencyTouched.current = true;
+                set("billRateCurrency", v);
+              }}
             />
-            <Field
+            <RateField
               label="Pay Rate"
-              name="payRate"
-              type="number"
-              step="0.01"
-              min="0"
-              value={values.payRate}
-              onChange={(v) => set("payRate", v)}
+              rateName="payRate"
+              currencyName="payRateCurrency"
+              rate={values.payRate}
+              currency={values.payRateCurrency}
+              onRateChange={(v) => set("payRate", v)}
+              onCurrencyChange={(v) => {
+                payCurrencyTouched.current = true;
+                set("payRateCurrency", v);
+              }}
               required
             />
+            {isAdmin && mode === "edit" && (
+              <div className="col-span-2">
+                <label className={labelClass}>Recruiter</label>
+                <select
+                  name="recruiterUserId"
+                  value={values.recruiterUserId}
+                  onChange={(e) => set("recruiterUserId", e.target.value)}
+                  className={inputClass}
+                >
+                  {recruiters.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="col-span-2">
               <label className={labelClass}>Role with Skills *</label>
@@ -346,17 +469,61 @@ export function SubmissionModal({
             </div>
 
             <div className="col-span-2">
+              <div className="mb-1 flex items-center justify-between">
+                <label className={labelClass + " mb-0"}>
+                  Resume {submission?.resume && "(replace)"}
+                  {!submission && " *"}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleParseResumeWithAi}
+                  disabled={aiParsing}
+                  className="rounded-md border border-black/15 px-2 py-1 text-xs font-medium hover:bg-black/5 disabled:opacity-50 dark:border-white/15 dark:hover:bg-white/10"
+                >
+                  {aiParsing ? "Parsing…" : "✨ Parse with AI"}
+                </button>
+              </div>
+              {aiError && <p className="mb-1 text-xs text-red-600">{aiError}</p>}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                className={`rounded-md border border-dashed p-3 text-center transition-colors ${
+                  dragOver
+                    ? "border-black/40 bg-black/5 dark:border-white/40 dark:bg-white/10"
+                    : "border-black/15 dark:border-white/15"
+                }`}
+              >
+                <input
+                  ref={resumeInputRef}
+                  type="file"
+                  name="resume"
+                  accept=".pdf,.doc,.docx"
+                  required={!submission}
+                  className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-black/5 file:px-3 file:py-2 file:text-sm dark:file:bg-white/10"
+                />
+                <p className="mt-1 text-xs text-black/40 dark:text-white/40">or drag and drop a file here</p>
+              </div>
+            </div>
+
+            <div className="col-span-2">
               <label className={labelClass}>
-                Resume {submission?.resume && "(replace)"}
-                {!submission && " *"}
+                Visa &amp; Other Documents {submission?.additionalDocName && "(replace)"}
               </label>
               <input
                 type="file"
-                name="resume"
-                accept=".pdf,.doc,.docx"
-                required={!submission}
+                name="additionalDoc"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                 className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-black/5 file:px-3 file:py-2 file:text-sm dark:file:bg-white/10"
               />
+              {submission?.additionalDocName && (
+                <p className="mt-1 text-xs text-black/40 dark:text-white/40">
+                  Currently: {submission.additionalDocName}
+                </p>
+              )}
             </div>
 
             {mode === "edit" && (
@@ -496,6 +663,59 @@ function Field({
   );
 }
 
+function RateField({
+  label,
+  rateName,
+  currencyName,
+  rate,
+  currency,
+  onRateChange,
+  onCurrencyChange,
+  required,
+}: {
+  label: string;
+  rateName: string;
+  currencyName: string;
+  rate: string;
+  currency: string;
+  onRateChange: (v: string) => void;
+  onCurrencyChange: (v: string) => void;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <label className={labelClass}>
+        {label}
+        {required && " *"}
+      </label>
+      <div className="flex gap-1">
+        <select
+          name={currencyName}
+          value={currency}
+          onChange={(e) => onCurrencyChange(e.target.value)}
+          className={inputClass + " w-24 shrink-0"}
+        >
+          {SUPPORTED_CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <input
+          name={rateName}
+          type="number"
+          step="0.01"
+          min="0"
+          value={rate}
+          onChange={(e) => onRateChange(e.target.value)}
+          required={required}
+          className={inputClass}
+        />
+      </div>
+    </div>
+  );
+}
+
 function ViewSubmission({
   submission,
   permissions,
@@ -523,6 +743,7 @@ function ViewSubmission({
         {row("Requirement", submission.requirement?.jobTitle ?? submission.requirementJobIdRaw)}
         {row("Email", permissions.canViewEmail ? submission.candidate.email : "Restricted")}
         {row("Phone", permissions.canViewPhone ? submission.candidate.phone : "Restricted")}
+        {row("Country", submission.country)}
         {row("Location", submission.candidate.currentLocation)}
         {row("Experience", submission.candidate.totalExperienceYears && `${submission.candidate.totalExperienceYears} yrs`)}
         {row("Visa", submission.candidate.visaStatus)}
@@ -535,8 +756,9 @@ function ViewSubmission({
           )
         )}
         {row("Employment Type", submission.employmentType)}
-        {row("Bill Rate", submission.billRate)}
-        {row("Pay Rate", submission.payRate)}
+        {row("Bill Rate", submission.billRate && `${submission.billRateCurrency} ${submission.billRate}`)}
+        {row("Pay Rate", submission.payRate && `${submission.payRateCurrency} ${submission.payRate}`)}
+        {row("Recruiter", submission.recruiterNameRaw)}
         {row("Status", submission.status)}
         {row("Reject Reason", submission.rejectReason)}
         {row("Placement ID", submission.placementId)}
@@ -566,6 +788,19 @@ function ViewSubmission({
                 </a>
               )}
             </div>
+          )
+        )}
+        {row(
+          "Visa & Other Documents",
+          submission.additionalDocName && permissions.canViewResume && (
+            <a
+              href={`/api/resumes/document?path=${encodeURIComponent(submission.additionalDocUrl ?? "")}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md border border-black/15 px-2 py-1 text-xs hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+            >
+              {submission.additionalDocName}
+            </a>
           )
         )}
         {row("Role/Skills", submission.roleWithSkills && <p className="whitespace-pre-wrap">{submission.roleWithSkills}</p>)}

@@ -131,7 +131,7 @@ export function PlacementsTable({
                 <td className="px-4 py-2">{p.status}</td>
                 <td className="px-4 py-2">{p.selectedDate ? formatDate(p.selectedDate) : "—"}</td>
                 <td className="px-4 py-2">{p.doj ? formatDate(p.doj) : "—"}</td>
-                <td className="px-4 py-2">{p.billRate ?? "—"}</td>
+                <td className="px-4 py-2">{p.billRate ? `${p.billRateCurrency} ${p.billRate}` : "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && (

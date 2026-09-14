@@ -11,6 +11,7 @@ import {
   shouldClearPlacementId,
 } from "@/lib/recruitment";
 import { canManageRecruitment } from "@/lib/users";
+import { SUPPORTED_CURRENCIES } from "@/lib/currency";
 
 export type PlacementFormState = { error: string | null };
 const initialState: PlacementFormState = { error: null };
@@ -19,7 +20,9 @@ const placementSchema = z.object({
   status: z.string().trim().min(1),
   doj: z.string().trim().optional(),
   billRate: z.coerce.number().optional().nullable(),
+  billRateCurrency: z.enum(SUPPORTED_CURRENCIES).optional(),
   payRate: z.coerce.number().optional().nullable(),
+  payRateCurrency: z.enum(SUPPORTED_CURRENCIES).optional(),
   commission: z.coerce.number().optional().nullable(),
   salesBy: z.string().trim().optional(),
   rejectReason: z.string().trim().optional(),
@@ -39,7 +42,9 @@ export async function updatePlacement(
     status: formData.get("status"),
     doj: formData.get("doj") || undefined,
     billRate: formData.get("billRate") || null,
+    billRateCurrency: formData.get("billRateCurrency") || "USD",
     payRate: formData.get("payRate") || null,
+    payRateCurrency: formData.get("payRateCurrency") || "USD",
     commission: formData.get("commission") || null,
     salesBy: formData.get("salesBy") || undefined,
     rejectReason: formData.get("rejectReason") || undefined,
@@ -77,7 +82,9 @@ export async function updatePlacement(
       status: data.status,
       doj: data.doj ? new Date(data.doj) : null,
       billRate: data.billRate ?? null,
+      billRateCurrency: data.billRateCurrency ?? existing.billRateCurrency,
       payRate: data.payRate ?? null,
+      payRateCurrency: data.payRateCurrency ?? existing.payRateCurrency,
       commission: data.commission ?? null,
       salesBy: data.salesBy || null,
       rejectReason: isRejectedStatus(data.status) ? data.rejectReason : null,

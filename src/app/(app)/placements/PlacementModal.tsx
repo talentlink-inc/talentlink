@@ -6,6 +6,7 @@ import { SUBMISSION_STATUSES, REJECT_REASON_OPTIONS, isRejectedStatus } from "@/
 import { NotesSection } from "../notes/NotesSection";
 import { formatDate } from "@/lib/format";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
+import { SUPPORTED_CURRENCIES } from "@/lib/currency";
 import type { SerializedSubmission } from "../submissions/types";
 
 const inputClass =
@@ -35,7 +36,9 @@ export function PlacementModal({
   useEscapeToClose(onClose);
   const [status, setStatus] = useState(placement.status);
   const [billRate, setBillRate] = useState(placement.billRate ?? "");
+  const [billRateCurrency, setBillRateCurrency] = useState(placement.billRateCurrency ?? "USD");
   const [payRate, setPayRate] = useState(placement.payRate ?? "");
+  const [payRateCurrency, setPayRateCurrency] = useState(placement.payRateCurrency ?? "USD");
   const [commission, setCommission] = useState(placement.commission ?? "");
 
   const grossMargin =
@@ -87,8 +90,8 @@ export function PlacementModal({
               {row("Status", placement.status)}
               {row("Selected Date", placement.selectedDate && formatDate(placement.selectedDate))}
               {row("DOJ", placement.doj && formatDate(placement.doj))}
-              {row("Bill Rate", placement.billRate)}
-              {row("Pay Rate", placement.payRate)}
+              {row("Bill Rate", placement.billRate && `${placement.billRateCurrency} ${placement.billRate}`)}
+              {row("Pay Rate", placement.payRate && `${placement.payRateCurrency} ${placement.payRate}`)}
               {row("Sales Fee", placement.commission)}
               {row("Sales By", placement.salesBy)}
               {row(
@@ -169,25 +172,53 @@ export function PlacementModal({
 
             <div>
               <label className={labelClass}>Bill Rate</label>
-              <input
-                type="number"
-                step="0.01"
-                name="billRate"
-                value={billRate}
-                onChange={(e) => setBillRate(e.target.value)}
-                className={inputClass}
-              />
+              <div className="flex gap-1">
+                <select
+                  name="billRateCurrency"
+                  value={billRateCurrency}
+                  onChange={(e) => setBillRateCurrency(e.target.value)}
+                  className={inputClass + " w-24 shrink-0"}
+                >
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="billRate"
+                  value={billRate}
+                  onChange={(e) => setBillRate(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
             </div>
             <div>
               <label className={labelClass}>Pay Rate</label>
-              <input
-                type="number"
-                step="0.01"
-                name="payRate"
-                value={payRate}
-                onChange={(e) => setPayRate(e.target.value)}
-                className={inputClass}
-              />
+              <div className="flex gap-1">
+                <select
+                  name="payRateCurrency"
+                  value={payRateCurrency}
+                  onChange={(e) => setPayRateCurrency(e.target.value)}
+                  className={inputClass + " w-24 shrink-0"}
+                >
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="payRate"
+                  value={payRate}
+                  onChange={(e) => setPayRate(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
             </div>
             <div>
               <label className={labelClass}>Sales Fee</label>
