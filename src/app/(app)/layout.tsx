@@ -19,6 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Sidebar
           canManageUsers={canViewUsers(currentUser.role)}
           canManageSettings={canManageUsers(currentUser.role)}
+          canAccessTestSuite={canManageUsers(currentUser.role)}
           canAccessOps={canAccessOps}
           tenantName={tenant.name}
           logoStyle={tenant.logoStyle}

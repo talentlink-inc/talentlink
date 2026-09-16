@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+vitest-report.json
+ci-summary.json
 
 # next.js
 /.next/

@@ -1,0 +1,74 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest (unit/integration/module/negative/range/security/interoperability)
+        run: npx vitest run --reporter=default --reporter=json --outputFile=vitest-report.json
+        continue-on-error: true
+        id: vitest
+
+      - name: Summarize results by category
+        run: npx tsx scripts/summarize-vitest-report.ts vitest-report.json > ci-summary.json
+
+      - name: Upload raw report as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-report
+          path: |
+            vitest-report.json
+            ci-summary.json
+          retention-days: 30
+
+      # Posts the per-category summary to the Test Suite dashboard so it
+      # reflects the latest CI run without polling GitHub or parsing a
+      # downloaded artifact. Requires two things set on this repo:
+      #   - Settings > Secrets and variables > Actions > Variables: APP_URL
+      #     (e.g. https://app.talentlink.com) — the deployed app to notify.
+      #   - Settings > Secrets and variables > Actions > Secrets:
+      #     CI_WEBHOOK_SECRET — must match the same-named env var on the
+      #     deployed app (Vercel project settings).
+      # Skips quietly (not a failure) if either isn't configured yet, so
+      # forks/early setup don't break the actual test run.
+      - name: Notify the Test Suite dashboard
+        if: always()
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CI_WEBHOOK_SECRET: ${{ secrets.CI_WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CI_WEBHOOK_SECRET" ]; then
+            echo "APP_URL or CI_WEBHOOK_SECRET not configured on this repo — skipping dashboard notification."
+            exit 0
+          fi
+          payload=$(node -e "
+            const fs = require('fs');
+            const summary = JSON.parse(fs.readFileSync('ci-summary.json', 'utf-8'));
+            summary.commitSha = process.env.GITHUB_SHA;
+            summary.runUrl = process.env.GITHUB_SERVER_URL + '/' + process.env.GITHUB_REPOSITORY + '/actions/runs/' + process.env.GITHUB_RUN_ID;
+            console.log(JSON.stringify(summary));
+          ")
+          curl --fail-with-body -sS -X POST "$APP_URL/api/test-suite/ci-webhook" \
+            -H "Content-Type: application/json" \
+            -H "x-ci-webhook-secret: $CI_WEBHOOK_SECRET" \
+            -d "$payload"
+
+      - name: Fail the job if any test failed
+        if: steps.vitest.outcome == 'failure'
+        run: exit 1

@@ -43,6 +43,8 @@ model Tenant {
   submissions  Submission[]
   interviews   Interview[]
   notes        Note[]
+  testCases      TestCase[]
+  testRunBatches TestRunBatch[]
   calendarIntegration CalendarIntegration?
 
   @@map("tenants")
@@ -118,6 +120,8 @@ model User {
   cpocSubmissions       Submission[]   @relation("SubmissionCpoc")
   scheduledInterviews   Interview[]    @relation("InterviewScheduledBy")
   notes                 Note[]
+  createdTestCases      TestCase[]     @relation("TestCaseCreatedBy")
+  triggeredTestRuns     TestRunBatch[] @relation("TestRunBatchTriggeredBy")
 
   @@unique([tenantId, email])
   @@map("users")
@@ -359,4 +363,95 @@ model Note {
 
   @@index([tenantId, module, recordId])
   @@map("notes")
+}
+
+// Admin-managed custom test cases for the Test Suite dashboard
+// (src/app/(app)/test-suite). Deliberately declarative, not arbitrary code:
+// `kind` picks a fixed, safe execution shape (an HTTP check against the
+// app's own API, or a bounded read-only DB aggregate check) — there's no
+// admin-authored script/SQL field here. Letting an admin (or a compromised
+// admin session) submit free-form code or raw SQL that the server then
+// executes would be a code-injection hole, not a testing feature; every
+// `definition` is instead interpreted by a fixed runner in
+// src/app/(app)/test-suite/runners.ts against an allowlist of safe
+// operations.
+//
+// `category` is the human-facing grouping shown in the dashboard (api,
+// sanity, negative, range, module, interoperability, acceptance — see
+// src/lib/testManifest.ts for the full category list, including the
+// code-owned ones that live in CiSuiteSnapshot instead of here).
+model TestCase {
+  id          String  @id @default(uuid())
+  tenantId    String  @map("tenant_id")
+  category    String
+  kind        String // "api" | "sanity"
+  name        String
+  description String? @db.Text
+  definition  Json
+  isActive    Boolean @default(true) @map("is_active")
+
+  lastRunStatus     String?   @map("last_run_status") // "pass" | "fail" | "error"
+  lastRunMessage    String?   @map("last_run_message") @db.Text
+  lastRunAt         DateTime? @map("last_run_at")
+  lastRunDurationMs Int?      @map("last_run_duration_ms")
+
+  createdByUserId String? @map("created_by_user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User?  @relation("TestCaseCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([tenantId, category])
+  @@map("test_cases")
+}
+
+// One row per "Run all" / "Run group" click from the Test Suite dashboard —
+// history for the admin-managed TestCase rows above. Code-owned suites
+// (Unit/Integration/etc., run in CI) are NOT recorded here; their latest
+// result lives in CiSuiteSnapshot instead, written by the CI webhook.
+model TestRunBatch {
+  id     String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  scope  String // "all" or a category key — which test cases this run covered
+
+  triggeredByUserId String? @map("triggered_by_user_id")
+
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  passCount  Int       @default(0) @map("pass_count")
+  failCount  Int       @default(0) @map("fail_count")
+  // [{testCaseId, name, status, message, durationMs}]
+  results    Json
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  triggeredBy User?  @relation("TestRunBatchTriggeredBy", fields: [triggeredByUserId], references: [id])
+
+  @@index([tenantId, startedAt])
+  @@map("test_run_batches")
+}
+
+// Latest CI result per code-based test category (Unit, Integration, Module,
+// Negative, Range, Security, Interoperability — see src/lib/testManifest.ts),
+// written by the GitHub Actions workflow's webhook POST after each run (see
+// src/app/api/test-suite/ci-webhook/route.ts and .github/workflows/tests.yml).
+// Deliberately NOT tenant-scoped — a CI run covers the one shared codebase
+// every tenant runs on, not any tenant's data, same reasoning as Tenant
+// itself (see that model's closing comment). Read via the plain `prisma`
+// client, not getTenantDb().
+model CiSuiteSnapshot {
+  id         String   @id @default(uuid())
+  category   String   @unique
+  status     String // "pass" | "fail"
+  passCount  Int      @map("pass_count")
+  failCount  Int      @map("fail_count")
+  totalCount Int      @map("total_count")
+  commitSha  String?  @map("commit_sha")
+  runUrl     String?  @map("run_url")
+  // [{name, status, message}] per-test breakdown, if the workflow sent one
+  details    Json?
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("ci_suite_snapshots")
 }

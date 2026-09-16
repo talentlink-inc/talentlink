@@ -16,6 +16,7 @@ import {
   RefreshCw,
   LogOut,
   Settings,
+  FlaskConical,
 } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 
@@ -34,6 +35,7 @@ const RECRUITMENT_NAV = [
 export function Sidebar({
   canManageUsers,
   canManageSettings,
+  canAccessTestSuite,
   canAccessOps,
   tenantName,
   logoStyle,
@@ -41,6 +43,7 @@ export function Sidebar({
 }: {
   canManageUsers: boolean;
   canManageSettings: boolean;
+  canAccessTestSuite: boolean;
   canAccessOps: boolean;
   tenantName: string;
   logoStyle: string;
@@ -185,7 +188,7 @@ export function Sidebar({
           {RECRUITMENT_NAV.map((item) => navItem(item.href, item.label, item.icon))}
         </ul>
 
-        {(canManageUsers || canManageSettings) && (
+        {(canManageUsers || canManageSettings || canAccessTestSuite) && (
           <>
             {!collapsed && (
               <div className="px-2 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-white/40">
@@ -195,6 +198,7 @@ export function Sidebar({
             <ul className="space-y-0.5">
               {canManageUsers && navItem("/users", "User Management", ShieldCheck)}
               {canManageSettings && navItem("/settings", "Settings", Settings)}
+              {canAccessTestSuite && navItem("/test-suite", "Test Suite", FlaskConical)}
             </ul>
           </>
         )}

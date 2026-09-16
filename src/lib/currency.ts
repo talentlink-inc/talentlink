@@ -6,7 +6,10 @@ import { parseRegionsCsv } from "./regions";
 // field next to each rate.
 export const SUPPORTED_CURRENCIES = ["USD", "GBP", "EUR", "INR", "CAD", "AUD", "MXN", "AED", "SGD"] as const;
 
-const REGION_DEFAULT_CURRENCY: Record<string, string> = {
+// Exported for src/lib/currency.test.ts's interoperability check against
+// SUPPORTED_REGIONS — everything else should keep using
+// defaultCurrencyForRegions() rather than reading this map directly.
+export const REGION_DEFAULT_CURRENCY: Record<string, string> = {
   USA: "USD",
   India: "INR",
   Canada: "CAD",

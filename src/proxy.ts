@@ -100,6 +100,10 @@ export async function proxy(request: NextRequest) {
     isAuthRoute ||
     bypassesTenantResolution ||
     pathname.startsWith("/api/health") ||
+    // CI posts its results here with no Supabase session at all — its own
+    // shared-secret header check (CI_WEBHOOK_SECRET) is the real gate; see
+    // src/app/api/test-suite/ci-webhook/route.ts.
+    pathname.startsWith("/api/test-suite/ci-webhook") ||
     pathname.startsWith("/auth/") || // invite/callback/set-password — no session yet when these run
     pathname.startsWith("/apply/"); // public candidate apply-link — no portal session at all, ever
 
