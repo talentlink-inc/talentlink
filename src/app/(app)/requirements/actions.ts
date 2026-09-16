@@ -6,20 +6,13 @@ import { revalidatePath } from "next/cache";
 import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
-import { REQUIREMENT_STATUSES } from "@/lib/recruitment";
-import { SUPPORTED_CURRENCIES } from "@/lib/currency";
 import { SUPPORTED_REGIONS } from "@/lib/regions";
 import { canManageRecruitment } from "@/lib/users";
 import { callAiForJson, AiNotConfiguredError } from "@/lib/ai";
+import { requirementSchema, screeningQuestionSchema } from "@/lib/schemas/requirement";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 const PERMISSION_ERROR = "Your role only has view access to Requirements.";
-
-const screeningQuestionSchema = z.object({
-  id: z.string(),
-  text: z.string().trim().min(1),
-  type: z.enum(["short", "long", "rating", "yesno"]),
-  required: z.boolean(),
-});
 
 function parseScreeningQuestions(raw: FormDataEntryValue | null) {
   if (!raw || typeof raw !== "string") return [];
@@ -29,78 +22,6 @@ function parseScreeningQuestions(raw: FormDataEntryValue | null) {
   } catch {
     return [];
   }
-}
-
-// Mandatory-field set mirrors the original ITStaffing (Google Apps Script)
-// Requirements form validation (PageRecruitment.html: reqSaveRequirement) —
-// Client Name, Job Description, Duration, Mandatory Skills, Country, Bill
-// Rate, and Employment Type are all required there, plus Visa (only when
-// Country includes USA) and Work Location (only when not Remote). Job ID
-// isn't part of the form at all there — it's auto-generated (generateJobId
-// in the original Recruitment.js), see generateJobId below.
-const requirementSchema = z
-  .object({
-    jobTitle: z.string().trim().min(1, "Job title is required").max(200, "Job title cannot exceed 200 characters"),
-    clientName: z.string().trim().min(1, "Client name is required"),
-    status: z.enum(REQUIREMENT_STATUSES),
-    priority: z.coerce.number().int().min(0).max(5),
-    employmentType: z.string().trim().min(1, "Employment type is required"),
-    duration: z.string().trim().min(1, "Duration is required"),
-    visa: z.string().trim().optional(),
-    workLocation: z.string().trim().optional(),
-    country: z.string().trim().min(1, "Country is required"),
-    isRemote: z.coerce.boolean().optional(),
-    billRate: z
-      .string()
-      .trim()
-      .min(1, "Bill rate is required")
-      .transform(Number)
-      .pipe(z.number().nonnegative("Bill rate must be 0 or greater")),
-    billRateCurrency: z.enum(SUPPORTED_CURRENCIES),
-    payRate: z.coerce.number().nonnegative("Pay rate must be 0 or greater").optional().nullable(),
-    payRateCurrency: z.enum(SUPPORTED_CURRENCIES),
-    mandatorySkills: z.string().trim().min(1, "Mandatory skills is required"),
-    // Rendered through a rich-text editor and sanitized before it ever
-    // reaches here — see sanitizeHtml in RequirementModal's save path... no,
-    // sanitization happens server-side below (sanitizeRichText) so a
-    // malicious client can't bypass it by posting the form directly.
-    jobDescription: z
-      .string()
-      .trim()
-      .min(1, "Job description is required")
-      .max(20000, "Job description cannot exceed 20,000 characters"),
-    accountManagerRaw: z.string().trim().optional(),
-    screeningQuestions: z.array(screeningQuestionSchema).optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (!data.isRemote && !data.workLocation) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["workLocation"],
-        message: "Work location is required (or check Remote)",
-      });
-    }
-    if (data.country.toUpperCase().includes("USA") && !data.visa) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["visa"],
-        message: "Visa is required for USA roles",
-      });
-    }
-  });
-
-// Original app's Job Description is contenteditable rich text (bold/italic/
-// underline/lists) — plain-tag allowlist, no attributes, so no repeat of
-// this session's earlier legacy-data HTML contamination bug (no <span
-// data-teams>, no event handlers, no <script>).
-const ALLOWED_TAGS = new Set(["b", "strong", "i", "em", "u", "ul", "ol", "li", "br", "p", "div"]);
-function sanitizeRichText(html: string): string {
-  return html
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<(\/?)([a-zA-Z0-9]+)(\s[^>]*)?>/g, (match, closing, tag) => {
-      const lower = tag.toLowerCase();
-      return ALLOWED_TAGS.has(lower) ? `<${closing}${lower}>` : "";
-    });
 }
 
 function parseForm(formData: FormData) {

@@ -80,6 +80,7 @@ export const VISA_STATUSES = [
   "L2",
   "EAD",
   "GC-EAD",
+  "H4-EAD",
   "N/A",
 ] as const;
 
