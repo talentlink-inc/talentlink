@@ -12,35 +12,10 @@
 import "dotenv/config";
 import { prisma } from "../src/lib/db";
 import { getTenantDbFor } from "../src/lib/tenantDb";
+import { HTML_TAG_PATTERN, stripHtml } from "./lib/parse";
 
 const TENANT_SUBDOMAIN = process.env.DEFAULT_TENANT_SUBDOMAIN ?? "digitallinks";
 const DRY_RUN = process.argv.includes("--dry-run");
-
-// Only touches fields that contain a recognizable tag (not just any stray
-// "<"/">" character that happens to be part of ordinary text, e.g. "rate <
-// 100/hr") — conservative on purpose, since this runs against production
-// data with no per-field undo.
-const HTML_TAG_PATTERN = /<\/?(?:span|div|br|p|b|i|u|ul|ol|li|a|strong|em|table|tr|td|font)\b[^>]*>/i;
-
-function stripHtml(input: string): string {
-  let text = input
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|li|tr)>/gi, "\n")
-    .replace(/<[^>]+>/g, "");
-  text = text
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#0?39;/gi, "'");
-  return text
-    .split("\n")
-    .map((line) => line.trimEnd())
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
 
 async function main() {
   const tenant = await prisma.tenant.findUnique({ where: { subdomain: TENANT_SUBDOMAIN } });
