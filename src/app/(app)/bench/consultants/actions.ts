@@ -7,7 +7,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupabaseAdmin, RESUME_BUCKET } from "@/lib/supabase/admin";
 import { canAccessBench, canDeleteAnyBenchConsultant } from "@/lib/users";
-import { BENCH_CONSULTANT_STATUSES } from "@/lib/bench";
+import { BENCH_CONSULTANT_STATUSES, BENCH_HOTLIST_STATUSES } from "@/lib/bench";
 import { benchConsultantSchema, titleCaseName } from "@/lib/schemas/benchConsultant";
 import { withNewConsultantCode } from "@/lib/benchIds";
 
@@ -212,6 +212,20 @@ export async function setBenchConsultantHotlist(id: string, onHotlist: boolean) 
   await db.benchConsultant.update({
     where: { id, tenantId: tenant.id, deletedAt: null },
     data: { onHotlist, hotlistStatus: onHotlist ? "Active" : null },
+  });
+  revalidatePath("/bench", "layout");
+}
+
+// GAS updateHotlistConsultantStatus — Active/Inactive for someone already
+// on the hotlist (only Active ones go out in an "active only" export).
+export async function setBenchHotlistStatus(id: string, hotlistStatus: string) {
+  await requireBenchUser();
+  if (!(BENCH_HOTLIST_STATUSES as readonly string[]).includes(hotlistStatus)) throw new Error("Invalid hotlist status.");
+  const tenant = await getCurrentTenant();
+  const db = await getTenantDb();
+  await db.benchConsultant.update({
+    where: { id, tenantId: tenant.id, deletedAt: null, onHotlist: true },
+    data: { hotlistStatus },
   });
   revalidatePath("/bench", "layout");
 }

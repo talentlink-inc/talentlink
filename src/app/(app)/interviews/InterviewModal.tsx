@@ -6,49 +6,13 @@ import { INTERVIEW_STATUSES, INTERVIEW_MODES, INTERVIEW_TYPES } from "@/lib/recr
 import { NotesSection } from "../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { formatDateTime } from "@/lib/format";
-import { isValidTimeZone, utcToZonedLocal } from "@/lib/timezone";
+import { isValidTimeZone, timeZoneOptions, utcToZonedLocal } from "@/lib/timezone";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import type { SerializedInterview } from "./types";
 import type { SerializedSubmission } from "../submissions/types";
 
 type Mode = "create" | "view" | "edit";
 
-// Timezone used to be a free-text box, so a typo ("EST ", "Eastern") either
-// failed validation or — before validation existed — crashed the page.
-const COMMON_TIME_ZONES: { zone: string; label: string }[] = [
-  { zone: "America/New_York", label: "US Eastern" },
-  { zone: "America/Chicago", label: "US Central" },
-  { zone: "America/Denver", label: "US Mountain" },
-  { zone: "America/Phoenix", label: "US Arizona" },
-  { zone: "America/Los_Angeles", label: "US Pacific" },
-  { zone: "America/Anchorage", label: "US Alaska" },
-  { zone: "Pacific/Honolulu", label: "US Hawaii" },
-  { zone: "America/Toronto", label: "Canada Eastern" },
-  { zone: "America/Mexico_City", label: "Mexico City" },
-  { zone: "America/Sao_Paulo", label: "Brazil" },
-  { zone: "Europe/London", label: "UK" },
-  { zone: "Europe/Lisbon", label: "Portugal" },
-  { zone: "Europe/Paris", label: "Central Europe (Paris)" },
-  { zone: "Europe/Berlin", label: "Central Europe (Berlin)" },
-  { zone: "Europe/Warsaw", label: "Poland" },
-  { zone: "Europe/Kyiv", label: "Ukraine" },
-  { zone: "Asia/Dubai", label: "UAE" },
-  { zone: "Asia/Kolkata", label: "India" },
-  { zone: "Asia/Singapore", label: "Singapore" },
-  { zone: "Asia/Manila", label: "Philippines" },
-  { zone: "Asia/Tokyo", label: "Japan" },
-  { zone: "Australia/Sydney", label: "Australia Eastern" },
-  { zone: "UTC", label: "UTC" },
-];
-
-function timeZoneOptions(current: string | null | undefined) {
-  const browser = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const options = [...COMMON_TIME_ZONES];
-  for (const extra of [current, browser]) {
-    if (extra && !options.some((o) => o.zone === extra)) options.unshift({ zone: extra, label: extra });
-  }
-  return options;
-}
 
 const inputClass =
   "w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent";

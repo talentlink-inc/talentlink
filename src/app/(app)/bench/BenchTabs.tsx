@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Mirrors GAS PageBenchSales.html's tab bar. Tabs are added here as each
-// stage of the port ships.
+// Mirrors GAS PageBenchSales.html's tab bar, in the same order.
 const TABS = [
   { href: "/bench/consultants", label: "Consultants" },
   { href: "/bench/submissions", label: "Submissions" },
   { href: "/bench/placements", label: "Placements" },
+  { href: "/bench/hotlist", label: "Hotlist" },
+  { href: "/bench/interviews", label: "Interviews" },
+  { href: "/bench/notes", label: "Notes" },
 ];
 
 export function BenchTabs() {

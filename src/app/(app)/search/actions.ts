@@ -3,7 +3,7 @@
 import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
-import { canViewUsers } from "@/lib/users";
+import { canAccessBench, canViewUsers } from "@/lib/users";
 
 export type SearchResult = {
   id: string;
@@ -23,11 +23,12 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
   const tenant = await getCurrentTenant();
   const currentUser = await getCurrentUser();
   const canSeeUsers = canViewUsers(currentUser.role);
+  const canSeeBench = canAccessBench(currentUser.role);
 
   const insensitive = { contains: q, mode: "insensitive" as const };
   const db = await getTenantDb();
 
-  const [requirements, submissions, interviews, users] = await Promise.all([
+  const [requirements, submissions, interviews, users, benchConsultants, benchSubmissions] = await Promise.all([
     db.requirement.findMany({
       where: {
         tenantId: tenant.id,
@@ -75,6 +76,38 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
           take: 5,
         })
       : Promise.resolve([]),
+    canSeeBench
+      ? db.benchConsultant.findMany({
+          where: {
+            tenantId: tenant.id,
+            deletedAt: null,
+            OR: [
+              { consultantCode: insensitive },
+              { consultantName: insensitive },
+              { role: insensitive },
+              { technologySkills: insensitive },
+              { location: insensitive },
+            ],
+          },
+          take: 5,
+        })
+      : Promise.resolve([]),
+    canSeeBench
+      ? db.benchSubmission.findMany({
+          where: {
+            tenantId: tenant.id,
+            deletedAt: null,
+            OR: [
+              { submissionCode: insensitive },
+              { companyName: insensitive },
+              { contactPerson: insensitive },
+              { consultant: { consultantName: insensitive } },
+            ],
+          },
+          include: { consultant: { select: { consultantName: true } } },
+          take: 5,
+        })
+      : Promise.resolve([]),
   ]);
 
   const results: SearchResult[] = [];
@@ -117,6 +150,26 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       label: u.name,
       subtitle: `${u.email} · ${u.role}`,
       href: `/users?open=${u.id}`,
+    });
+  }
+
+  for (const c of benchConsultants) {
+    results.push({
+      id: c.id,
+      category: "Bench Consultants",
+      label: `${c.consultantCode} — ${c.consultantName}`,
+      subtitle: `${c.role} · ${c.status}${c.onHotlist ? " · Hotlist" : ""}`,
+      href: `/bench/consultants?open=${c.id}`,
+    });
+  }
+
+  for (const b of benchSubmissions) {
+    results.push({
+      id: b.id,
+      category: "Bench Submissions",
+      label: `${b.consultant.consultantName} → ${b.companyName}`,
+      subtitle: `${b.submissionCode} · ${b.status}`,
+      href: `/bench/submissions?open=${b.id}`,
     });
   }
 

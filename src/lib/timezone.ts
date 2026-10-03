@@ -64,3 +64,40 @@ export function utcToZonedLocal(date: Date, timeZone: string): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}`;
 }
+
+// Timezone used to be a free-text box, so a typo ("EST ", "Eastern") either
+// failed validation or — before validation existed — crashed the page.
+export const COMMON_TIME_ZONES: { zone: string; label: string }[] = [
+  { zone: "America/New_York", label: "US Eastern" },
+  { zone: "America/Chicago", label: "US Central" },
+  { zone: "America/Denver", label: "US Mountain" },
+  { zone: "America/Phoenix", label: "US Arizona" },
+  { zone: "America/Los_Angeles", label: "US Pacific" },
+  { zone: "America/Anchorage", label: "US Alaska" },
+  { zone: "Pacific/Honolulu", label: "US Hawaii" },
+  { zone: "America/Toronto", label: "Canada Eastern" },
+  { zone: "America/Mexico_City", label: "Mexico City" },
+  { zone: "America/Sao_Paulo", label: "Brazil" },
+  { zone: "Europe/London", label: "UK" },
+  { zone: "Europe/Lisbon", label: "Portugal" },
+  { zone: "Europe/Paris", label: "Central Europe (Paris)" },
+  { zone: "Europe/Berlin", label: "Central Europe (Berlin)" },
+  { zone: "Europe/Warsaw", label: "Poland" },
+  { zone: "Europe/Kyiv", label: "Ukraine" },
+  { zone: "Asia/Dubai", label: "UAE" },
+  { zone: "Asia/Kolkata", label: "India" },
+  { zone: "Asia/Singapore", label: "Singapore" },
+  { zone: "Asia/Manila", label: "Philippines" },
+  { zone: "Asia/Tokyo", label: "Japan" },
+  { zone: "Australia/Sydney", label: "Australia Eastern" },
+  { zone: "UTC", label: "UTC" },
+];
+
+export function timeZoneOptions(current: string | null | undefined) {
+  const browser = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const options = [...COMMON_TIME_ZONES];
+  for (const extra of [current, browser]) {
+    if (extra && !options.some((o) => o.zone === extra)) options.unshift({ zone: extra, label: extra });
+  }
+  return options;
+}

@@ -38,3 +38,7 @@ const STATUS_BUCKETS: Record<string, "blue" | "amber" | "green" | "red"> = {
 export function submissionStatusBucket(status: string): "blue" | "amber" | "green" | "red" {
   return STATUS_BUCKETS[status] ?? "red";
 }
+
+// GAS getBenchInterviewCandidates: only submissions at an interview stage
+// can have a bench interview scheduled against them.
+export const BENCH_INTERVIEW_ELIGIBLE_STATUSES = ["L1_Interview", "L2_Interview"] as const;
