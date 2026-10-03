@@ -45,7 +45,10 @@ export async function signIn(_prevState: string | null, formData: FormData) {
   const tenant = await getCurrentTenant();
   const db = getTenantDbFor(tenant.id);
   const existingUser = await withTimeout(
-    db.user.findUnique({ where: { tenantId_email: { tenantId: tenant.id, email } } }),
+    // Case-insensitive, like Supabase Auth's own email matching — an exact
+    // match let "User@x.com" vs "user@x.com" dodge the lockout counter
+    // while still signing in to the same account.
+    db.user.findFirst({ where: { tenantId: tenant.id, email: { equals: email, mode: "insensitive" } } }),
     LOCKOUT_DB_TIMEOUT_MS
   );
 

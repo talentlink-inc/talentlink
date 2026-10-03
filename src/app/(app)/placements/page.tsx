@@ -1,9 +1,10 @@
+import { MAX_LIST_ROWS } from "@/lib/listLimits";
 import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageRecruitment } from "@/lib/users";
 import { PlacementsTable } from "./PlacementsTable";
-import { serializeSubmission } from "../submissions/types";
+import { redactCandidateContact, serializeSubmission } from "../submissions/types";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +26,12 @@ export default async function PlacementsPage() {
     },
     include: { candidate: true, requirement: true, resume: true },
     orderBy: { selectedDate: "desc" },
-    take: 100,
+    take: MAX_LIST_ROWS,
   });
 
   return (
     <PlacementsTable
-      placements={placements.map(serializeSubmission)}
+      placements={placements.map((p) => redactCandidateContact(serializeSubmission(p), currentUser))}
       currentUserId={currentUser.id}
       canEdit={canManageRecruitment(currentUser.role)}
     />

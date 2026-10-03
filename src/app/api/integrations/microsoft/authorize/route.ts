@@ -3,6 +3,7 @@ import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageUsers } from "@/lib/users";
+import { issueOAuthState } from "@/lib/oauthState";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_mode", "query");
   url.searchParams.set("scope", "offline_access Calendars.ReadWrite User.Read");
-  url.searchParams.set("state", tenant.id);
+  url.searchParams.set("state", await issueOAuthState());
 
   return NextResponse.redirect(url.toString());
 }

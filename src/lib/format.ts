@@ -1,3 +1,5 @@
+import { isValidTimeZone } from "@/lib/timezone";
+
 // Always pass an explicit locale (and timeZone for date-only values) so the
 // string is identical whether it's produced during SSR (server's default
 // ICU locale/TZ, e.g. UTC on Vercel) or during client hydration (browser's
@@ -6,7 +8,9 @@
 
 export function formatDateTime(date: Date | string, timeZone?: string): string {
   return new Date(date).toLocaleString("en-US", {
-    timeZone: timeZone || "UTC",
+    // An unrecognized zone (Timezone used to be unvalidated free text) makes
+    // toLocaleString throw a RangeError, which took down the whole page.
+    timeZone: timeZone && isValidTimeZone(timeZone) ? timeZone : "UTC",
     year: "numeric",
     month: "numeric",
     day: "numeric",

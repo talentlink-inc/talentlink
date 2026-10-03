@@ -16,6 +16,7 @@ import { getSupabaseAdmin, RESUME_BUCKET } from "@/lib/supabase/admin";
 import { canManageRecruitment, canManageUsers } from "@/lib/users";
 import { callAiForJson, AiNotConfiguredError } from "@/lib/ai";
 import { candidateSchema } from "@/lib/schemas/submission";
+import { nextPlacementId, withNewSubmissionId } from "@/lib/recruitmentIds";
 import { createHash } from "node:crypto";
 
 const MAX_RESUME_BYTES = 10 * 1024 * 1024; // 10MB, matches ITStaffing's cap
@@ -129,7 +130,7 @@ async function uploadResumeIfPresent(
 async function uploadDocumentIfPresent(
   formData: FormData,
   tenantId: string,
-  submissionId: string
+  recordKey: string
 ): Promise<{ url: string; name: string } | null> {
   const file = formData.get("additionalDoc");
   if (!(file instanceof File) || file.size === 0) return null;
@@ -144,13 +145,27 @@ async function uploadDocumentIfPresent(
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const storagePath = `${tenantId}/documents/${submissionId}-${Date.now()}-${safeFileName}`;
+  const storagePath = `${tenantId}/documents/${recordKey}-${Date.now()}-${safeFileName}`;
   const { error } = await getSupabaseAdmin()
     .storage.from(RESUME_BUCKET)
     .upload(storagePath, buffer, { upsert: true, contentType: file.type });
   if (error) throw new Error(`Document upload failed: ${error.message}`);
 
   return { url: storagePath, name: file.name };
+}
+
+// The requirementId comes straight from the form — make sure it's a live
+// requirement in this tenant rather than trusting whatever id was posted.
+async function requirementExists(
+  db: Awaited<ReturnType<typeof getTenantDb>>,
+  tenantId: string,
+  requirementId: string
+): Promise<boolean> {
+  const requirement = await db.requirement.findFirst({
+    where: { id: requirementId, tenantId, deletedAt: null },
+    select: { id: true },
+  });
+  return !!requirement;
 }
 
 export async function createSubmission(
@@ -177,6 +192,10 @@ export async function createSubmission(
 
   const tenant = await getCurrentTenant();
   const db = await getTenantDb();
+
+  if (!(await requirementExists(db, tenant.id, data.requirementId))) {
+    return { ...initialFormState, error: "That requirement no longer exists." };
+  }
 
   const email = data.email || null;
   const phone = data.phone || null;
@@ -248,17 +267,14 @@ export async function createSubmission(
     return { ...initialFormState, error: err instanceof Error ? err.message : "Resume upload failed." };
   }
 
-  const submissionCount = await db.submission.count({ where: { tenantId: tenant.id } });
-  const submissionId = `SUB-${String(submissionCount + 1).padStart(4, "0")}`;
-
   let additionalDoc: { url: string; name: string } | null = null;
   try {
-    additionalDoc = await uploadDocumentIfPresent(formData, tenant.id, submissionId);
+    additionalDoc = await uploadDocumentIfPresent(formData, tenant.id, candidate.id);
   } catch (err) {
     return { ...initialFormState, error: err instanceof Error ? err.message : "Document upload failed." };
   }
 
-  await db.submission.create({
+  await withNewSubmissionId(db, tenant.id, (submissionId) => db.submission.create({
     data: {
       tenantId: tenant.id,
       submissionId,
@@ -279,7 +295,7 @@ export async function createSubmission(
       submissionDate: new Date(),
       status: "New_Resume",
     },
-  });
+  }));
 
   revalidatePath("/submissions");
   revalidatePath("/placements");
@@ -300,8 +316,23 @@ export async function updateSubmission(
   const currentUser = await getCurrentUser();
   if (!canManageRecruitment(currentUser.role)) return { ...initialFormState, error: PERMISSION_ERROR };
 
+  const tenant = await getCurrentTenant();
+  const db = await getTenantDb();
+  const existing = await db.submission.findUnique({
+    where: { id, tenantId: tenant.id },
+    include: { candidate: { select: { email: true, phone: true } } },
+  });
+  if (!existing) {
+    return { ...initialFormState, error: "Submission not found." };
+  }
+
+  // Email/phone are never sent to a user without canViewEmail/canViewPhone
+  // (see redactCandidateContact), so their edit form has nothing to post
+  // back for them — keep what's on file instead of treating it as blank.
   const parsed = editSchema.safeParse({
     ...Object.fromEntries(formData.entries()),
+    email: currentUser.canViewEmail ? formData.get("email") ?? "" : existing.candidate.email ?? "",
+    phone: currentUser.canViewPhone ? formData.get("phone") ?? "" : existing.candidate.phone ?? "",
     totalExperienceYears: formData.get("totalExperienceYears") ?? "",
     billRate: formData.get("billRate") || null,
     payRate: formData.get("payRate") ?? "",
@@ -315,11 +346,8 @@ export async function updateSubmission(
     return { ...initialFormState, error: "A reject reason is required for this status." };
   }
 
-  const tenant = await getCurrentTenant();
-  const db = await getTenantDb();
-  const existing = await db.submission.findUnique({ where: { id, tenantId: tenant.id } });
-  if (!existing) {
-    return { ...initialFormState, error: "Submission not found." };
+  if (data.requirementId !== existing.requirementId && !(await requirementExists(db, tenant.id, data.requirementId))) {
+    return { ...initialFormState, error: "That requirement no longer exists." };
   }
 
   let resumeId = existing.resumeId;
@@ -349,10 +377,7 @@ export async function updateSubmission(
   if (clearPlacement) {
     placementId = null;
   } else if (assignPlacement) {
-    const count = await db.submission.count({
-      where: { tenantId: tenant.id, placementId: { not: null } },
-    });
-    placementId = `PLC-${String(count + 1).padStart(4, "0")}`;
+    placementId = await nextPlacementId(db, tenant.id);
   }
 
   await db.candidate.update({

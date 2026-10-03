@@ -7,7 +7,13 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/auth/set-password";
+  // Must be a same-origin path. `${origin}${next}` with next=".evil.com" or
+  // "@evil.com" would otherwise send the freshly signed-in user off-site.
+  const requestedNext = searchParams.get("next");
+  const next =
+    requestedNext && requestedNext.startsWith("/") && !requestedNext.startsWith("//") && !requestedNext.includes("\\")
+      ? requestedNext
+      : "/auth/set-password";
 
   if (code) {
     const supabase = await createClient();

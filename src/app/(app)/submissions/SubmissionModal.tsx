@@ -323,22 +323,30 @@ export function SubmissionModal({
               onChange={(v) => set("candidateName", v)}
               required
             />
-            <Field
-              label="Email"
-              name="email"
-              type="email"
-              value={values.email}
-              onChange={(v) => set("email", v)}
-              required
-            />
-            <Field
-              label="Phone"
-              name="phone"
-              type="tel"
-              value={values.phone}
-              onChange={(v) => set("phone", v)}
-              required
-            />
+            {mode === "edit" && !permissions.canViewEmail ? (
+              <RestrictedField label="Email" />
+            ) : (
+              <Field
+                label="Email"
+                name="email"
+                type="email"
+                value={values.email}
+                onChange={(v) => set("email", v)}
+                required
+              />
+            )}
+            {mode === "edit" && !permissions.canViewPhone ? (
+              <RestrictedField label="Phone" />
+            ) : (
+              <Field
+                label="Phone"
+                name="phone"
+                type="tel"
+                value={values.phone}
+                onChange={(v) => set("phone", v)}
+                required
+              />
+            )}
             <div>
               <label className={labelClass}>Country</label>
               <select
@@ -659,6 +667,18 @@ function Field({
         required={required}
         className={inputClass}
       />
+    </div>
+  );
+}
+
+// Edit-mode stand-in for a contact field the user isn't allowed to see —
+// the value was never sent to the browser, and the server keeps whatever is
+// on file (see updateSubmission), so there's nothing to post here.
+function RestrictedField({ label }: { label: string }) {
+  return (
+    <div>
+      <label className={labelClass}>{label}</label>
+      <input disabled placeholder="Restricted" className={`${inputClass} cursor-not-allowed opacity-60`} />
     </div>
   );
 }

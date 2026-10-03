@@ -112,7 +112,7 @@ export async function updateUser(
   _prevState: UserFormState,
   formData: FormData
 ): Promise<UserFormState> {
-  await requireAdmin();
+  const currentUser = await requireAdmin();
   const parsed = parseForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -123,6 +123,13 @@ export async function updateUser(
 
   const existing = await db.user.findUnique({ where: { id, tenantId: tenant.id } });
   if (!existing) return { error: "User not found." };
+
+  // Same guard toggleUserStatus/deleteUser already have — editing your own
+  // row is the other way to lock yourself (and possibly the whole
+  // workspace) out of Admin.
+  if (currentUser.id === id && (data.status !== "active" || !canManageUsers(data.role))) {
+    return { error: "You cannot deactivate your own account or remove your own Admin role." };
+  }
 
   const emailTaken = await db.user.findFirst({
     where: {

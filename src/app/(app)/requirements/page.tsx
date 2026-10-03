@@ -1,3 +1,4 @@
+import { MAX_LIST_ROWS } from "@/lib/listLimits";
 import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
@@ -15,7 +16,7 @@ export default async function RequirementsPage() {
   const requirements = await db.requirement.findMany({
     where: { tenantId: tenant.id, deletedAt: null },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: MAX_LIST_ROWS,
   });
 
   // Region restriction (User Management) scopes which requirements a

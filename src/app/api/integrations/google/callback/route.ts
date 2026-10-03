@@ -1,12 +1,25 @@
 import { NextResponse } from "next/server";
 import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
+import { getCurrentUser } from "@/lib/auth";
+import { canManageUsers } from "@/lib/users";
+import { consumeOAuthState } from "@/lib/oauthState";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const oauthError = url.searchParams.get("error");
   const origin = url.origin;
+
+  // Only the Admin who started this flow, in this browser, can finish it —
+  // see src/lib/oauthState.ts.
+  const user = await getCurrentUser();
+  if (!canManageUsers(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (!(await consumeOAuthState(url.searchParams.get("state")))) {
+    return NextResponse.redirect(`${origin}/interviews?integration_error=invalid_state`);
+  }
 
   if (oauthError) {
     return NextResponse.redirect(`${origin}/interviews?integration_error=${encodeURIComponent(oauthError)}`);

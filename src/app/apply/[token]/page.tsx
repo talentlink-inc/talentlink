@@ -1,6 +1,7 @@
 import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { ApplyForm } from "./ApplyForm";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 import type { ScreeningQuestion } from "@/lib/recruitment";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +62,9 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
             {requirement.jobDescription && (
               <div
                 className="prose-sm mb-6 max-w-none border-b border-black/10 pb-6 text-sm [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 dark:border-white/10"
-                dangerouslySetInnerHTML={{ __html: requirement.jobDescription }}
+                // Re-sanitized at render too: rows saved before the sanitizer fix
+                // (or imported by older migration scripts) never went through it.
+                dangerouslySetInnerHTML={{ __html: sanitizeRichText(requirement.jobDescription) }}
               />
             )}
             <ApplyForm

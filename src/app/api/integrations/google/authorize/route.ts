@@ -3,6 +3,7 @@ import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageUsers } from "@/lib/users";
+import { issueOAuthState } from "@/lib/oauthState";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
   );
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("prompt", "consent");
-  url.searchParams.set("state", tenant.id);
+  url.searchParams.set("state", await issueOAuthState());
 
   return NextResponse.redirect(url.toString());
 }

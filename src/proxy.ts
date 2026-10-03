@@ -14,6 +14,11 @@ import { extractSubdomain, hasRootDomainConfigured } from "@/lib/subdomain";
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // x-tenant-id is trusted downstream (getCurrentTenant) as having come
+  // from the resolution below — never let a client-sent value through,
+  // including on the routes that skip resolution.
+  request.headers.delete("x-tenant-id");
+
   // These run before any tenant exists (signup) or after tenant resolution
   // has already failed (the status pages) — none of them can go through
   // tenant resolution themselves without looping or blocking signup outright.

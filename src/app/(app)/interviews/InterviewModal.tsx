@@ -6,6 +6,7 @@ import { INTERVIEW_STATUSES, INTERVIEW_MODES, INTERVIEW_TYPES } from "@/lib/recr
 import { NotesSection } from "../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { formatDateTime } from "@/lib/format";
+import { isValidTimeZone, utcToZonedLocal } from "@/lib/timezone";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import type { SerializedInterview } from "./types";
 import type { SerializedSubmission } from "../submissions/types";
@@ -16,11 +17,13 @@ const inputClass =
   "w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent";
 const labelClass = "mb-1 block text-xs font-medium text-black/60 dark:text-white/60";
 
-function toDatetimeLocalValue(date: Date | null | undefined): string {
+// Pre-fills in the interview's own timezone (the same one the server reads
+// the value back in), not the browser's — otherwise every re-save of an
+// edit shifted the time by the difference between the two.
+function toDatetimeLocalValue(date: Date | null | undefined, timeZone: string | null | undefined): string {
   if (!date) return "";
-  const d = new Date(date);
-  const shifted = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return shifted.toISOString().slice(0, 16);
+  const tz = timeZone && isValidTimeZone(timeZone) ? timeZone : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return utcToZonedLocal(new Date(date), tz);
 }
 
 export function InterviewModal({
@@ -147,7 +150,7 @@ export function InterviewModal({
               <input
                 type="datetime-local"
                 name="scheduledAt"
-                defaultValue={toDatetimeLocalValue(interview?.scheduledAt)}
+                defaultValue={toDatetimeLocalValue(interview?.scheduledAt, interview?.timezone)}
                 required
                 className={inputClass}
               />

@@ -1,9 +1,10 @@
+import { MAX_LIST_ROWS } from "@/lib/listLimits";
 import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageRecruitment, canManageUsers } from "@/lib/users";
 import { SubmissionsTable } from "./SubmissionsTable";
-import { serializeSubmission } from "./types";
+import { redactCandidateContact, serializeSubmission } from "./types";
 import { serializeRequirement } from "../requirements/types";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function SubmissionsPage() {
       where: { tenantId: tenant.id, deletedAt: null },
       include: { candidate: true, requirement: true, resume: true },
       orderBy: { submissionDate: "desc" },
-      take: 100,
+      take: MAX_LIST_ROWS,
     }),
     db.requirement.findMany({
       where: { tenantId: tenant.id, deletedAt: null },
@@ -27,7 +28,7 @@ export default async function SubmissionsPage() {
 
   return (
     <SubmissionsTable
-      submissions={submissions.map(serializeSubmission)}
+      submissions={submissions.map((s) => redactCandidateContact(serializeSubmission(s), currentUser))}
       requirements={requirements.map(serializeRequirement)}
       currentUserId={currentUser.id}
       canEdit={canManageRecruitment(currentUser.role)}

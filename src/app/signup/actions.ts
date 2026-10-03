@@ -118,7 +118,6 @@ export async function signUp(
   // root domain (or a different tenant's subdomain) — rather than fight
   // cross-subdomain cookie config, send them to their own new subdomain's
   // login page to complete one normal sign-in there.
-  const hostname = host?.split(":")[0] ?? "";
   const port = host?.split(":")[1];
   let destination: string;
   if (isLocalDevHost(host)) {

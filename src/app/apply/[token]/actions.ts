@@ -7,6 +7,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { candidateIdentityHash } from "@/lib/candidates";
 import { getSupabaseAdmin, RESUME_BUCKET } from "@/lib/supabase/admin";
 import type { ScreeningQuestion } from "@/lib/recruitment";
+import { withNewSubmissionId } from "@/lib/recruitmentIds";
 
 // Public route — no session, no getCurrentUser() anywhere in this file.
 // Tenant is still resolved normally via the subdomain (see proxy.ts), the
@@ -54,6 +55,11 @@ export async function submitApplication(
     where: { tenantId: tenant.id, publicApplyToken: token, deletedAt: null },
   });
   if (!requirement) return { ...initialState, error: "This application link is no longer valid." };
+  // The page already hides the form for these — a direct POST shouldn't
+  // be able to get around that.
+  if (requirement.status === "Closed" || requirement.status === "Filled") {
+    return { ...initialState, error: "This position is no longer accepting applications." };
+  }
 
   const parsed = applicationSchema.safeParse({
     candidateName: formData.get("candidateName"),
@@ -97,15 +103,12 @@ export async function submitApplication(
   }
 
   const identityHash = candidateIdentityHash(data.email, data.phone, data.candidateName);
+  // An anonymous form must not be able to rewrite a candidate record
+  // recruiters already maintain — if this person is already on file, the
+  // new submission just links to the existing record as-is.
   const candidate = await db.candidate.upsert({
     where: { tenantId_identityHash: { tenantId: tenant.id, identityHash } },
-    update: {
-      name: data.candidateName,
-      email: data.email,
-      phone: data.phone,
-      currentLocation: data.currentLocation,
-      linkedinUrl: data.linkedinUrl || null,
-    },
+    update: {},
     create: {
       tenantId: tenant.id,
       identityHash,
@@ -156,10 +159,7 @@ export async function submitApplication(
     resumeId = resume.id;
   }
 
-  const submissionCount = await db.submission.count({ where: { tenantId: tenant.id } });
-  const submissionId = `SUB-${String(submissionCount + 1).padStart(4, "0")}`;
-
-  await db.submission.create({
+  await withNewSubmissionId(db, tenant.id, (submissionId) => db.submission.create({
     data: {
       tenantId: tenant.id,
       submissionId,
@@ -171,7 +171,7 @@ export async function submitApplication(
       submissionDate: new Date(),
       status: "New_Resume",
     },
-  });
+  }));
 
   return { error: null, submitted: true };
 }

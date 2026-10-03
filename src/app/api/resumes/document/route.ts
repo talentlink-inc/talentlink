@@ -13,7 +13,9 @@ export async function GET(request: Request) {
   const currentUser = await getCurrentUser();
 
   const path = new URL(request.url).searchParams.get("path");
-  if (!path || !path.startsWith(`${tenant.id}/documents/`)) {
+  // The prefix check alone isn't enough if the rest of the path can climb
+  // back out of it ("<tenant>/documents/../../<other-tenant>/...").
+  if (!path || !path.startsWith(`${tenant.id}/documents/`) || path.split("/").some((seg) => seg === ".." || seg === ".")) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (!currentUser.canViewResume) {

@@ -1,3 +1,4 @@
+import { MAX_LIST_ROWS } from "@/lib/listLimits";
 import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
@@ -5,7 +6,7 @@ import { INTERVIEW_ELIGIBLE_SUBMISSION_STATUSES } from "@/lib/recruitment";
 import { canManageRecruitment, canManageUsers } from "@/lib/users";
 import { InterviewsTable } from "./InterviewsTable";
 import { serializeInterview } from "./types";
-import { serializeSubmission } from "../submissions/types";
+import { redactCandidateContact, serializeSubmission } from "../submissions/types";
 import { getIntegrationStatus } from "./integration-actions";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function InterviewsPage({
       where: { tenantId: tenant.id, deletedAt: null },
       include: { submission: { include: { candidate: true, requirement: true, resume: true } } },
       orderBy: { scheduledAt: "desc" },
-      take: 100,
+      take: MAX_LIST_ROWS,
     }),
     db.submission.findMany({
       where: {
@@ -42,8 +43,11 @@ export default async function InterviewsPage({
 
   return (
     <InterviewsTable
-      interviews={interviews.map(serializeInterview)}
-      eligibleSubmissions={eligibleSubmissions.map(serializeSubmission)}
+      interviews={interviews.map((i) => {
+        const serialized = serializeInterview(i);
+        return { ...serialized, submission: redactCandidateContact(serialized.submission, currentUser) };
+      })}
+      eligibleSubmissions={eligibleSubmissions.map((s) => redactCandidateContact(serializeSubmission(s), currentUser))}
       currentUserId={currentUser.id}
       canEdit={canManageRecruitment(currentUser.role)}
       canManageIntegration={canManageIntegration}

@@ -6,19 +6,25 @@ import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  SUBMISSION_STATUSES,
   isRejectedStatus,
   isQualifyingPlacementStatus,
   shouldClearPlacementId,
 } from "@/lib/recruitment";
 import { canManageRecruitment } from "@/lib/users";
 import { SUPPORTED_CURRENCIES } from "@/lib/currency";
+import { nextPlacementId } from "@/lib/recruitmentIds";
 
 export type PlacementFormState = { error: string | null };
 const initialState: PlacementFormState = { error: null };
 
 const placementSchema = z.object({
-  status: z.string().trim().min(1),
-  doj: z.string().trim().optional(),
+  status: z.enum(SUBMISSION_STATUSES),
+  doj: z
+    .string()
+    .trim()
+    .optional()
+    .refine((v) => !v || !Number.isNaN(new Date(v).getTime()), { message: "Enter a valid date of joining" }),
   billRate: z.coerce.number().optional().nullable(),
   billRateCurrency: z.enum(SUPPORTED_CURRENCIES).optional(),
   payRate: z.coerce.number().optional().nullable(),
@@ -70,10 +76,7 @@ export async function updatePlacement(
   if (clearPlacement) {
     placementId = null;
   } else if (assignPlacement) {
-    const count = await db.submission.count({
-      where: { tenantId: tenant.id, placementId: { not: null } },
-    });
-    placementId = `PLC-${String(count + 1).padStart(4, "0")}`;
+    placementId = await nextPlacementId(db, tenant.id);
   }
 
   await db.submission.update({
