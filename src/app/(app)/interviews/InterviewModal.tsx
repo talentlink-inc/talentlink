@@ -207,6 +207,8 @@ export function InterviewModal({
               <input
                 type="number"
                 name="durationMinutes"
+                min={1}
+                step={1}
                 defaultValue={interview?.durationMinutes ?? 60}
                 className={inputClass}
               />

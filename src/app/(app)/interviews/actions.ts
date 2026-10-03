@@ -18,7 +18,12 @@ const interviewSchema = z.object({
   submissionId: z.string().trim().min(1, "Select a candidate submission"),
   interviewType: z.string().trim().min(1, "Interview round is required"),
   scheduledAt: z.string().trim().min(1, "Date/time is required"),
-  durationMinutes: z.coerce.number().int().positive().optional().nullable(),
+  durationMinutes: z.coerce
+    .number()
+    .int("Duration must be a whole number of minutes")
+    .positive("Duration must be greater than 0 minutes")
+    .optional()
+    .nullable(),
   mode: z.string().trim().optional(),
   // Required in the original app's Interview form ("Timezone *") — dropped
   // here during the port even though the field itself stayed.
