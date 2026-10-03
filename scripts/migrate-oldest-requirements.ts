@@ -27,12 +27,16 @@
 // Usage:
 //   npx tsx scripts/migrate-oldest-requirements.ts --dry-run
 //   npx tsx scripts/migrate-oldest-requirements.ts [--skip-files] [--fix-existing-dates] [--relink-resumes]
+//   npx tsx scripts/migrate-oldest-requirements.ts --for-submissions=572,574   # also pull in the requirements
+//     these GAS submission IDs belong to (and so those submissions) — e.g. the ones
+//     migrate-recent-interviews.ts reports as "submission isn't migrated yet"
 
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
 import { prisma } from "../src/lib/db";
 import { getTenantDbFor } from "../src/lib/tenantDb";
 import { sanitizeRichText } from "../src/lib/sanitizeRichText";
+import { nextSequenceId } from "../src/lib/sequenceIds";
 import { getSupabaseAdmin, RESUME_BUCKET } from "../src/lib/supabase/admin";
 import { getGoogleClients, readSheetAsObjects } from "./lib/sheets";
 import {
@@ -51,6 +55,12 @@ const SKIP_FILES = process.argv.includes("--skip-files");
 const FIX_EXISTING_DATES = process.argv.includes("--fix-existing-dates");
 const RELINK_RESUMES = process.argv.includes("--relink-resumes");
 const LIMIT = Number(process.env.MIGRATION_REQUIREMENT_LIMIT ?? 300);
+const FOR_SUBMISSIONS = new Set(
+  (process.argv.find((a) => a.startsWith("--for-submissions="))?.slice("--for-submissions=".length) ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean)
+);
 const SPREADSHEET_ID = process.env.GAS_SPREADSHEET_ID;
 const TENANT_SUBDOMAIN = process.env.DEFAULT_TENANT_SUBDOMAIN ?? "digitallinks";
 
@@ -94,6 +104,13 @@ function richText(value: string | undefined): string | null {
   return sanitizeRichText(html) || null;
 }
 
+// A handful of GAS submission rows list more than one job in this cell
+// ("JOB-341, JOB-149"). A submission belongs to exactly one requirement here,
+// so link it to the first one listed; requirementJobIdRaw keeps the full text.
+function primaryJobId(row: Row): string {
+  return (row.RequirementJobID ?? "").split(",")[0].trim();
+}
+
 function formatId(prefix: string, n: number) {
   return `${prefix}-${String(n).padStart(4, "0")}`;
 }
@@ -122,7 +139,20 @@ async function main() {
   if (undated.length > 0) {
     throw new Error(`${undated.length} requirement row(s) have no parseable CreatedDate: ${undated.map((r) => r.JobID).join(", ")}`);
   }
-  const oldestRequirements = [...requirementRows].sort(byDateThenId("CreatedDate")).slice(0, LIMIT);
+  const oldest = [...requirementRows].sort(byDateThenId("CreatedDate")).slice(0, LIMIT);
+  const extraJobIds = new Set(
+    recruitmentRows.filter((r) => FOR_SUBMISSIONS.has(r.ID?.trim())).map(primaryJobId)
+  );
+  const oldestRequirements = [
+    ...oldest,
+    ...requirementRows.filter((r) => extraJobIds.has(r.JobID) && !oldest.includes(r)),
+  ];
+  if (FOR_SUBMISSIONS.size) {
+    console.log(
+      `--for-submissions: ${FOR_SUBMISSIONS.size} submission ID(s) → ${extraJobIds.size} requirement(s), ` +
+        `${oldestRequirements.length - oldest.length} beyond the oldest ${LIMIT}.`
+    );
+  }
   const newestKept = requirementRows.length - oldestRequirements.length;
   console.log(
     `Oldest ${oldestRequirements.length}: ${oldestRequirements[0].JobID} (${oldestRequirements[0].CreatedDate}) → ` +
@@ -131,7 +161,7 @@ async function main() {
 
   const [existingRequirements, existingSubmissions] = await Promise.all([
     db.requirement.findMany({ where: { tenantId: tenant.id }, select: { id: true, jobId: true, legacyId: true } }),
-    db.submission.findMany({ where: { tenantId: tenant.id }, select: { id: true, legacyId: true } }),
+    db.submission.findMany({ where: { tenantId: tenant.id }, select: { id: true, legacyId: true, submissionId: true } }),
   ]);
 
   // --- Requirements ---
@@ -206,7 +236,7 @@ async function main() {
   const existingSubmissionLegacyIds = new Set(existingSubmissions.map((s) => s.legacyId).filter((id) => id != null));
   const seenLegacyIds = new Set<number>();
   const candidateSubmissions = recruitmentRows
-    .filter((r) => requirementIdByLegacyJobId.has(r.RequirementJobID))
+    .filter((r) => requirementIdByLegacyJobId.has(primaryJobId(r)))
     .sort(byDateThenId("SubmissionDate"));
   const toMigrate: Row[] = [];
   let submissionsExisting = 0;
@@ -228,7 +258,9 @@ async function main() {
       `${toMigrate.length} to create, ${submissionsExisting} already migrated.`
   );
 
-  let nextSubmissionNumber = existingSubmissions.length + 1;
+  // Continue from the highest SUB-NNNN on record, not the row count — the app
+  // has been creating submissions too, and a count can land on a taken ID.
+  let nextSubmissionNumber = Number(nextSequenceId("SUB", existingSubmissions.map((s) => s.submissionId)).slice(4));
   let migrated = 0;
   let resumesLinked = 0;
   const failures: string[] = [];
@@ -283,7 +315,7 @@ async function main() {
           submissionId,
           candidateId: candidate.id,
           resumeId,
-          requirementId: requirementIdByLegacyJobId.get(row.RequirementJobID) ?? null,
+          requirementId: requirementIdByLegacyJobId.get(primaryJobId(row)) ?? null,
           requirementJobIdRaw: row.RequirementJobID || null,
           roleWithSkills: plainText(row.RoleWithSkills),
           roleSkillsShort: row.RoleSkillsShort || null,
