@@ -87,7 +87,11 @@ export function Sidebar({
   // so the server-rendered and first-client-render markup match — collapse
   // state only applies once we're safely past hydration.
   useEffect(() => {
-    if (localStorage.getItem("sidebarCollapsed") === "true") {
+    // On a phone-width screen the expanded 230px sidebar took half the
+    // viewport, so start collapsed there — without persisting it, so the
+    // desktop preference in localStorage is left alone.
+    const isNarrow = window.matchMedia("(max-width: 767px)").matches;
+    if (isNarrow || localStorage.getItem("sidebarCollapsed") === "true") {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of a browser-only API, not derivable during SSR
       setCollapsed(true);
     }
