@@ -24,7 +24,7 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import type { DataPermissions } from "@/lib/users";
 import type { SerializedSubmission } from "./types";
-import type { SerializedRequirement } from "../requirements/types";
+import type { RequirementSummary } from "./types";
 
 type Mode = "create" | "view" | "edit";
 
@@ -45,7 +45,7 @@ export function SubmissionModal({
 }: {
   mode: Mode;
   submission: SerializedSubmission | null;
-  requirements: SerializedRequirement[];
+  requirements: RequirementSummary[];
   currentUserId: string;
   canEdit: boolean;
   isAdmin: boolean;
@@ -455,6 +455,21 @@ export function SubmissionModal({
                   onChange={(e) => set("recruiterUserId", e.target.value)}
                   className={inputClass}
                 >
+                  {/* Imported submissions carry only the GAS recruiter's name, no
+                      user link — without this the select fell back to its first
+                      option and an unrelated save silently reassigned them. */}
+                  {!values.recruiterUserId && (
+                    <option value="">
+                      {submission?.recruiterNameRaw ? `${submission.recruiterNameRaw} (not linked to a user)` : "— Unassigned —"}
+                    </option>
+                  )}
+                  {/* Same trap for a recruiter who's since been deactivated (the
+                      options list is active users only). */}
+                  {values.recruiterUserId && !recruiters.some((r) => r.id === values.recruiterUserId) && (
+                    <option value={values.recruiterUserId}>
+                      {submission?.recruiterNameRaw ?? "Current recruiter"} (inactive)
+                    </option>
+                  )}
                   {recruiters.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.name}
@@ -713,7 +728,7 @@ function RateField({
           name={currencyName}
           value={currency}
           onChange={(e) => onCurrencyChange(e.target.value)}
-          className={inputClass + " w-24 shrink-0"}
+          className={inputClass.replace("w-full", "w-24 shrink-0")}
         >
           {SUPPORTED_CURRENCIES.map((c) => (
             <option key={c} value={c}>
@@ -729,7 +744,7 @@ function RateField({
           value={rate}
           onChange={(e) => onRateChange(e.target.value)}
           required={required}
-          className={inputClass}
+          className={inputClass.replace("w-full", "min-w-0 flex-1")}
         />
       </div>
     </div>

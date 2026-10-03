@@ -320,7 +320,7 @@ export async function updateSubmission(
   const db = await getTenantDb();
   const existing = await db.submission.findUnique({
     where: { id, tenantId: tenant.id },
-    include: { candidate: { select: { email: true, phone: true } } },
+    include: { candidate: { select: { email: true, phone: true, linkedinUrl: true } } },
   });
   if (!existing) {
     return { ...initialFormState, error: "Submission not found." };
@@ -329,6 +329,10 @@ export async function updateSubmission(
   // Email/phone are never sent to a user without canViewEmail/canViewPhone
   // (see redactCandidateContact), so their edit form has nothing to post
   // back for them — keep what's on file instead of treating it as blank.
+  // Same for an email that was imported into the LinkedIn column (also
+  // withheld without canViewEmail): keep it rather than blanking it.
+  const linkedinWithheld = !currentUser.canViewEmail && !!existing.candidate.linkedinUrl?.includes("@");
+
   const parsed = editSchema.safeParse({
     ...Object.fromEntries(formData.entries()),
     email: currentUser.canViewEmail ? formData.get("email") ?? "" : existing.candidate.email ?? "",
@@ -389,7 +393,7 @@ export async function updateSubmission(
       currentLocation: data.currentLocation || null,
       totalExperienceYears: data.totalExperienceYears ?? null,
       visaStatus: data.visaStatus || null,
-      linkedinUrl: data.linkedinUrl || null,
+      linkedinUrl: linkedinWithheld ? existing.candidate.linkedinUrl : data.linkedinUrl || null,
     },
   });
 

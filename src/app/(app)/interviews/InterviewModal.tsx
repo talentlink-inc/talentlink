@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { createInterview, updateInterview, deleteInterview } from "./actions";
 import { INTERVIEW_STATUSES, INTERVIEW_MODES, INTERVIEW_TYPES } from "@/lib/recruitment";
 import { NotesSection } from "../notes/NotesSection";
@@ -12,6 +12,43 @@ import type { SerializedInterview } from "./types";
 import type { SerializedSubmission } from "../submissions/types";
 
 type Mode = "create" | "view" | "edit";
+
+// Timezone used to be a free-text box, so a typo ("EST ", "Eastern") either
+// failed validation or — before validation existed — crashed the page.
+const COMMON_TIME_ZONES: { zone: string; label: string }[] = [
+  { zone: "America/New_York", label: "US Eastern" },
+  { zone: "America/Chicago", label: "US Central" },
+  { zone: "America/Denver", label: "US Mountain" },
+  { zone: "America/Phoenix", label: "US Arizona" },
+  { zone: "America/Los_Angeles", label: "US Pacific" },
+  { zone: "America/Anchorage", label: "US Alaska" },
+  { zone: "Pacific/Honolulu", label: "US Hawaii" },
+  { zone: "America/Toronto", label: "Canada Eastern" },
+  { zone: "America/Mexico_City", label: "Mexico City" },
+  { zone: "America/Sao_Paulo", label: "Brazil" },
+  { zone: "Europe/London", label: "UK" },
+  { zone: "Europe/Lisbon", label: "Portugal" },
+  { zone: "Europe/Paris", label: "Central Europe (Paris)" },
+  { zone: "Europe/Berlin", label: "Central Europe (Berlin)" },
+  { zone: "Europe/Warsaw", label: "Poland" },
+  { zone: "Europe/Kyiv", label: "Ukraine" },
+  { zone: "Asia/Dubai", label: "UAE" },
+  { zone: "Asia/Kolkata", label: "India" },
+  { zone: "Asia/Singapore", label: "Singapore" },
+  { zone: "Asia/Manila", label: "Philippines" },
+  { zone: "Asia/Tokyo", label: "Japan" },
+  { zone: "Australia/Sydney", label: "Australia Eastern" },
+  { zone: "UTC", label: "UTC" },
+];
+
+function timeZoneOptions(current: string | null | undefined) {
+  const browser = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const options = [...COMMON_TIME_ZONES];
+  for (const extra of [current, browser]) {
+    if (extra && !options.some((o) => o.zone === extra)) options.unshift({ zone: extra, label: extra });
+  }
+  return options;
+}
 
 const inputClass =
   "w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent";
@@ -98,7 +135,17 @@ export function InterviewModal({
         )}
 
         {isForm && (
-          <form action={formAction} className="grid grid-cols-2 gap-4">
+          <form
+            // Dispatched by hand rather than via <form action>: React resets an
+            // action form's uncontrolled fields after every submit, so a single
+            // validation error used to wipe everything the recruiter had typed.
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              startTransition(() => formAction(formData));
+            }}
+            className="grid grid-cols-2 gap-4"
+          >
             <div className="col-span-2">
               <label className={labelClass}>Candidate Submission *</label>
               <select
@@ -167,12 +214,18 @@ export function InterviewModal({
 
             <div>
               <label className={labelClass}>Timezone *</label>
-              <input
+              <select
                 name="timezone"
                 defaultValue={interview?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}
                 required
                 className={inputClass}
-              />
+              >
+                {timeZoneOptions(interview?.timezone).map((o) => (
+                  <option key={o.zone} value={o.zone}>
+                    {o.label === o.zone ? o.zone : `${o.label} — ${o.zone}`}
+                  </option>
+                ))}
+              </select>
             </div>
             <Field
               label="Client Company"
@@ -204,7 +257,7 @@ export function InterviewModal({
               </>
             )}
 
-            {state.error && <p className="col-span-2 text-sm text-red-600">{state.error}</p>}
+            {state.error && !pending && <p className="col-span-2 text-sm text-red-600">{state.error}</p>}
 
             <div className="col-span-2 flex justify-end gap-2 pt-2">
               <button

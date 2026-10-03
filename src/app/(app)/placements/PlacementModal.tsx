@@ -177,7 +177,7 @@ export function PlacementModal({
                   name="billRateCurrency"
                   value={billRateCurrency}
                   onChange={(e) => setBillRateCurrency(e.target.value)}
-                  className={inputClass + " w-24 shrink-0"}
+                  className={inputClass.replace("w-full", "w-24 shrink-0")}
                 >
                   {SUPPORTED_CURRENCIES.map((c) => (
                     <option key={c} value={c}>
@@ -191,7 +191,7 @@ export function PlacementModal({
                   name="billRate"
                   value={billRate}
                   onChange={(e) => setBillRate(e.target.value)}
-                  className={inputClass}
+                  className={inputClass.replace("w-full", "min-w-0 flex-1")}
                 />
               </div>
             </div>
@@ -202,7 +202,7 @@ export function PlacementModal({
                   name="payRateCurrency"
                   value={payRateCurrency}
                   onChange={(e) => setPayRateCurrency(e.target.value)}
-                  className={inputClass + " w-24 shrink-0"}
+                  className={inputClass.replace("w-full", "w-24 shrink-0")}
                 >
                   {SUPPORTED_CURRENCIES.map((c) => (
                     <option key={c} value={c}>
@@ -216,7 +216,7 @@ export function PlacementModal({
                   name="payRate"
                   value={payRate}
                   onChange={(e) => setPayRate(e.target.value)}
-                  className={inputClass}
+                  className={inputClass.replace("w-full", "min-w-0 flex-1")}
                 />
               </div>
             </div>

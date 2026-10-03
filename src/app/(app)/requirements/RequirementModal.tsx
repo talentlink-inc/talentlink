@@ -521,7 +521,7 @@ function RateField({
           name={currencyName}
           value={currency}
           onChange={(e) => onCurrencyChange(e.target.value)}
-          className={inputClass + " w-24 shrink-0"}
+          className={inputClass.replace("w-full", "w-24 shrink-0")}
         >
           {SUPPORTED_CURRENCIES.map((c) => (
             <option key={c} value={c}>
@@ -537,7 +537,7 @@ function RateField({
           value={rate}
           onChange={(e) => onRateChange(e.target.value)}
           required={required}
-          className={inputClass}
+          className={inputClass.replace("w-full", "min-w-0 flex-1")}
         />
       </div>
     </div>

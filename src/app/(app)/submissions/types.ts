@@ -1,10 +1,27 @@
 import type { Submission, Candidate, Requirement, Resume } from "@/generated/prisma/client";
 import type { DataPermissions } from "@/lib/users";
-import { serializeRequirement, type SerializedRequirement } from "../requirements/types";
+
+// Submission/placement/interview screens only ever show a requirement's title
+// and client (plus the picker's Job ID/status), so that's all that's loaded
+// and sent — embedding the whole Requirement (job description HTML,
+// screening questions, apply token) on every row made /submissions a
+// multi-megabyte payload.
+export const REQUIREMENT_SUMMARY_SELECT = {
+  id: true,
+  jobId: true,
+  jobTitle: true,
+  clientName: true,
+  status: true,
+} as const;
+export type RequirementSummary = Pick<Requirement, keyof typeof REQUIREMENT_SUMMARY_SELECT>;
+
+function toRequirementSummary(r: RequirementSummary): RequirementSummary {
+  return { id: r.id, jobId: r.jobId, jobTitle: r.jobTitle, clientName: r.clientName, status: r.status };
+}
 
 // See requirements/types.ts for why Decimal fields need explicit conversion
 // before crossing the Server->Client Component boundary.
-export type SerializedCandidate = Omit<Candidate, "totalExperienceYears"> & {
+export type SerializedCandidate = Omit<Candidate, "totalExperienceYears" | "identityHash"> & {
   totalExperienceYears: string | null;
 };
 
@@ -16,30 +33,37 @@ export type SerializedSubmission = Omit<
   payRate: string | null;
   commission: string | null;
   candidate: SerializedCandidate;
-  requirement: SerializedRequirement | null;
+  requirement: RequirementSummary | null;
   resume: Resume | null;
 };
 
 export function serializeSubmission(
-  s: Submission & { candidate: Candidate; requirement: Requirement | null; resume: Resume | null }
+  s: Submission & { candidate: Candidate; requirement: RequirementSummary | null; resume: Resume | null }
 ): SerializedSubmission {
+  // identityHash is a hash of the candidate's email + phone — a phone number
+  // is few enough digits to brute-force back out of it, so it never goes to
+  // the browser (nothing client-side uses it anyway).
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { identityHash, ...candidate } = s.candidate;
   return {
     ...s,
     billRate: s.billRate?.toString() ?? null,
     payRate: s.payRate?.toString() ?? null,
     commission: s.commission?.toString() ?? null,
     candidate: {
-      ...s.candidate,
+      ...candidate,
       totalExperienceYears: s.candidate.totalExperienceYears?.toString() ?? null,
     },
-    requirement: s.requirement ? serializeRequirement(s.requirement) : null,
+    requirement: s.requirement ? toRequirementSummary(s.requirement) : null,
   };
 }
 
 // canViewEmail/canViewPhone have to be enforced before the data leaves the
 // server — hiding it in the UI alone still ships it in the page payload,
 // readable by anyone who opens dev tools.
-export function redactCandidateContact<T extends { candidate: { email: string | null; phone: string | null } }>(
+export function redactCandidateContact<
+  T extends { candidate: { email: string | null; phone: string | null; linkedinUrl: string | null } },
+>(
   row: T,
   permissions: Pick<DataPermissions, "canViewEmail" | "canViewPhone">
 ): T {
@@ -50,6 +74,10 @@ export function redactCandidateContact<T extends { candidate: { email: string | 
       ...row.candidate,
       email: permissions.canViewEmail ? row.candidate.email : null,
       phone: permissions.canViewPhone ? row.candidate.phone : null,
+      // Some imported GAS rows have the candidate's email typed into the
+      // LinkedIn column — don't let that slip past canViewEmail.
+      linkedinUrl:
+        !permissions.canViewEmail && row.candidate.linkedinUrl?.includes("@") ? null : row.candidate.linkedinUrl,
     },
   };
 }

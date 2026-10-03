@@ -11,7 +11,7 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { rowSelectClass } from "@/lib/tableRow";
 import type { DataPermissions } from "@/lib/users";
 import type { SerializedSubmission } from "./types";
-import type { SerializedRequirement } from "../requirements/types";
+import type { RequirementSummary } from "./types";
 
 export function SubmissionsTable({
   submissions,
@@ -22,7 +22,7 @@ export function SubmissionsTable({
   permissions,
 }: {
   submissions: SerializedSubmission[];
-  requirements: SerializedRequirement[];
+  requirements: RequirementSummary[];
   currentUserId: string;
   canEdit: boolean;
   isAdmin: boolean;

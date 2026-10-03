@@ -6,7 +6,7 @@ import { INTERVIEW_ELIGIBLE_SUBMISSION_STATUSES } from "@/lib/recruitment";
 import { canManageRecruitment, canManageUsers } from "@/lib/users";
 import { InterviewsTable } from "./InterviewsTable";
 import { serializeInterview } from "./types";
-import { redactCandidateContact, serializeSubmission } from "../submissions/types";
+import { REQUIREMENT_SUMMARY_SELECT, redactCandidateContact, serializeSubmission } from "../submissions/types";
 import { getIntegrationStatus } from "./integration-actions";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +25,7 @@ export default async function InterviewsPage({
   const [interviews, eligibleSubmissions, integrationStatus] = await Promise.all([
     db.interview.findMany({
       where: { tenantId: tenant.id, deletedAt: null },
-      include: { submission: { include: { candidate: true, requirement: true, resume: true } } },
+      include: { submission: { include: { candidate: true, requirement: { select: REQUIREMENT_SUMMARY_SELECT }, resume: true } } },
       orderBy: { scheduledAt: "desc" },
       take: MAX_LIST_ROWS,
     }),
@@ -35,7 +35,7 @@ export default async function InterviewsPage({
         deletedAt: null,
         status: { in: [...INTERVIEW_ELIGIBLE_SUBMISSION_STATUSES] },
       },
-      include: { candidate: true, requirement: true, resume: true },
+      include: { candidate: true, requirement: { select: REQUIREMENT_SUMMARY_SELECT }, resume: true },
       orderBy: { submissionDate: "desc" },
     }),
     canManageIntegration ? getIntegrationStatus() : Promise.resolve(null),
