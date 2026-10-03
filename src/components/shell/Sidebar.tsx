@@ -25,6 +25,13 @@ import { signOut } from "@/app/login/actions";
 // detection — a manual page refresh always shows the on-focus check anyway.
 const VERSION_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
+// Matches the GAS app's sidebar as the team actually uses it: its
+// "pattern-grid" theme (Index.html THEMES) — slate with a faint 48px grid —
+// plus GAS's brand accent (#34d399) and active-item bar (--secondary).
+const SIDEBAR_GRID_SVG =
+  "<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><path d='M 48 0 L 0 0 0 48' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1'/></svg>";
+const SIDEBAR_BACKGROUND = `url("data:image/svg+xml;utf8,${encodeURIComponent(SIDEBAR_GRID_SVG)}") repeat, #37474f`;
+
 const RECRUITMENT_NAV = [
   { href: "/requirements", label: "Requirements", icon: FileText },
   { href: "/submissions", label: "Submissions", icon: Users },
@@ -113,10 +120,11 @@ export function Sidebar({
         <Link
           href={href}
           title={collapsed ? label : undefined}
-          className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-            active ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+          className={`relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors ${
+            active ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08] hover:text-white/90"
           }`}
         >
+          {active && <span aria-hidden className="absolute top-2 bottom-2 left-0 w-[3px] rounded-r-[3px] bg-[#00acc1]" />}
           <Icon size={18} className="shrink-0" />
           {!collapsed && <span className="truncate">{label}</span>}
         </Link>
@@ -129,7 +137,7 @@ export function Sidebar({
       className={`flex h-full shrink-0 flex-col text-white ${mounted ? "transition-[width] duration-150" : ""} ${
         collapsed ? "w-[64px]" : "w-[230px]"
       }`}
-      style={{ background: "linear-gradient(180deg, #0d1257 0%, #1a237e 50%, #1a237e 100%)" }}
+      style={{ background: SIDEBAR_BACKGROUND }}
     >
       <div className="border-b border-white/10 px-4 pt-4 pb-2">
         <div className="flex items-center gap-2">
@@ -140,7 +148,7 @@ export function Sidebar({
               {collapsed && updateAvailable && (
                 <span
                   title="An update is available"
-                  className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2 ring-[#0d1257]"
+                  className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2 ring-[#37474f]"
                 />
               )}
             </div>
@@ -148,7 +156,7 @@ export function Sidebar({
           {!collapsed && logoStyle !== "people" && (
             <div className="min-w-0 flex-1">
               <div className="truncate text-[15px] leading-tight font-semibold">
-                Talent<span className="text-orange-400">Link</span>
+                Talent<span className="text-[#34d399]">Link</span>
               </div>
               <div className="truncate text-[10px] leading-tight text-white/50">{tenantName}</div>
             </div>
