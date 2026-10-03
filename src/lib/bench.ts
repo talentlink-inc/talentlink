@@ -16,3 +16,25 @@ export const BENCH_HOTLIST_STATUSES = ["Active", "Inactive"] as const;
 export function relocationLabel(value: string): string {
   return BENCH_RELOCATION_OPTIONS.find((o) => o.value === value)?.label ?? value;
 }
+
+// GAS BENCH_SUB_STATUS_BUCKET (BenchSubmissions.js) — identical to
+// Recruitment's pipeline buckets: early (blue), in play (amber), placed
+// (green), closed out (red).
+const STATUS_BUCKETS: Record<string, "blue" | "amber" | "green" | "red"> = {
+  New_Resume: "blue",
+  Internal_Submission: "blue",
+  Submitted: "blue",
+  Vender_Submission: "amber",
+  Online_Test: "amber",
+  Client_Submission: "amber",
+  L1_Interview: "amber",
+  L2_Interview: "amber",
+  Client_Selected: "amber",
+  Background_Check: "amber",
+  Onboarding: "green",
+  Started_Billable: "green",
+};
+
+export function submissionStatusBucket(status: string): "blue" | "amber" | "green" | "red" {
+  return STATUS_BUCKETS[status] ?? "red";
+}

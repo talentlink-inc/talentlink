@@ -96,6 +96,9 @@ export const REJECT_REASON_OPTIONS = [
   "Overqualified",
   "Underqualified",
   "Client_Circumvention",
+  // GAS 2026-08-28: interviewed fine but the client chose someone else — no
+  // specific deficiency, unlike every other reason above.
+  "Not_Selected",
 ] as const;
 
 export function isQualifyingPlacementStatus(status: string) {

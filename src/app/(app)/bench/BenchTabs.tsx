@@ -5,7 +5,11 @@ import { usePathname } from "next/navigation";
 
 // Mirrors GAS PageBenchSales.html's tab bar. Tabs are added here as each
 // stage of the port ships.
-const TABS = [{ href: "/bench/consultants", label: "Consultants" }];
+const TABS = [
+  { href: "/bench/consultants", label: "Consultants" },
+  { href: "/bench/submissions", label: "Submissions" },
+  { href: "/bench/placements", label: "Placements" },
+];
 
 export function BenchTabs() {
   const pathname = usePathname();

@@ -17,11 +17,8 @@ import { NotesSection } from "../../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import { StatusBadge } from "./ConsultantsTable";
+import { Field, FieldSelect, FieldTextarea, inputClass, labelClass } from "../FormFields";
 import type { SerializedConsultant } from "./types";
-
-const inputClass =
-  "w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent";
-const labelClass = "mb-1 block text-xs font-medium text-black/60 dark:text-white/60";
 
 export type ConsultantViewer = {
   id: string;
@@ -386,95 +383,6 @@ function ConsultantForm({
 // select silently falling back to its first option on edit.
 function withCurrent(options: readonly string[], current: string | null | undefined): string[] {
   return current && !options.includes(current) ? [current, ...options] : [...options];
-}
-
-function Field({
-  label,
-  name,
-  defaultValue,
-  required,
-  type = "text",
-  placeholder,
-}: {
-  label: string;
-  name: string;
-  defaultValue?: string | null;
-  required?: boolean;
-  type?: string;
-  placeholder?: string;
-}) {
-  const id = useId();
-  return (
-    <div>
-      <label htmlFor={id} className={labelClass}>
-        {label}
-        {required && " *"}
-      </label>
-      <input
-        id={id}
-        name={name}
-        type={type}
-        defaultValue={defaultValue ?? ""}
-        placeholder={placeholder}
-        required={required}
-        className={inputClass}
-      />
-    </div>
-  );
-}
-
-function FieldTextarea({
-  label,
-  name,
-  defaultValue,
-  required,
-}: {
-  label: string;
-  name: string;
-  defaultValue?: string | null;
-  required?: boolean;
-}) {
-  const id = useId();
-  return (
-    <div>
-      <label htmlFor={id} className={labelClass}>
-        {label}
-        {required && " *"}
-      </label>
-      <textarea id={id} name={name} rows={3} defaultValue={defaultValue ?? ""} required={required} className={inputClass} />
-    </div>
-  );
-}
-
-function FieldSelect({
-  label,
-  name,
-  defaultValue,
-  required,
-  options,
-}: {
-  label: string;
-  name: string;
-  defaultValue: string;
-  required?: boolean;
-  options: { value: string; label: string; disabled?: boolean }[];
-}) {
-  const id = useId();
-  return (
-    <div>
-      <label htmlFor={id} className={labelClass}>
-        {label}
-        {required && " *"}
-      </label>
-      <select id={id} name={name} defaultValue={defaultValue} required={required} className={inputClass}>
-        {options.map((o) => (
-          <option key={o.value || "__empty"} value={o.value} disabled={o.disabled}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
 }
 
 function FileField({ label, name }: { label: string; name: string }) {
