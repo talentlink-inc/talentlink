@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useId } from "react";
 import {
   createRequirement,
   updateRequirement,
@@ -297,6 +297,9 @@ export function RequirementModal({
               value={values.visa}
               onChange={(v) => set("visa", v)}
               required={visaRequired}
+              // Required only once USA is ticked under Country (further down),
+              // so say so up front instead of the asterisk appearing later.
+              hint={visaRequired ? undefined : "required for USA"}
             />
             <div>
               <label className={labelClass}>
@@ -510,14 +513,16 @@ function RateField({
   onCurrencyChange: (v: string) => void;
   required?: boolean;
 }) {
+  const id = useId();
   return (
     <div>
-      <label className={labelClass}>
+      <label htmlFor={id} className={labelClass}>
         {label}
         {required && " *"}
       </label>
       <div className="flex gap-1">
         <select
+          aria-label={`${label} currency`}
           name={currencyName}
           value={currency}
           onChange={(e) => onCurrencyChange(e.target.value)}
@@ -530,6 +535,7 @@ function RateField({
           ))}
         </select>
         <input
+          id={id}
           name={rateName}
           type="number"
           step="0.01"
@@ -633,6 +639,7 @@ function Field({
   type = "text",
   step,
   min,
+  hint,
 }: {
   label: string;
   name: string;
@@ -642,14 +649,20 @@ function Field({
   type?: string;
   step?: string;
   min?: string;
+  hint?: string;
 }) {
+  // Linked label (htmlFor/id) so screen readers announce the field name and
+  // clicking the label focuses the input.
+  const id = useId();
   return (
     <div>
-      <label className={labelClass}>
+      <label htmlFor={id} className={labelClass}>
         {label}
         {required && " *"}
+        {hint && <span className="font-normal text-black/40 dark:text-white/40"> ({hint})</span>}
       </label>
       <input
+        id={id}
         name={name}
         type={type}
         step={step}

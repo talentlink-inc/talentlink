@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition, useId } from "react";
 import {
   createSubmission,
   updateSubmission,
@@ -666,13 +666,17 @@ function Field({
   step?: string;
   min?: string;
 }) {
+  // Linked label (htmlFor/id) so screen readers announce the field name and
+  // clicking the label focuses the input.
+  const id = useId();
   return (
     <div>
-      <label className={labelClass}>
+      <label htmlFor={id} className={labelClass}>
         {label}
         {required && " *"}
       </label>
       <input
+        id={id}
         name={name}
         type={type}
         step={step}
@@ -717,14 +721,16 @@ function RateField({
   onCurrencyChange: (v: string) => void;
   required?: boolean;
 }) {
+  const id = useId();
   return (
     <div>
-      <label className={labelClass}>
+      <label htmlFor={id} className={labelClass}>
         {label}
         {required && " *"}
       </label>
       <div className="flex gap-1">
         <select
+          aria-label={`${label} currency`}
           name={currencyName}
           value={currency}
           onChange={(e) => onCurrencyChange(e.target.value)}
@@ -737,6 +743,7 @@ function RateField({
           ))}
         </select>
         <input
+          id={id}
           name={rateName}
           type="number"
           step="0.01"
