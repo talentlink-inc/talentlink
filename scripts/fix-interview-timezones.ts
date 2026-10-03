@@ -9,8 +9,8 @@
 //
 // Only rows last saved before --before (the moment the fix went live) are
 // touched; correcting a row bumps its updatedAt past that, so re-running is a
-// no-op. No interviews came from the GAS migration (every row was entered in
-// the app), so there's no legacy data to exclude. Calendar events already
+// no-op. Interviews imported from GAS (legacyId set, see
+// migrate-recent-interviews.ts) were converted correctly and are excluded. Calendar events already
 // sent are NOT re-synced — that would re-email every candidate; re-save an
 // interview in the app to push its corrected time to the calendar.
 //
@@ -44,7 +44,7 @@ async function main() {
   const db = getTenantDbFor(tenant.id);
 
   const interviews = await db.interview.findMany({
-    where: { tenantId: tenant.id, scheduledAt: { not: null }, updatedAt: { lt: before } },
+    where: { tenantId: tenant.id, legacyId: null, scheduledAt: { not: null }, updatedAt: { lt: before } },
     include: { submission: { include: { candidate: { select: { name: true } } } } },
     orderBy: { scheduledAt: "asc" },
   });
