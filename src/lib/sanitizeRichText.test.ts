@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeRichText } from "./sanitizeRichText";
+import { sanitizeHelpHtml, sanitizeRichText } from "./sanitizeRichText";
 
 // [security] jobDescription renders via dangerouslySetInnerHTML on both the
 // authenticated RequirementModal and the public, unauthenticated
@@ -65,5 +65,17 @@ describe("[security] sanitizeRichText", () => {
     const out = sanitizeRichText("<!-- <script>alert(1)</script> -->visible");
     expect(out).not.toContain("<script");
     expect(out).toContain("visible");
+  });
+});
+
+describe("sanitizeHelpHtml", () => {
+  it("keeps the headings and formatting help topics use", () => {
+    const html = "<h4>Visas</h4><p><strong>H1B:</strong> employer-sponsored</p><ul><li>one</li></ul>";
+    expect(sanitizeHelpHtml(html)).toBe(html);
+  });
+
+  it("strips scripts, handlers, links and styles", () => {
+    const out = sanitizeHelpHtml('<h4 onclick="x()">T</h4><script>alert(1)</script><a href="javascript:x">l</a><p style="color:red">p</p><img src=x onerror=y>');
+    expect(out).toBe("<h4>T</h4>l<p>p</p>");
   });
 });

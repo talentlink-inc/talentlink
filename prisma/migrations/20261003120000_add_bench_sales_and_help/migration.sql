@@ -86,6 +86,21 @@ CREATE TABLE "bench_interviews" (
     CONSTRAINT "bench_interviews_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "help_topics" (
+    "id" TEXT NOT NULL,
+    "tenant_id" TEXT NOT NULL,
+    "legacy_id" INTEGER,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'Active',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "help_topics_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE INDEX "bench_consultants_tenant_id_status_idx" ON "bench_consultants"("tenant_id", "status");
 
@@ -119,6 +134,12 @@ CREATE INDEX "bench_interviews_tenant_id_status_idx" ON "bench_interviews"("tena
 -- CreateIndex
 CREATE UNIQUE INDEX "bench_interviews_tenant_id_legacy_id_key" ON "bench_interviews"("tenant_id", "legacy_id");
 
+-- CreateIndex
+CREATE INDEX "help_topics_tenant_id_sort_order_idx" ON "help_topics"("tenant_id", "sort_order");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "help_topics_tenant_id_legacy_id_key" ON "help_topics"("tenant_id", "legacy_id");
+
 -- AddForeignKey
 ALTER TABLE "bench_consultants" ADD CONSTRAINT "bench_consultants_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -146,6 +167,9 @@ ALTER TABLE "bench_interviews" ADD CONSTRAINT "bench_interviews_bench_submission
 -- AddForeignKey
 ALTER TABLE "bench_interviews" ADD CONSTRAINT "bench_interviews_scheduled_by_user_id_fkey" FOREIGN KEY ("scheduled_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "help_topics" ADD CONSTRAINT "help_topics_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
 
 -- Row-Level Security — same tenant_isolation policy as every other
 -- tenant-scoped table (see 20260905120000_add_row_level_security). FORCE so
@@ -167,5 +191,11 @@ CREATE POLICY tenant_isolation ON "bench_submissions"
 ALTER TABLE "bench_interviews" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "bench_interviews" FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON "bench_interviews"
+  USING (tenant_id = current_setting('app.tenant_id', true))
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true));
+
+ALTER TABLE "help_topics" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "help_topics" FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON "help_topics"
   USING (tenant_id = current_setting('app.tenant_id', true))
   WITH CHECK (tenant_id = current_setting('app.tenant_id', true));

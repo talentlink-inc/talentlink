@@ -18,6 +18,7 @@ import {
   Settings,
   FlaskConical,
   BriefcaseBusiness,
+  CircleHelp,
 } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 
@@ -228,6 +229,8 @@ export function Sidebar({
             </ul>
           </>
         )}
+
+        <ul className="space-y-0.5 pt-4">{navItem("/help", "Help Center", CircleHelp)}</ul>
 
         {canAccessOps && (
           <>

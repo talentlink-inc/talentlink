@@ -35,3 +35,16 @@ export function sanitizeRichText(html: string): string {
     disallowedTagsMode: "discard",
   });
 }
+
+// Help Center topics (GAS HelpContent sheet) use headings as well as the
+// basic formatting above — still no attributes at all, so no links, styles,
+// event handlers or images can survive.
+const HELP_ALLOWED_TAGS = [...ALLOWED_TAGS, "h3", "h4", "h5"];
+
+export function sanitizeHelpHtml(html: string): string {
+  return sanitizeHtml(html, {
+    allowedTags: HELP_ALLOWED_TAGS,
+    allowedAttributes: {},
+    disallowedTagsMode: "discard",
+  });
+}
