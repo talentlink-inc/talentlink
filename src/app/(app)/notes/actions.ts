@@ -5,10 +5,26 @@ import { revalidatePath } from "next/cache";
 import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
+import { canAccessBench } from "@/lib/users";
 
-export type NoteModule = "requirement" | "submission" | "interview";
+export type NoteModule =
+  | "requirement"
+  | "submission"
+  | "interview"
+  | "bench_consultant"
+  | "bench_submission"
+  | "bench_interview";
+
+// Bench Sales is hidden from Recruiters/HR entirely, so its notes have to be
+// too — the record ids alone aren't a secret worth relying on.
+async function assertCanUseModule(module: NoteModule) {
+  if (!module.startsWith("bench_")) return;
+  const user = await getCurrentUser();
+  if (!canAccessBench(user.role)) throw new Error("You don't have access to Bench Sales.");
+}
 
 export async function listNotes(module: NoteModule, recordId: string) {
+  await assertCanUseModule(module);
   const tenant = await getCurrentTenant();
   const db = await getTenantDb();
   return db.note.findMany({
@@ -28,6 +44,7 @@ export async function addNote(
 ) {
   const parsed = bodySchema.safeParse(formData.get("body"));
   if (!parsed.success) return "Note can't be empty.";
+  await assertCanUseModule(module);
 
   const tenant = await getCurrentTenant();
   const user = await getCurrentUser();
@@ -47,6 +64,7 @@ export async function addNote(
   revalidatePath("/submissions");
   revalidatePath("/interviews");
   revalidatePath("/placements");
+  revalidatePath("/bench", "layout");
   return null;
 }
 
@@ -67,6 +85,7 @@ export async function updateNote(id: string, body: string) {
   revalidatePath("/submissions");
   revalidatePath("/interviews");
   revalidatePath("/placements");
+  revalidatePath("/bench", "layout");
 }
 
 export async function deleteNote(id: string) {
@@ -85,4 +104,5 @@ export async function deleteNote(id: string) {
   revalidatePath("/submissions");
   revalidatePath("/interviews");
   revalidatePath("/placements");
+  revalidatePath("/bench", "layout");
 }

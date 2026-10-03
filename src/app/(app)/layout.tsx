@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentTenant } from "@/lib/tenant";
-import { canViewUsers, canManageUsers } from "@/lib/users";
+import { canViewUsers, canManageUsers, canAccessBench } from "@/lib/users";
 import { isPlatformAdmin } from "@/lib/platformAdmin";
 import { ShortcutsProvider } from "@/lib/keyboardShortcuts";
 import { APP_VERSION } from "@/lib/version";
@@ -21,6 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           canManageSettings={canManageUsers(currentUser.role)}
           canAccessTestSuite={canManageUsers(currentUser.role)}
           canAccessOps={canAccessOps}
+          canAccessBench={canAccessBench(currentUser.role)}
           tenantName={tenant.name}
           logoStyle={tenant.logoStyle}
           appVersion={APP_VERSION}

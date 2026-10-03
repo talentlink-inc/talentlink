@@ -17,6 +17,7 @@ import {
   LogOut,
   Settings,
   FlaskConical,
+  BriefcaseBusiness,
 } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 
@@ -44,6 +45,7 @@ export function Sidebar({
   canManageSettings,
   canAccessTestSuite,
   canAccessOps,
+  canAccessBench,
   tenantName,
   logoStyle,
   appVersion,
@@ -52,6 +54,7 @@ export function Sidebar({
   canManageSettings: boolean;
   canAccessTestSuite: boolean;
   canAccessOps: boolean;
+  canAccessBench: boolean;
   tenantName: string;
   logoStyle: string;
   appVersion: string;
@@ -199,6 +202,17 @@ export function Sidebar({
         <ul className="space-y-0.5">
           {RECRUITMENT_NAV.map((item) => navItem(item.href, item.label, item.icon))}
         </ul>
+
+        {canAccessBench && (
+          <>
+            {!collapsed && (
+              <div className="px-2 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-white/40">
+                SALES
+              </div>
+            )}
+            <ul className="space-y-0.5">{navItem("/bench", "Bench Sales", BriefcaseBusiness)}</ul>
+          </>
+        )}
 
         {(canManageUsers || canManageSettings || canAccessTestSuite) && (
           <>

@@ -23,53 +23,13 @@ import { getTenantDbFor } from "../src/lib/tenantDb";
 import { INTERVIEW_STATUSES } from "../src/lib/recruitment";
 import { zonedLocalToUtc } from "../src/lib/timezone";
 import { getGoogleClients, readSheetAsObjects } from "./lib/sheets";
-import { parseInt10, parseSheetDate } from "./lib/parse";
+import { DEFAULT_TIME_ZONE, MODES, TIME_ZONES, normalizeDate, normalizeTime, parseInt10, parseSheetDate } from "./lib/parse";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const MONTHS = Number(process.env.MIGRATION_INTERVIEW_MONTHS ?? 3);
 const SPREADSHEET_ID = process.env.GAS_SPREADSHEET_ID;
 const TENANT_SUBDOMAIN = process.env.DEFAULT_TENANT_SUBDOMAIN ?? "digitallinks";
 
-const TIME_ZONES: Record<string, string> = {
-  EST: "America/New_York",
-  EDT: "America/New_York",
-  CST: "America/Chicago",
-  CDT: "America/Chicago",
-  MST: "America/Denver",
-  MDT: "America/Denver",
-  PST: "America/Los_Angeles",
-  PDT: "America/Los_Angeles",
-  IST: "Asia/Kolkata",
-};
-// The GAS sheet's own zone — used when a row's Timezone is blank.
-const DEFAULT_TIME_ZONE = "America/New_York";
-
-const MODES: Record<string, string> = { phone: "phone", video: "video", "in-person": "in_person", in_person: "in_person" };
-
-// InterviewDate was written as "YYYY-MM-DD", but Sheets may have auto-
-// converted it to a real date, which FORMATTED_VALUE renders "DD/MM/YYYY"
-// (en_GB locale). Returns "YYYY-MM-DD" or null.
-function normalizeDate(value: string): string | null {
-  const v = value.trim();
-  let m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-  m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  return null;
-}
-
-// "14:30", "14:30:00", "2:30 PM", or a Sheets time-only cell rendered as
-// "30/12/1899 14:30:00". Returns "HH:mm" or null.
-function normalizeTime(value: string): string | null {
-  const m = value.trim().match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?\s*$/);
-  if (!m) return null;
-  let hour = Number(m[1]);
-  const ampm = m[3]?.toUpperCase();
-  if (ampm === "PM" && hour < 12) hour += 12;
-  if (ampm === "AM" && hour === 12) hour = 0;
-  if (hour > 23) return null;
-  return `${String(hour).padStart(2, "0")}:${m[2]}`;
-}
 
 type Row = Record<string, string>;
 

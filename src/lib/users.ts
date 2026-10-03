@@ -18,6 +18,19 @@ export function canManageRecruitment(role: string): boolean {
   return role === "Admin" || role === "Recruiter";
 }
 
+// Bench Sales — GAS gates hotlist/status/assignment changes to Admin,
+// Manager and Bench Sales (Hotlist.js / BenchSales.js _requireRole), and
+// Recruiters/HR don't see the module at all.
+export function canAccessBench(role: string): boolean {
+  return role === "Admin" || role === "Manager" || role === "BenchSales";
+}
+
+// GAS deleteBenchConsultant: only Admin/Manager may delete anyone's bench
+// consultant; everyone else only the ones they market themselves.
+export function canDeleteAnyBenchConsultant(role: string): boolean {
+  return role === "Admin" || role === "Manager";
+}
+
 export type DataPermissions = {
   canViewResume: boolean;
   canDownloadResume: boolean;

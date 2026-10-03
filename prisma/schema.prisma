@@ -46,6 +46,9 @@ model Tenant {
   testCases      TestCase[]
   testRunBatches TestRunBatch[]
   calendarIntegration CalendarIntegration?
+  benchConsultants BenchConsultant[]
+  benchSubmissions BenchSubmission[]
+  benchInterviews  BenchInterview[]
 
   @@map("tenants")
 }
@@ -122,6 +125,10 @@ model User {
   notes                 Note[]
   createdTestCases      TestCase[]     @relation("TestCaseCreatedBy")
   triggeredTestRuns     TestRunBatch[] @relation("TestRunBatchTriggeredBy")
+  marketedConsultants   BenchConsultant[] @relation("BenchConsultantMarketer")
+  assignedConsultants   BenchConsultant[] @relation("BenchConsultantAssignedTo")
+  benchSubmissions      BenchSubmission[] @relation("BenchSubmissionSubmittedBy")
+  scheduledBenchInterviews BenchInterview[] @relation("BenchInterviewScheduledBy")
 
   @@unique([tenantId, email])
   @@map("users")
@@ -454,4 +461,137 @@ model CiSuiteSnapshot {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("ci_suite_snapshots")
+}
+
+// ---------------------------------------------------------------------------
+// Bench Sales — ports the GAS app's BenchSales / BenchSubmissions /
+// BenchInterviews sheets. A separate pipeline from Recruitment: these are our
+// own consultants being marketed OUT to vendors/clients, not candidates
+// submitted IN against a requirement. US-only for now (GAS's EU/UK Sales
+// clone is out of scope). Hotlist is a flag on the consultant, as in GAS.
+// Placements are bench submissions that reached a qualifying status (BPLC-
+// IDs, a separate counter from Recruitment's PLC-), mirroring GAS.
+// ---------------------------------------------------------------------------
+
+model BenchConsultant {
+  id               String  @id @default(uuid())
+  tenantId         String  @map("tenant_id")
+  legacyId         Int?    @map("legacy_id")
+  consultantCode   String  @map("consultant_code") // human-readable "BC-0001" (GAS's Hotlist_ID); migrated rows keep their GAS number
+  consultantName   String  @map("consultant_name")
+  role             String
+  technologySkills String  @map("technology_skills") @db.Text
+  visaStatus       String  @map("visa_status")
+  relocation       String  @default("No") // Yes | No | Open (to discuss)
+  experience       String
+  location         String
+  availability     String
+  // Free text in GAS ("$70/hr C2C", "$65/hr on W2") and kept that way —
+  // the rate *terms* matter as much as the number.
+  payRate          String? @map("pay_rate")
+  marketingRate    String? @map("marketing_rate")
+  status           String  @default("Available") // Available | Marketing | Placed | On Hold
+  linkedinUrl      String? @map("linkedin_url")
+
+  marketerUserId    String? @map("marketer_user_id")
+  marketerNameRaw   String? @map("marketer_name_raw")
+  assignedToUserId  String? @map("assigned_to_user_id")
+  assignedToNameRaw String? @map("assigned_to_name_raw")
+
+  onHotlist     Boolean @default(false) @map("on_hotlist")
+  hotlistStatus String? @map("hotlist_status") // Active | Inactive
+
+  // Resume only. GAS's separate visa-document slot (which in practice held
+  // driver's licences and similar) is deliberately not carried over.
+  resumeFileUrl           String? @map("resume_file_url") // Supabase Storage path
+  resumeFileName          String? @map("resume_file_name")
+  resumeFileMime          String? @map("resume_file_mime")
+  resumeSourceDriveFileId String? @map("resume_source_drive_file_id")
+
+  addedDate DateTime  @default(now()) @map("added_date")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  marketer    User?             @relation("BenchConsultantMarketer", fields: [marketerUserId], references: [id])
+  assignedTo  User?             @relation("BenchConsultantAssignedTo", fields: [assignedToUserId], references: [id])
+  submissions BenchSubmission[]
+
+  @@unique([tenantId, legacyId])
+  @@unique([tenantId, consultantCode])
+  @@index([tenantId, status])
+  @@map("bench_consultants")
+}
+
+model BenchSubmission {
+  id                String  @id @default(uuid())
+  tenantId          String  @map("tenant_id")
+  legacyId          Int?    @map("legacy_id")
+  submissionCode    String  @map("submission_code") // human-readable "BSUB-0001"; migrated rows keep their GAS number
+  benchConsultantId String  @map("bench_consultant_id")
+  companyName       String  @map("company_name")
+  contactPerson     String? @map("contact_person")
+  contactNumber     String? @map("contact_number")
+  email             String?
+  rate              String?
+  status            String  @default("Vender_Submission") // same vocabulary as Recruitment (src/lib/recruitment.ts)
+  rejectReason      String? @map("reject_reason")
+  notes             String? @db.Text
+
+  submittedByUserId  String? @map("submitted_by_user_id")
+  submittedByNameRaw String? @map("submitted_by_name_raw")
+
+  submissionDate DateTime? @map("submission_date")
+  placementId    String?   @map("placement_id") // "BPLC-0001", set when status first reaches a qualifying placement status
+  selectedDate   DateTime? @map("selected_date")
+  doj            DateTime? @map("doj")
+  billRate       String?   @map("bill_rate")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  consultant  BenchConsultant  @relation(fields: [benchConsultantId], references: [id])
+  submittedBy User?            @relation("BenchSubmissionSubmittedBy", fields: [submittedByUserId], references: [id])
+  interviews  BenchInterview[]
+
+  @@unique([tenantId, legacyId])
+  @@unique([tenantId, submissionCode])
+  @@unique([tenantId, placementId])
+  @@index([tenantId, benchConsultantId])
+  @@index([tenantId, status])
+  @@map("bench_submissions")
+}
+
+model BenchInterview {
+  id                String    @id @default(uuid())
+  tenantId          String    @map("tenant_id")
+  legacyId          Int?      @map("legacy_id")
+  benchSubmissionId String    @map("bench_submission_id")
+  interviewType     String    @map("interview_type")
+  scheduledAt       DateTime? @map("scheduled_at")
+  timezone          String?
+  durationMinutes   Int?      @map("duration_minutes")
+  mode              String?
+  clientCompany     String?   @map("client_company")
+  status            String    @default("Scheduled")
+  feedback          String?   @db.Text
+
+  scheduledByUserId  String? @map("scheduled_by_user_id")
+  scheduledByNameRaw String? @map("scheduled_by_name_raw")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  submission  BenchSubmission @relation(fields: [benchSubmissionId], references: [id])
+  scheduledBy User?           @relation("BenchInterviewScheduledBy", fields: [scheduledByUserId], references: [id])
+
+  @@unique([tenantId, legacyId])
+  @@index([tenantId, benchSubmissionId])
+  @@index([tenantId, status])
+  @@map("bench_interviews")
 }

@@ -1,0 +1,18 @@
+// Bench Sales vocabulary — mirrors the GAS app's BenchSales.js /
+// PageBenchSales.html. Submission statuses, reject reasons and the
+// placement rule are shared with Recruitment (src/lib/recruitment.ts), as
+// GAS deliberately kept the two vocabularies identical.
+
+export const BENCH_CONSULTANT_STATUSES = ["Available", "Marketing", "Placed", "On Hold"] as const;
+
+export const BENCH_RELOCATION_OPTIONS = [
+  { value: "Yes", label: "Yes" },
+  { value: "No", label: "No" },
+  { value: "Open", label: "Open to discuss" },
+] as const;
+
+export const BENCH_HOTLIST_STATUSES = ["Active", "Inactive"] as const;
+
+export function relocationLabel(value: string): string {
+  return BENCH_RELOCATION_OPTIONS.find((o) => o.value === value)?.label ?? value;
+}
