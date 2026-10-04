@@ -5,9 +5,9 @@
 //   - Resumes ARE migrated (Drive → Supabase Storage). GAS's separate visa-
 //     document slot (VisaDocFileIds — in practice driver's licences and
 //     similar) is NOT: those files are never read or copied.
-//   - Bench submission contact emails are masked on import, keeping the
-//     company domain: "john@acme.com" → "xxxx@acme.com" (src/lib/maskEmail.ts),
-//     including any emails inside submission Notes.
+//   - Every email in a bench submission is masked on import, keeping the
+//     company domain: "john@acme.com" → "xxxx@acme.com" (src/lib/maskEmail.ts)
+//     — the Email column, Notes, and any other text column one was typed into.
 //   - GAS IDs carry over as readable codes: consultant #12 → BC-0012,
 //     submission #40 → BSUB-0040.
 //   - Status "Onboarded" (a legacy GAS value) maps to "Onboarding"; every
@@ -49,6 +49,10 @@ const TENANT_SUBDOMAIN = process.env.DEFAULT_TENANT_SUBDOMAIN ?? "digitallinks";
 
 const code = (prefix: string, n: number) => `${prefix}-${String(n).padStart(4, "0")}`;
 const blank = (v: string | undefined) => (v ?? "").trim() || null;
+const maskText = (v: string | undefined) => {
+  const value = blank(v);
+  return value ? maskEmailsInText(value) : null;
+};
 
 // GAS free-text visa values onto the app's vocabulary ("H4 EAD" → "H4-EAD").
 function normalizeVisa(raw: string): string {
@@ -208,11 +212,13 @@ async function main() {
       legacyId,
       submissionCode: code("BSUB", legacyId),
       benchConsultantId: consultantId,
-      companyName: (row.CompanyName ?? "").trim() || "—",
-      contactPerson: blank(row.ContactPerson),
-      contactNumber: blank(row.ContactNumber),
+      // Emails get masked wherever they turn up — GAS rows sometimes have one
+      // typed into Contact Person or another free-text column, not just Email.
+      companyName: maskText(row.CompanyName) ?? "—",
+      contactPerson: maskText(row.ContactPerson),
+      contactNumber: maskText(row.ContactNumber),
       email,
-      rate: blank(row.Rate),
+      rate: maskText(row.Rate),
       status,
       notes: row.Notes?.trim() ? maskEmailsInText(row.Notes.trim()) : null,
       submittedByUserId: linkUser(submittedBy),

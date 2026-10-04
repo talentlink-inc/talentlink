@@ -106,7 +106,7 @@ export function BenchPlacementsTable({
                 onClick={() => open(p.id)}
                 className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(p.id === selectedId)}`}
               >
-                <td className="px-3 py-2 font-mono text-xs">{p.placementId}</td>
+                <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{p.placementId}</td>
                 <td className="px-3 py-2 font-medium">{p.consultant.consultantName}</td>
                 <td className="px-3 py-2">{p.companyName}</td>
                 <td className="px-3 py-2">

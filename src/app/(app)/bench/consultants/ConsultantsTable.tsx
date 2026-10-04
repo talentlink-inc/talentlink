@@ -185,7 +185,7 @@ export function ConsultantsTable({
                 className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(c.id === selectedId)}`}
               >
                 <td className="px-3 py-2 whitespace-nowrap">{formatDate(c.addedDate)}</td>
-                <td className="px-3 py-2 font-mono text-xs">{c.consultantCode}</td>
+                <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{c.consultantCode}</td>
                 <td className="px-3 py-2 font-medium">
                   {c.consultantName}
                   {c.onHotlist && (
@@ -198,7 +198,9 @@ export function ConsultantsTable({
                 <td className="px-3 py-2">
                   <StatusBadge status={c.status} />
                 </td>
-                <td className="px-3 py-2">{c.role}</td>
+                <td className="max-w-[200px] truncate px-3 py-2" title={c.role}>
+                  {c.role}
+                </td>
                 <td className="max-w-[220px] truncate px-3 py-2" title={c.technologySkills}>
                   {c.technologySkills}
                 </td>

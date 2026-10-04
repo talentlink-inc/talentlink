@@ -147,7 +147,7 @@ export function BenchSubmissionsTable({
                 onClick={() => open(s.id)}
                 className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(s.id === selectedId)}`}
               >
-                <td className="px-3 py-2 font-mono text-xs">{s.submissionCode}</td>
+                <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{s.submissionCode}</td>
                 <td className="px-3 py-2 font-medium">{s.consultant.consultantName}</td>
                 <td className="px-3 py-2">{s.companyName}</td>
                 <td className="px-3 py-2">{s.contactPerson ?? "—"}</td>
