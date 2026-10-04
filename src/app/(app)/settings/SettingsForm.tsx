@@ -28,8 +28,8 @@ export function SettingsForm({ initialSettings }: { initialSettings: TenantSetti
         </p>
 
         <div className="mb-3">
-          <label className={labelClass}>Provider</label>
-          <select
+          <label htmlFor="settings-ai-provider" className={labelClass}>Provider</label>
+          <select id="settings-ai-provider"
             name="aiProvider"
             value={aiProvider}
             onChange={(e) => setAiProvider(e.target.value)}
@@ -41,8 +41,8 @@ export function SettingsForm({ initialSettings }: { initialSettings: TenantSetti
         </div>
 
         <div>
-          <label className={labelClass}>API Key</label>
-          <input
+          <label htmlFor="settings-ai-key" className={labelClass}>API Key</label>
+          <input id="settings-ai-key"
             name="aiApiKey"
             type="password"
             placeholder={initialSettings.hasAiApiKey ? "•••••••• (saved — leave blank to keep)" : "Not set"}
@@ -68,8 +68,8 @@ export function SettingsForm({ initialSettings }: { initialSettings: TenantSetti
         <p className="mb-4 text-xs text-black/50 dark:text-white/50">
           Which logo variant shows in the sidebar and on the sign-in page.
         </p>
-        <label className={labelClass}>Logo Style</label>
-        <select name="logoStyle" value={logoStyle} onChange={(e) => setLogoStyle(e.target.value)} className={inputClass}>
+        <label htmlFor="settings-logo-style" className={labelClass}>Logo Style</label>
+        <select id="settings-logo-style" name="logoStyle" value={logoStyle} onChange={(e) => setLogoStyle(e.target.value)} className={inputClass}>
           {LOGO_STYLES.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}

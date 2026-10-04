@@ -113,10 +113,12 @@ export function RequirementsTable({
           ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search job title, client"
           placeholder="Search job title, client..."
           className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
         />
         <select
+          aria-label="Filter by status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
@@ -129,6 +131,7 @@ export function RequirementsTable({
           ))}
         </select>
         <select
+          aria-label="Filter by employment type"
           value={empTypeFilter}
           onChange={(e) => setEmpTypeFilter(e.target.value)}
           className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"

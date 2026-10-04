@@ -142,7 +142,8 @@ export function HelpCenter({ topics, isAdmin }: { topics: Topic[]; isAdmin: bool
                     </button>
                     <ConfirmButton
                       label="Delete"
-                      confirmText={`Delete “${active.title}”?`}
+                      className="rounded-md border border-black/15 px-3 py-1 text-xs hover:border-red-300 hover:text-red-600 dark:border-white/15"
+                      confirmText="Delete this topic?"
                       onConfirm={async () => {
                         const result = await deleteHelpTopic(active.id);
                         if (result.error) setError(result.error);
@@ -196,7 +197,7 @@ function TopicEditor({ topic, onDone }: { topic: Topic | null; onDone: (savedTit
           formData.set("content", editorRef.current?.innerHTML ?? content);
           startTransition(() => formAction(formData));
         }}
-        className="grid gap-4 rounded-lg border border-black/10 bg-white p-6 sm:grid-cols-[1fr_180px] dark:border-white/10 dark:bg-black"
+        className="grid gap-4 rounded-lg border border-black/10 bg-white p-6 sm:grid-cols-[1fr_240px] dark:border-white/10 dark:bg-black"
       >
         <div>
           <label htmlFor={titleId} className={labelClass}>

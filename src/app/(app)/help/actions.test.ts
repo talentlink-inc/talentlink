@@ -82,3 +82,24 @@ describe("[security] bench notes are hidden from roles without Bench Sales", () 
     expect(h.db.note.rows).toHaveLength(2);
   });
 });
+
+describe("[security] who may delete a note", () => {
+  beforeEach(() => {
+    h.db.note.rows.push(
+      { id: "n-own", tenantId: TENANT.id, module: "submission", recordId: "r1", userId: "user-recruiter", body: "mine", createdAt: new Date(), user: { name: "R" } },
+      { id: "n-other", tenantId: TENANT.id, module: "submission", recordId: "r1", userId: "someone", body: "theirs", createdAt: new Date(), user: { name: "S" } }
+    );
+  });
+
+  it("authors can delete their own notes but not others'", async () => {
+    h.user = makeUser("Recruiter");
+    const notes = await listNotes("submission", "r1");
+    expect(Object.fromEntries(notes.map((n) => [n.id, n.canDelete]))).toEqual({ "n-own": true, "n-other": false });
+  });
+
+  it.each(["Admin", "Manager"])("%s can delete anyone's note — offered in the list, matching deleteNote", async (role) => {
+    h.user = makeUser(role);
+    const notes = await listNotes("submission", "r1");
+    expect(notes.every((n) => n.canDelete)).toBe(true);
+  });
+});

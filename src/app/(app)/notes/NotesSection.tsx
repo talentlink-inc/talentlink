@@ -17,6 +17,8 @@ export function NotesSection({
 }) {
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Two-step delete: notes are hard-deleted, so one stray click mustn't do it.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
@@ -68,6 +70,7 @@ export function NotesSection({
       <form action={formAction} className="mb-4 flex gap-2">
         <input
           name="body"
+          aria-label="Add a note"
           placeholder="Add a note…"
           className="flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
         />
@@ -117,32 +120,58 @@ export function NotesSection({
               <li key={note.id} className="text-sm">
                 <div className="flex items-start justify-between gap-2">
                   <p className="whitespace-pre-wrap">{note.body}</p>
-                  {note.userId === currentUserId && (
-                    <div className="flex shrink-0 gap-2">
-                      <button
-                        onClick={() => startEdit(note)}
-                        className="text-xs text-black/40 hover:text-black dark:text-white/40 dark:hover:text-white"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        disabled={deletingId === note.id}
-                        onClick={() => {
-                          if (deletingId) return;
-                          setDeletingId(note.id);
-                          startTransition(async () => {
-                            try {
-                              await deleteNote(note.id);
-                              refresh();
-                            } finally {
-                              setDeletingId(null);
-                            }
-                          });
-                        }}
-                        className="text-xs text-black/40 hover:text-red-600 disabled:opacity-40 dark:text-white/40"
-                      >
-                        {deletingId === note.id ? "Deleting…" : "Delete"}
-                      </button>
+                  {(note.userId === currentUserId || note.canDelete) && (
+                    <div className="flex shrink-0 items-center gap-3">
+                      {confirmingId === note.id ? (
+                        <>
+                          <span className="text-xs text-red-600">Delete this note?</span>
+                          <button
+                            disabled={deletingId === note.id}
+                            onClick={() => setConfirmingId(null)}
+                            className="text-xs font-medium text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            disabled={deletingId === note.id}
+                            onClick={() => {
+                              if (deletingId) return;
+                              setDeletingId(note.id);
+                              startTransition(async () => {
+                                try {
+                                  await deleteNote(note.id);
+                                  refresh();
+                                } finally {
+                                  setDeletingId(null);
+                                  setConfirmingId(null);
+                                }
+                              });
+                            }}
+                            className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+                          >
+                            {deletingId === note.id ? "Deleting…" : "Yes, delete"}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {note.userId === currentUserId && (
+                            <button
+                              onClick={() => startEdit(note)}
+                              className="text-xs font-medium text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {note.canDelete && (
+                            <button
+                              onClick={() => setConfirmingId(note.id)}
+                              className="text-xs font-medium text-black/60 hover:text-red-600 dark:text-white/60"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

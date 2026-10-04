@@ -69,6 +69,7 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
           ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search name, role, skills, location"
           placeholder="Search name, role, skills, location..."
           className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
         />
@@ -146,7 +147,9 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
                 <td className="px-3 py-2 text-right">
                   <ConfirmButton
                     label="Remove"
-                    confirmText={`Remove ${c.consultantName} from the hotlist?`}
+                    confirmText="Remove from hotlist?"
+                    confirmLabel="Yes, remove"
+                    className="text-sm font-medium text-black/60 hover:text-red-600 dark:text-white/60"
                     onConfirm={() => run(c.id, () => setBenchConsultantHotlist(c.id, false))}
                   />
                 </td>

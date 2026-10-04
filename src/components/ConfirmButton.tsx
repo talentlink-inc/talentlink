@@ -34,7 +34,7 @@ export function ConfirmButton({
 
   if (confirming) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 whitespace-nowrap">
         <span className="text-sm text-red-600">{confirmText}</span>
         <button
           type="button"

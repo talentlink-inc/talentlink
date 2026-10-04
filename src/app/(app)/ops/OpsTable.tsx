@@ -70,10 +70,12 @@ export function OpsTable({ tenants }: { tenants: TenantWithStats[] }) {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search company or subdomain"
           placeholder="Search company or subdomain..."
           className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
         />
         <select
+          aria-label="Filter by status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"

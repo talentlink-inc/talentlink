@@ -285,6 +285,7 @@ export function SubmissionModal({
                   }
                 }}
                 required={!values.requirementId}
+                aria-label="Requirement"
                 placeholder="Search Job ID / Job Title / Client..."
                 className={inputClass}
               />

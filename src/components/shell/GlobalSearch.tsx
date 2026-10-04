@@ -98,6 +98,7 @@ export function GlobalSearch() {
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           onKeyDown={handleKeyDown}
+          aria-label="Search everything"
           placeholder="Search requirements, candidates, interviews…"
           className="w-full bg-transparent text-sm outline-none placeholder:text-black/40 dark:placeholder:text-white/40"
         />

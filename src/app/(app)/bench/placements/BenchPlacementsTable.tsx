@@ -67,6 +67,7 @@ export function BenchPlacementsTable({
           ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search placement ID, consultant, company"
           placeholder="Search placement ID, consultant, company..."
           className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
         />

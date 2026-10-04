@@ -27,15 +27,23 @@ async function assertCanUseModule(module: NoteModule) {
 export async function listNotes(module: NoteModule, recordId: string) {
   await assertCanUseModule(module);
   const tenant = await getCurrentTenant();
+  const user = await getCurrentUser();
   const db = await getTenantDb();
-  return db.note.findMany({
+  const notes = await db.note.findMany({
     where: { tenantId: tenant.id, module, recordId },
     include: { user: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
+  // Same rule deleteNote enforces — computed here so the UI offers Delete to
+  // Admins/Managers on others' notes too, not just to the author.
+  const canDeleteAny = NOTE_MODERATOR_ROLES.includes(user.role);
+  return notes.map((note) => ({ ...note, canDelete: note.userId === user.id || canDeleteAny }));
 }
 
 const bodySchema = z.string().trim().min(1).max(4000);
+
+// Besides the author, these roles may delete any note.
+const NOTE_MODERATOR_ROLES = ["Admin", "Manager"];
 
 export async function addNote(
   module: NoteModule,
@@ -96,7 +104,7 @@ export async function deleteNote(id: string) {
 
   const note = await db.note.findUnique({ where: { id } });
   if (!note || note.tenantId !== tenant.id) return;
-  if (note.userId !== user.id && !["Admin", "Manager"].includes(user.role)) {
+  if (note.userId !== user.id && !NOTE_MODERATOR_ROLES.includes(user.role)) {
     throw new Error("Only the author or an Admin/Manager can delete a note.");
   }
 

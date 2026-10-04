@@ -88,10 +88,12 @@ export function SubmissionsTable({
           ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search name, email, phone, location"
           placeholder="Search name, email, phone, location..."
           className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
         />
         <select
+          aria-label="Filter by visa"
           value={visaFilter}
           onChange={(e) => setVisaFilter(e.target.value)}
           className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
@@ -104,6 +106,7 @@ export function SubmissionsTable({
           ))}
         </select>
         <select
+          aria-label="Filter by employment type"
           value={empTypeFilter}
           onChange={(e) => setEmpTypeFilter(e.target.value)}
           className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
