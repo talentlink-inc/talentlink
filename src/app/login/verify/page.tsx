@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { verifyMfaLogin } from "./actions";
 import { signOut } from "../actions";
+import { buttonClass } from "@/components/ui/button";
 
 export default function VerifyMfaPage() {
   const [error, formAction, pending] = useActionState(verifyMfaLogin, null);
@@ -32,7 +33,7 @@ export default function VerifyMfaPage() {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          className={buttonClass("primary", "md", "w-full")}
         >
           {pending ? "Verifying…" : "Verify"}
         </button>

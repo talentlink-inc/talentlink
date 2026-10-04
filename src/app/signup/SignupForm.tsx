@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { signUp } from "./actions";
 import type { SignupFormState } from "./actions";
+import { buttonClass } from "@/components/ui/button";
+import { toolbarInputClass } from "@/components/ui/table";
 
 const initialState: SignupFormState = { error: null };
 
@@ -15,7 +17,7 @@ export function SignupForm({ domainSuffix }: { domainSuffix: string }) {
         {/* eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size local icon, no need for next/image's optimizer */}
         <img src="/logo-icon-light.png" alt="TalentLink" width={48} height={34} />
         <h1 className="text-xl font-semibold">
-          Create your Talent<span className="text-orange-500">Link</span> workspace
+          Create your Talent<span className="text-brand-strong">Link</span> workspace
         </h1>
       </div>
 
@@ -23,7 +25,7 @@ export function SignupForm({ domainSuffix }: { domainSuffix: string }) {
         name="companyName"
         required
         placeholder="Company name"
-        className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        className={`${toolbarInputClass} w-full`}
       />
 
       <div>
@@ -48,14 +50,14 @@ export function SignupForm({ domainSuffix }: { domainSuffix: string }) {
         name="name"
         required
         placeholder="Your name"
-        className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        className={`${toolbarInputClass} w-full`}
       />
       <input
         name="email"
         type="email"
         required
         placeholder="Work email"
-        className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        className={`${toolbarInputClass} w-full`}
       />
       <input
         name="password"
@@ -63,7 +65,7 @@ export function SignupForm({ domainSuffix }: { domainSuffix: string }) {
         required
         minLength={8}
         placeholder="Password (min. 8 characters)"
-        className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        className={`${toolbarInputClass} w-full`}
       />
 
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
@@ -71,7 +73,7 @@ export function SignupForm({ domainSuffix }: { domainSuffix: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+        className={buttonClass("primary", "md", "w-full")}
       >
         {pending ? "Creating workspace…" : "Create workspace"}
       </button>

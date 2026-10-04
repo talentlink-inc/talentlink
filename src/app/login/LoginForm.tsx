@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { signIn } from "./actions";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
+import { buttonClass } from "@/components/ui/button";
+import { toolbarInputClass } from "@/components/ui/table";
 
 function LoginFormInner({ tenantName, logoStyle }: { tenantName: string; logoStyle: string }) {
   const [error, formAction, pending] = useActionState(signIn, null);
@@ -35,7 +37,7 @@ function LoginFormInner({ tenantName, logoStyle }: { tenantName: string; logoSty
         )}
         {logoStyle !== "people" && (
           <h1 className="text-xl font-semibold">
-            Sign in to Talent<span className="text-orange-500">Link</span>
+            Sign in to Talent<span className="text-brand-strong">Link</span>
           </h1>
         )}
         <p className="text-xs text-black/40 dark:text-white/40">by {tenantName}</p>
@@ -47,7 +49,7 @@ function LoginFormInner({ tenantName, logoStyle }: { tenantName: string; logoSty
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+        className={`${toolbarInputClass} w-full`}
       />
       <div className="relative">
         <input
@@ -84,7 +86,7 @@ function LoginFormInner({ tenantName, logoStyle }: { tenantName: string; logoSty
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+        className={buttonClass("primary", "md", "w-full")}
       >
         {pending ? "Signing in…" : "Sign in"}
       </button>

@@ -15,6 +15,8 @@ import {
   type TestCaseInput,
 } from "./actions";
 import type { SerializedTestCase, SerializedCiSnapshot, SerializedRunBatch } from "./types";
+import { buttonClass } from "@/components/ui/button";
+import { toolbarInputClass } from "@/components/ui/table";
 
 const SANITY_MODELS = ["requirement", "submission", "interview", "candidate", "user"] as const;
 const SANITY_ALLOWED_FIELDS: Record<string, string[]> = {
@@ -168,7 +170,7 @@ export function TestSuiteBoard({
           {category.mode === "custom" && (
             <button
               onClick={() => setModal({ mode: "create", category: category.key, testCase: null })}
-              className="flex shrink-0 items-center gap-1 rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
+              className={buttonClass("primary", "md", "shrink-0")}
             >
               <Plus size={14} /> Add Test Case
             </button>
@@ -255,7 +257,7 @@ export function TestSuiteBoard({
               <button
                 onClick={runWholeCategory}
                 disabled={running || testCasesInCategory.length === 0}
-                className="flex items-center gap-1 rounded-md bg-black px-3 py-1.5 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-black"
+                className={buttonClass("primary")}
               >
                 <Play size={14} /> Run All in {category.label}
               </button>
@@ -421,7 +423,7 @@ function TestCaseModal({
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+              className={`${toolbarInputClass} w-full`}
             />
           </div>
           <div>
@@ -429,7 +431,7 @@ function TestCaseModal({
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+              className={`${toolbarInputClass} w-full`}
             />
           </div>
 
@@ -452,7 +454,7 @@ function TestCaseModal({
                   type="number"
                   value={expectedStatus}
                   onChange={(e) => setExpectedStatus(Number(e.target.value))}
-                  className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+                  className={`${toolbarInputClass} w-full`}
                 />
               </div>
               <div>
@@ -462,7 +464,7 @@ function TestCaseModal({
                 <input
                   value={bodyContains}
                   onChange={(e) => setBodyContains(e.target.value)}
-                  className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+                  className={`${toolbarInputClass} w-full`}
                 />
               </div>
             </>
@@ -476,7 +478,7 @@ function TestCaseModal({
                     setModel(e.target.value);
                     setFilterField("");
                   }}
-                  className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+                  className={`${toolbarInputClass} w-full`}
                 >
                   {SANITY_MODELS.map((m) => (
                     <option key={m} value={m}>
@@ -492,7 +494,7 @@ function TestCaseModal({
                     <select
                       value={filterField}
                       onChange={(e) => setFilterField(e.target.value)}
-                      className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+                      className={`${toolbarInputClass} w-full`}
                     >
                       <option value="">None (count all)</option>
                       {SANITY_ALLOWED_FIELDS[model].map((f) => (
@@ -508,7 +510,7 @@ function TestCaseModal({
                       <input
                         value={filterEquals}
                         onChange={(e) => setFilterEquals(e.target.value)}
-                        className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+                        className={`${toolbarInputClass} w-full`}
                       />
                     </div>
                   )}
@@ -521,7 +523,7 @@ function TestCaseModal({
                     type="number"
                     value={min}
                     onChange={(e) => setMin(Number(e.target.value))}
-                    className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+                    className={`${toolbarInputClass} w-full`}
                   />
                 </div>
                 <div className="flex-1">
@@ -530,7 +532,7 @@ function TestCaseModal({
                     type="number"
                     value={max}
                     onChange={(e) => setMax(Number(e.target.value))}
-                    className="w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+                    className={`${toolbarInputClass} w-full`}
                   />
                 </div>
               </div>
@@ -545,7 +547,7 @@ function TestCaseModal({
           <button
             onClick={handleSave}
             disabled={saving || !name.trim()}
-            className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+            className={buttonClass("primary")}
           >
             {saving ? "Saving…" : mode === "create" ? "Add Test Case" : "Save Changes"}
           </button>

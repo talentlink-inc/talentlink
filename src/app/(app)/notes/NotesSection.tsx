@@ -3,6 +3,9 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { addNote, updateNote, deleteNote, listNotes, type NoteModule } from "./actions";
 import { formatDateTime } from "@/lib/format";
+import { buttonClass } from "@/components/ui/button";
+import { useUi } from "@/components/ui/UiProvider";
+import { toolbarInputClass } from "@/components/ui/table";
 
 type Note = Awaited<ReturnType<typeof listNotes>>[number];
 
@@ -16,9 +19,7 @@ export function NotesSection({
   currentUserId: string;
 }) {
   const [notes, setNotes] = useState<Note[] | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  // Two-step delete: notes are hard-deleted, so one stray click mustn't do it.
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const { confirm, toast } = useUi();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
@@ -63,121 +64,96 @@ export function NotesSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending, error]);
 
-  return (
-    <div className="mt-6 border-t border-black/10 pt-4 dark:border-white/10">
-      <h3 className="mb-3 text-sm font-semibold">Notes</h3>
+  // Notes are hard-deleted, so deleting asks first (in the shared dialog).
+  function askDelete(note: Note) {
+    confirm({
+      title: "Delete this note?",
+      body: "This can't be undone.",
+      action: async () => {
+        await deleteNote(note.id);
+        refresh();
+        toast({ message: "Note deleted", tone: "success" });
+      },
+    });
+  }
 
+  const linkButton = "text-xs font-medium text-black/55 hover:text-black dark:text-white/55 dark:hover:text-white";
+
+  return (
+    <div>
       <form action={formAction} className="mb-4 flex gap-2">
-        <input
-          name="body"
-          aria-label="Add a note"
-          placeholder="Add a note…"
-          className="flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
-        />
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          Add
+        <input name="body" aria-label="Add a note" placeholder="Add a note…" className={`${toolbarInputClass} min-w-0 flex-1`} />
+        <button type="submit" disabled={pending} className={buttonClass("primary")}>
+          {pending ? "Adding…" : "Add"}
         </button>
       </form>
-      {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-2 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       {notes === null ? (
-        <p className="text-sm text-black/50 dark:text-white/50">Loading…</p>
+        <ul className="space-y-4" aria-label="Loading notes">
+          {[0, 1, 2].map((i) => (
+            <li key={i}>
+              <div className="tl-skeleton h-3.5 w-4/5" />
+              <div className="tl-skeleton mt-2 h-3 w-1/3" />
+            </li>
+          ))}
+        </ul>
       ) : notes.length === 0 ? (
-        <p className="text-sm text-black/50 dark:text-white/50">No notes yet.</p>
+        <p className="rounded-lg border border-dashed border-black/15 px-4 py-6 text-center text-sm text-black/50 dark:border-white/15 dark:text-white/50">
+          No notes yet — add the first one above.
+        </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-black/5 dark:divide-white/10">
           {notes.map((note) =>
             editingId === note.id ? (
-              <li key={note.id} className="text-sm">
+              <li key={note.id} className="py-3 text-sm">
                 <textarea
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value)}
-                  rows={2}
+                  rows={3}
                   autoFocus
-                  className="w-full rounded-md border border-black/15 px-2 py-1 text-sm dark:border-white/15 dark:bg-transparent"
+                  aria-label="Edit note"
+                  className={`${toolbarInputClass} w-full`}
                 />
-                <div className="mt-1 flex gap-2">
-                  <button
-                    onClick={saveEdit}
-                    disabled={savingEdit || !editBody.trim()}
-                    className="rounded-md bg-black px-2 py-1 text-xs text-white disabled:opacity-50 dark:bg-white dark:text-black"
-                  >
-                    {savingEdit ? "Saving…" : "Save"}
+                <div className="mt-2 flex justify-end gap-2">
+                  <button type="button" onClick={() => setEditingId(null)} className={buttonClass("secondary", "sm")}>
+                    Cancel
                   </button>
                   <button
-                    onClick={() => setEditingId(null)}
-                    className="rounded-md border border-black/15 px-2 py-1 text-xs dark:border-white/15"
+                    type="button"
+                    onClick={saveEdit}
+                    disabled={savingEdit || !editBody.trim()}
+                    className={buttonClass("primary", "sm")}
                   >
-                    Cancel
+                    {savingEdit ? "Saving…" : "Save"}
                   </button>
                 </div>
               </li>
             ) : (
-              <li key={note.id} className="text-sm">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="whitespace-pre-wrap">{note.body}</p>
+              <li key={note.id} className="py-3 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 break-words whitespace-pre-wrap">{note.body}</p>
                   {(note.userId === currentUserId || note.canDelete) && (
                     <div className="flex shrink-0 items-center gap-3">
-                      {confirmingId === note.id ? (
-                        <>
-                          <span className="text-xs text-red-600">Delete this note?</span>
-                          <button
-                            disabled={deletingId === note.id}
-                            onClick={() => setConfirmingId(null)}
-                            className="text-xs font-medium text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            disabled={deletingId === note.id}
-                            onClick={() => {
-                              if (deletingId) return;
-                              setDeletingId(note.id);
-                              startTransition(async () => {
-                                try {
-                                  await deleteNote(note.id);
-                                  refresh();
-                                } finally {
-                                  setDeletingId(null);
-                                  setConfirmingId(null);
-                                }
-                              });
-                            }}
-                            className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
-                          >
-                            {deletingId === note.id ? "Deleting…" : "Yes, delete"}
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          {note.userId === currentUserId && (
-                            <button
-                              onClick={() => startEdit(note)}
-                              className="text-xs font-medium text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white"
-                            >
-                              Edit
-                            </button>
-                          )}
-                          {note.canDelete && (
-                            <button
-                              onClick={() => setConfirmingId(note.id)}
-                              className="text-xs font-medium text-black/60 hover:text-red-600 dark:text-white/60"
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </>
+                      {note.userId === currentUserId && (
+                        <button type="button" onClick={() => startEdit(note)} className={linkButton}>
+                          Edit
+                        </button>
+                      )}
+                      {note.canDelete && (
+                        <button type="button" onClick={() => askDelete(note)} className={`${linkButton} hover:text-red-600`}>
+                          Delete
+                        </button>
                       )}
                     </div>
                   )}
                 </div>
-                <p className="mt-0.5 text-xs text-black/40 dark:text-white/40">
-                  {note.user.name} ·{" "}
-                  {formatDateTime(note.createdAt, Intl.DateTimeFormat().resolvedOptions().timeZone)}
+                <p className="mt-1 text-xs text-black/45 dark:text-white/45">
+                  {note.user.name} · {formatDateTime(note.createdAt, Intl.DateTimeFormat().resolvedOptions().timeZone)}
                   {note.updatedAt.getTime() !== note.createdAt.getTime() && " (edited)"}
                 </p>
               </li>

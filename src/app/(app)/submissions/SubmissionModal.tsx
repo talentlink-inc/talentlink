@@ -747,7 +747,6 @@ function ViewSubmission({
   return (
     <div>
       <dl className="divide-y divide-black/5 dark:divide-white/5">
-        {row("Submission ID", submission.submissionId)}
         {row("Requirement", submission.requirement?.jobTitle ?? submission.requirementJobIdRaw)}
         {row("Email", permissions.canViewEmail ? submission.candidate.email : "Restricted")}
         {row("Phone", permissions.canViewPhone ? submission.candidate.phone : "Restricted")}
@@ -763,11 +762,11 @@ function ViewSubmission({
             </a>
           ),
         )}
-        {row("Employment Type", submission.employmentType)}
-        {row("Bill Rate", submission.billRate && `${submission.billRateCurrency} ${submission.billRate}`)}
-        {row("Pay Rate", submission.payRate && `${submission.payRateCurrency} ${submission.payRate}`)}
+        {row("Employment type", submission.employmentType)}
+        {row("Bill rate", submission.billRate && `${submission.billRateCurrency} ${submission.billRate}`)}
+        {row("Pay rate", submission.payRate && `${submission.payRateCurrency} ${submission.payRate}`)}
         {row("Recruiter", submission.recruiterNameRaw)}
-        {row("Reject Reason", submission.rejectReason)}
+        {row("Reject reason", submission.rejectReason)}
         {row("Placement ID", submission.placementId)}
         {row(
           "Resume",
@@ -798,7 +797,7 @@ function ViewSubmission({
           ),
         )}
         {row(
-          "Visa & Other Documents",
+          "Visa & other documents",
           submission.additionalDocName && permissions.canViewResume && (
             <a
               href={`/api/resumes/document?path=${encodeURIComponent(submission.additionalDocUrl ?? "")}`}

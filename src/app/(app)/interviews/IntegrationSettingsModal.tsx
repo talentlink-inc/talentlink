@@ -9,6 +9,7 @@ import {
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import type { IntegrationStatus } from "./integration-actions";
+import { buttonClass } from "@/components/ui/button";
 
 const inputClass =
   "w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent";
@@ -135,7 +136,7 @@ export function IntegrationSettingsModal({
               <button
                 type="submit"
                 disabled={pending}
-                className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+                className={buttonClass("primary")}
               >
                 {pending ? "Saving…" : "Save"}
               </button>
@@ -146,7 +147,7 @@ export function IntegrationSettingsModal({
         {localStatus.hasCredentials && !localStatus.isConnected && (
           <a
             href={`/api/integrations/${localStatus.provider ?? provider}/authorize`}
-            className="inline-block rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
+            className={buttonClass("primary")}
           >
             Connect {localStatus.provider === "microsoft" ? "Microsoft" : "Google"} Account
           </a>

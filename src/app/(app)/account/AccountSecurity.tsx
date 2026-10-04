@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { startMfaEnrollment, verifyMfaEnrollment, disableMfa } from "./actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { buttonClass } from "@/components/ui/button";
+import { toolbarInputClass } from "@/components/ui/table";
 
 export function AccountSecurity({
   initialEnrolled,
@@ -116,12 +118,12 @@ export function AccountSecurity({
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               inputMode="numeric"
               maxLength={6}
-              className="w-32 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+              className={`${toolbarInputClass} w-32`}
             />
             <button
               onClick={verify}
               disabled={pending || code.length !== 6}
-              className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+              className={buttonClass("primary")}
             >
               {pending ? "Verifying…" : "Verify"}
             </button>
@@ -138,7 +140,7 @@ export function AccountSecurity({
         <button
           onClick={beginEnroll}
           disabled={pending}
-          className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          className={buttonClass("primary")}
         >
           Enable Two-Factor Authentication
         </button>
