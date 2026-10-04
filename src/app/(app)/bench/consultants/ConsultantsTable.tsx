@@ -227,6 +227,7 @@ export function ConsultantsTable({
 
       {modal && (
         <ConsultantModal
+          key={`${modal.mode}-${modal.consultant?.id ?? "new"}`}
           initialMode={modal.mode}
           consultant={modal.mode === "create" ? null : liveModalConsultant}
           viewer={currentUser}

@@ -173,6 +173,10 @@ export function BenchSubmissionsTable({
 
       {modal && (
         <BenchSubmissionModal
+          // Keyed so switching records/modes (e.g. "Open existing submission"
+          // from the duplicate error) remounts with the new initialMode
+          // instead of keeping the old dialog's internal mode.
+          key={`${modal.mode}-${modal.id ?? "new"}`}
           initialMode={modal.mode}
           submission={modal.mode === "create" ? null : current}
           consultants={consultants}

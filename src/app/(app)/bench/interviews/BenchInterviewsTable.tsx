@@ -147,6 +147,7 @@ export function BenchInterviewsTable({
 
       {modal && (
         <InterviewModal
+          key={`${modal.mode}-${modal.id ?? "new"}`}
           initialMode={modal.mode}
           interview={modal.mode === "create" ? null : current}
           eligibleSubmissions={eligibleSubmissions}
