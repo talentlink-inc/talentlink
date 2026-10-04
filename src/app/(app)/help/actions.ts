@@ -12,7 +12,8 @@ import { sanitizeHelpHtml } from "@/lib/sanitizeRichText";
 // add, edit, delete, reorder or deactivate them.
 const ADMIN_ERROR = "Only Admins can manage Help Center topics.";
 
-export type HelpFormState = { error: string | null };
+// savedId lets the page go straight back to the topic that was just saved.
+export type HelpFormState = { error: string | null; savedId?: string };
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -44,7 +45,7 @@ export async function createHelpTopic(_prev: HelpFormState, formData: FormData):
   const tenant = await getCurrentTenant();
   const db = await getTenantDb();
   const last = await db.helpTopic.aggregate({ where: { tenantId: tenant.id }, _max: { sortOrder: true } });
-  await db.helpTopic.create({
+  const created = await db.helpTopic.create({
     data: {
       tenantId: tenant.id,
       title: parsed.data.title,
@@ -54,7 +55,7 @@ export async function createHelpTopic(_prev: HelpFormState, formData: FormData):
     },
   });
   revalidatePath("/help");
-  return { error: null };
+  return { error: null, savedId: created.id };
 }
 
 export async function updateHelpTopic(id: string, _prev: HelpFormState, formData: FormData): Promise<HelpFormState> {
@@ -74,7 +75,7 @@ export async function updateHelpTopic(id: string, _prev: HelpFormState, formData
     data: { title: parsed.data.title, content, status: parsed.data.status },
   });
   revalidatePath("/help");
-  return { error: null };
+  return { error: null, savedId: id };
 }
 
 export async function deleteHelpTopic(id: string): Promise<{ error: string | null }> {

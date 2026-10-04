@@ -16,23 +16,22 @@ const TABS = [
 export function BenchTabs() {
   const pathname = usePathname();
   return (
-    <div className="mb-6 flex gap-1 overflow-x-auto border-b border-black/10 dark:border-white/10">
+    <nav aria-label="Bench Sales sections" className="-mb-px flex gap-1 overflow-x-auto">
       {TABS.map((tab) => {
         const active = pathname?.startsWith(tab.href);
         return (
           <Link
             key={tab.href}
             href={tab.href}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm whitespace-nowrap ${
-              active
-                ? "border-[#00acc1] font-medium text-black dark:text-white"
-                : "border-transparent text-black/50 hover:text-black dark:text-white/50 dark:hover:text-white"
+            aria-current={active ? "page" : undefined}
+            className={`border-b-[3px] px-3 py-2.5 text-sm whitespace-nowrap transition-colors ${
+              active ? "border-brand font-medium text-white" : "border-transparent text-white/60 hover:text-white"
             }`}
           >
             {tab.label}
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

@@ -5,6 +5,7 @@ import { toggleTenantStatus } from "./actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { formatDate } from "@/lib/format";
 import type { TenantWithStats } from "./types";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export function OpsTable({ tenants }: { tenants: TenantWithStats[] }) {
   const [search, setSearch] = useState("");
@@ -40,12 +41,7 @@ export function OpsTable({ tenants }: { tenants: TenantWithStats[] }) {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold">Platform Ops</h1>
-        <p className="text-sm text-black/50 dark:text-white/50">
-          Every workspace on TalentLink — visible only to Digital Links Inc staff.
-        </p>
-      </div>
+      <PageHeader title="Platform Ops" subtitle="Every workspace on TalentLink — visible only to Digital Links Inc staff." />
 
       <div className="mb-6 grid grid-cols-3 gap-3 sm:max-w-md">
         <div className="rounded-lg border border-black/10 px-4 py-3 dark:border-white/10">

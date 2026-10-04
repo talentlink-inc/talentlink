@@ -4,10 +4,14 @@ import { startTransition, useActionState, useEffect, useId, useMemo, useRef, use
 import { createHelpTopic, updateHelpTopic, deleteHelpTopic, reorderHelpTopics } from "./actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { buttonClass } from "@/components/ui/button";
+import { useUi } from "@/components/ui/UiProvider";
+import { toolbarInputClass } from "@/components/ui/table";
 
 type Topic = { id: string; title: string; content: string; status: string; sortOrder: number };
 
-const inputClass = "w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent";
+const inputClass = `${toolbarInputClass} w-full`;
 const labelClass = "mb-1 block text-xs font-medium text-black/60 dark:text-white/60";
 // Typography for the (sanitized) topic HTML — headings, paragraphs, lists.
 const proseClass =
@@ -33,6 +37,7 @@ export function HelpCenter({ topics, isAdmin }: { topics: Topic[]; isAdmin: bool
   const [editing, setEditing] = useState<Topic | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const { toast } = useUi();
 
   usePageShortcuts({
     onFocusSearch: () => searchRef.current?.focus(),
@@ -62,9 +67,14 @@ export function HelpCenter({ topics, isAdmin }: { topics: Topic[]; isAdmin: bool
     return (
       <TopicEditor
         topic={editing === "new" ? null : editing}
-        onDone={(savedTitle) => {
+        onDone={(savedId) => {
           setEditing(null);
-          if (savedTitle) setSearch("");
+          if (savedId) {
+            // Back to the topic just saved, not wherever the list was.
+            setSearch("");
+            setActiveId(savedId);
+            toast({ message: "Topic saved", tone: "success" });
+          }
         }}
       />
     );
@@ -72,23 +82,26 @@ export function HelpCenter({ topics, isAdmin }: { topics: Topic[]; isAdmin: bool
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">Help Center</h1>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setEditing("new")}
-            className="ml-auto rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-          >
-            + Add Topic
-          </button>
-        )}
-      </div>
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      <PageHeader
+        title="Help Center"
+        subtitle="How TalentLink works, step by step"
+        actions={
+          isAdmin && (
+            <button type="button" onClick={() => setEditing("new")} className={buttonClass("primary")}>
+              + Add topic
+            </button>
+          )
+        }
+      />
+      {error && (
+        <p role="alert" className="mb-3 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       {topics.length === 0 ? (
-        <p className="rounded-lg border border-black/10 bg-white p-8 text-center text-sm text-black/50 dark:border-white/10 dark:bg-black dark:text-white/50">
-          No help topics yet.{isAdmin ? " Add the first one with “+ Add Topic”." : ""}
+        <p className="rounded-lg border border-black/10 bg-white p-8 text-center text-sm text-black/50 dark:border-white/10 dark:bg-neutral-950 dark:text-white/50">
+          No help topics yet.{isAdmin ? " Add the first one with “+ Add topic”." : ""}
         </p>
       ) : (
         <div className="grid gap-6 md:grid-cols-[260px_1fr]">
@@ -97,7 +110,7 @@ export function HelpCenter({ topics, isAdmin }: { topics: Topic[]; isAdmin: bool
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search help..."
+              placeholder="Search help…"
               aria-label="Search help topics"
               className={`${inputClass} mb-3`}
             />
@@ -111,7 +124,7 @@ export function HelpCenter({ topics, isAdmin }: { topics: Topic[]; isAdmin: bool
                       aria-current={active?.id === t.id ? "page" : undefined}
                       className={`w-full rounded-md px-3 py-2 text-left text-sm ${
                         active?.id === t.id
-                          ? "bg-[#00acc1]/10 font-medium text-black dark:text-white"
+                          ? "bg-brand-soft font-medium text-ink-strong shadow-[inset_3px_0_0] shadow-brand dark:bg-white/10 dark:text-white"
                           : "text-black/70 hover:bg-black/5 dark:text-white/70 dark:hover:bg-white/5"
                       }`}
                     >
@@ -126,28 +139,30 @@ export function HelpCenter({ topics, isAdmin }: { topics: Topic[]; isAdmin: bool
           </aside>
 
           {active && (
-            <article className="min-w-0 rounded-lg border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-black">
+            <article className="min-w-0 rounded-lg border border-black/10 border-t-[3px] border-t-brand bg-white p-6 shadow-sm dark:border-white/10 dark:bg-neutral-950">
               <div className="mb-4 flex flex-wrap items-start gap-2">
                 <h2 className="mr-auto text-lg font-semibold">{active.title}</h2>
                 {isAdmin && (
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => move(active.id, -1)} disabled={topics[0]?.id === active.id} className="rounded-md border border-black/15 px-2 py-1 text-xs disabled:opacity-40 dark:border-white/15" aria-label="Move topic up">
+                    <button type="button" onClick={() => move(active.id, -1)} disabled={topics[0]?.id === active.id} className={buttonClass("secondary", "sm")} aria-label="Move topic up">
                       ↑
                     </button>
-                    <button type="button" onClick={() => move(active.id, 1)} disabled={topics.at(-1)?.id === active.id} className="rounded-md border border-black/15 px-2 py-1 text-xs disabled:opacity-40 dark:border-white/15" aria-label="Move topic down">
+                    <button type="button" onClick={() => move(active.id, 1)} disabled={topics.at(-1)?.id === active.id} className={buttonClass("secondary", "sm")} aria-label="Move topic down">
                       ↓
                     </button>
-                    <button type="button" onClick={() => setEditing(active)} className="rounded-md border border-black/15 px-3 py-1 text-xs dark:border-white/15">
+                    <button type="button" onClick={() => setEditing(active)} className={buttonClass("secondary", "sm")}>
                       Edit
                     </button>
                     <ConfirmButton
                       label="Delete"
-                      className="rounded-md border border-black/15 px-3 py-1 text-xs hover:border-red-300 hover:text-red-600 dark:border-white/15"
-                      confirmText="Delete this topic?"
+                      className={buttonClass("dangerSoft", "sm")}
+                      confirmText={`Delete “${active.title}”?`}
+                      body="Everyone loses this topic. This can't be undone."
                       onConfirm={async () => {
                         const result = await deleteHelpTopic(active.id);
-                        if (result.error) setError(result.error);
-                        else setActiveId(null);
+                        if (result.error) throw new Error(result.error);
+                        setActiveId(null);
+                        toast({ message: "Topic deleted", tone: "success" });
                       }}
                     />
                   </div>
@@ -163,7 +178,7 @@ export function HelpCenter({ topics, isAdmin }: { topics: Topic[]; isAdmin: bool
   );
 }
 
-function TopicEditor({ topic, onDone }: { topic: Topic | null; onDone: (savedTitle?: string) => void }) {
+function TopicEditor({ topic, onDone }: { topic: Topic | null; onDone: (savedId?: string) => void }) {
   const action = topic ? updateHelpTopic.bind(null, topic.id) : createHelpTopic;
   const [state, formAction, pending] = useActionState(action, { error: null });
   const [content, setContent] = useState(topic?.content ?? "");
@@ -177,9 +192,9 @@ function TopicEditor({ topic, onDone }: { topic: Topic | null; onDone: (savedTit
     if (editorRef.current) editorRef.current.innerHTML = topic?.content ?? "";
   }, [topic]);
   useEffect(() => {
-    if (wasSubmitting.current && !pending && !state.error) onDone("saved");
+    if (wasSubmitting.current && !pending && !state.error) onDone(state.savedId ?? topic?.id);
     wasSubmitting.current = pending;
-  }, [pending, state, onDone]);
+  }, [pending, state, onDone, topic]);
 
   const format = (command: string, value?: string) => {
     editorRef.current?.focus();
@@ -189,7 +204,7 @@ function TopicEditor({ topic, onDone }: { topic: Topic | null; onDone: (savedTit
 
   return (
     <div className="max-w-4xl">
-      <h1 className="mb-6 text-xl font-semibold">{topic ? `Edit “${topic.title}”` : "New Help Topic"}</h1>
+      <PageHeader title={topic ? `Edit “${topic.title}”` : "New help topic"} subtitle="Help Center" />
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -197,7 +212,7 @@ function TopicEditor({ topic, onDone }: { topic: Topic | null; onDone: (savedTit
           formData.set("content", editorRef.current?.innerHTML ?? content);
           startTransition(() => formAction(formData));
         }}
-        className="grid gap-4 rounded-lg border border-black/10 bg-white p-6 sm:grid-cols-[1fr_240px] dark:border-white/10 dark:bg-black"
+        className="grid gap-4 rounded-lg border border-black/10 bg-white p-6 shadow-sm sm:grid-cols-[1fr_240px] dark:border-white/10 dark:bg-neutral-950"
       >
         <div>
           <label htmlFor={titleId} className={labelClass}>
@@ -233,18 +248,22 @@ function TopicEditor({ topic, onDone }: { topic: Topic | null; onDone: (savedTit
             aria-multiline="true"
             aria-labelledby={`${titleId}-content`}
             onInput={(e) => setContent(e.currentTarget.innerHTML)}
-            className={`min-h-[320px] rounded-b-md border border-black/15 p-4 outline-none focus:border-[#00acc1] dark:border-white/15 ${proseClass}`}
+            className={`min-h-[320px] rounded-b-md border border-black/15 p-4 outline-none focus:border-brand dark:border-white/15 ${proseClass}`}
           />
           <p className="mt-1 text-xs text-black/40 dark:text-white/40">Headings, bold/italic/underline and lists are kept; other formatting is removed when saved.</p>
         </div>
 
-        {state.error && !pending && <p className="text-sm text-red-600 sm:col-span-2">{state.error}</p>}
+        {state.error && !pending && (
+          <p role="alert" className="text-sm text-red-600 sm:col-span-2">
+            {state.error}
+          </p>
+        )}
         <div className="flex justify-end gap-2 sm:col-span-2">
-          <button type="button" onClick={() => onDone()} className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15">
+          <button type="button" onClick={() => onDone()} className={buttonClass("secondary")}>
             Cancel
           </button>
-          <button type="submit" disabled={pending} className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black">
-            {pending ? "Saving…" : "Save Topic"}
+          <button type="submit" disabled={pending} className={buttonClass("primary")}>
+            {pending ? "Saving…" : "Save topic"}
           </button>
         </div>
       </form>

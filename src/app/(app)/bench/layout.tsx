@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccessBench } from "@/lib/users";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { BenchTabs } from "./BenchTabs";
 
 // Bench Sales is hidden from Recruiters/HR entirely (GAS viewBenchSales) —
@@ -11,8 +12,9 @@ export default async function BenchLayout({ children }: { children: React.ReactN
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold">Bench Sales</h1>
-      <BenchTabs />
+      <PageHeader title="Bench Sales" subtitle="Our consultants, marketed to vendors and clients">
+        <BenchTabs />
+      </PageHeader>
       {children}
     </div>
   );

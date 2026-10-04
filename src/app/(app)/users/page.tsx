@@ -4,6 +4,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageUsers, canViewUsers } from "@/lib/users";
 import { UsersTable } from "./UsersTable";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +22,13 @@ export default async function UsersPage() {
   });
 
   return (
-    <UsersTable
-      users={users}
-      currentUserId={currentUser.id}
-      canEdit={canManageUsers(currentUser.role)}
-    />
+    <>
+      <PageHeader title="User Management" subtitle="Who can sign in, and what they can see" />
+      <UsersTable
+        users={users}
+        currentUserId={currentUser.id}
+        canEdit={canManageUsers(currentUser.role)}
+      />
+    </>
   );
 }

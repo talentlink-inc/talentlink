@@ -8,6 +8,7 @@ import { InterviewsTable } from "./InterviewsTable";
 import { serializeInterview } from "./types";
 import { REQUIREMENT_SUMMARY_SELECT, redactCandidateContact, serializeSubmission } from "../submissions/types";
 import { getIntegrationStatus } from "./integration-actions";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -42,18 +43,21 @@ export default async function InterviewsPage({
   ]);
 
   return (
-    <InterviewsTable
-      interviews={interviews.map((i) => {
-        const serialized = serializeInterview(i);
-        return { ...serialized, submission: redactCandidateContact(serialized.submission, currentUser) };
-      })}
-      eligibleSubmissions={eligibleSubmissions.map((s) => redactCandidateContact(serializeSubmission(s), currentUser))}
-      currentUserId={currentUser.id}
-      canEdit={canManageRecruitment(currentUser.role)}
-      canManageIntegration={canManageIntegration}
-      integrationStatus={integrationStatus}
-      integrationConnected={params.integration_connected === "1"}
-      integrationError={params.integration_error ?? null}
-    />
+    <>
+      <PageHeader title="Interviews" subtitle="Scheduled rounds and feedback" />
+      <InterviewsTable
+        interviews={interviews.map((i) => {
+          const serialized = serializeInterview(i);
+          return { ...serialized, submission: redactCandidateContact(serialized.submission, currentUser) };
+        })}
+        eligibleSubmissions={eligibleSubmissions.map((s) => redactCandidateContact(serializeSubmission(s), currentUser))}
+        currentUserId={currentUser.id}
+        canEdit={canManageRecruitment(currentUser.role)}
+        canManageIntegration={canManageIntegration}
+        integrationStatus={integrationStatus}
+        integrationConnected={params.integration_connected === "1"}
+        integrationError={params.integration_error ?? null}
+      />
+    </>
   );
 }

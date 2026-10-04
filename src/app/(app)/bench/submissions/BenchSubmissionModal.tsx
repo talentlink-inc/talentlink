@@ -6,9 +6,12 @@ import { REJECT_REASON_OPTIONS, SUBMISSION_STATUSES, isRejectedStatus } from "@/
 import { formatDate } from "@/lib/format";
 import { NotesSection } from "../../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { useEscapeToClose } from "@/lib/useEscapeToClose";
+import { RecordPanel, panelFooterClass } from "@/components/ui/RecordPanel";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { buttonClass } from "@/components/ui/button";
+import { useUi } from "@/components/ui/UiProvider";
+import { statusLabel } from "@/lib/statusLabels";
 import { Field, FieldTextarea, inputClass, labelClass } from "../FormFields";
-import { SubmissionStatusBadge } from "./BenchSubmissionsTable";
 import type { BenchConsultantSummary, SerializedBenchSubmission } from "./types";
 
 export function BenchSubmissionModal({
@@ -29,54 +32,57 @@ export function BenchSubmissionModal({
   onOpenExisting: (id: string) => void;
 }) {
   const [mode, setMode] = useState<"create" | "view" | "edit">(initialMode);
-  useEscapeToClose(onClose);
+  const { toast } = useUi();
   useEffect(() => {
     if (mode !== "create" && !submission) onClose();
   }, [mode, submission, onClose]);
   if (mode !== "create" && !submission) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 dark:bg-black"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold">
-            {mode === "create"
-              ? "Add Bench Submission"
-              : mode === "edit"
-                ? `Edit ${submission!.submissionCode}`
-                : `${submission!.submissionCode} — ${submission!.consultant.consultantName} → ${submission!.companyName}`}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-xl leading-none text-black/40 hover:text-black dark:text-white/40 dark:hover:text-white"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
+  if (mode === "view" && submission) {
+    return (
+      <RecordPanel
+        title={`${submission.consultant.consultantName} → ${submission.companyName}`}
+        subtitle={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span className="font-mono text-xs">{submission.submissionCode}</span>
+            <StatusChip status={submission.status} />
+          </span>
+        }
+        onClose={onClose}
+        tabs={[
+          {
+            key: "details",
+            label: "Details",
+            content: <ViewSubmission submission={submission} canDelete={canDelete} onEdit={() => setMode("edit")} onDeleted={onClose} />,
+          },
+          {
+            key: "notes",
+            label: "Notes",
+            content: <NotesSection module="bench_submission" recordId={submission.id} currentUserId={currentUserId} />,
+          },
+        ]}
+      />
+    );
+  }
 
-        {mode === "view" && submission && (
-          <>
-            <ViewSubmission submission={submission} canDelete={canDelete} onEdit={() => setMode("edit")} onDeleted={onClose} />
-            <NotesSection module="bench_submission" recordId={submission.id} currentUserId={currentUserId} />
-          </>
-        )}
-        {(mode === "create" || mode === "edit") && (
-          <SubmissionForm
-            submission={mode === "edit" ? submission : null}
-            consultants={consultants}
-            onCancel={() => (mode === "edit" ? setMode("view") : onClose())}
-            onSaved={() => (mode === "edit" ? setMode("view") : onClose())}
-            onOpenExisting={onOpenExisting}
-          />
-        )}
-      </div>
-    </div>
+  return (
+    <RecordPanel
+      title={mode === "create" ? "Add bench submission" : `Edit ${submission!.submissionCode}`}
+      subtitle={mode === "edit" ? `${submission!.consultant.consultantName} → ${submission!.companyName}` : undefined}
+      onClose={onClose}
+    >
+      <SubmissionForm
+        submission={mode === "edit" ? submission : null}
+        consultants={consultants}
+        onCancel={() => (mode === "edit" ? setMode("view") : onClose())}
+        onSaved={() => {
+          toast({ message: mode === "edit" ? "Submission saved" : "Submission added", tone: "success" });
+          if (mode === "edit") setMode("view");
+          else onClose();
+        }}
+        onOpenExisting={onOpenExisting}
+      />
+    </RecordPanel>
   );
 }
 
@@ -91,7 +97,7 @@ function ViewSubmission({
   onEdit: () => void;
   onDeleted: () => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useUi();
   const row = (label: string, value: React.ReactNode) => (
     <div className="grid grid-cols-3 gap-2 border-b border-black/5 py-2 text-sm dark:border-white/5">
       <dt className="text-black/50 dark:text-white/50">{label}</dt>
@@ -103,32 +109,34 @@ function ViewSubmission({
       <dl>
         {row("Consultant", `${s.consultant.consultantCode} — ${s.consultant.consultantName} (${s.consultant.role})`)}
         {row("Company", s.companyName)}
-        {row("Contact Person", s.contactPerson)}
-        {row("Contact Number", s.contactNumber)}
+        {row("Contact person", s.contactPerson)}
+        {row("Contact number", s.contactNumber)}
         {row("Email", s.email)}
         {row("Rate", s.rate)}
-        {row("Status", <SubmissionStatusBadge status={s.status} />)}
-        {isRejectedStatus(s.status) && row("Reject Reason", s.rejectReason)}
+        {isRejectedStatus(s.status) && row("Reject reason", s.rejectReason)}
         {row("Placement ID", s.placementId)}
         {row("Submitted", s.submissionDate ? formatDate(s.submissionDate) : null)}
-        {row("Submitted By", s.submittedByNameRaw)}
+        {row("Submitted by", s.submittedByNameRaw)}
         {row("Interviews", String(s.interviewCount))}
         {row("Notes", s.notes && <span className="whitespace-pre-wrap">{s.notes}</span>)}
       </dl>
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-      <div className="mt-4 flex justify-end gap-2">
+      <div className={panelFooterClass}>
         {canDelete && (
           <ConfirmButton
             label="Delete"
             confirmText={`Delete ${s.submissionCode}?`}
+            body="This can't be undone."
+            className={buttonClass("dangerSoft", "md", "mr-auto")}
             onConfirm={async () => {
+              // A refusal (e.g. it has interviews) is shown inside the dialog.
               const result = await deleteBenchSubmission(s.id);
-              if (result.error) setError(result.error);
-              else onDeleted();
+              if (result.error) throw new Error(result.error);
+              toast({ message: `${s.submissionCode} deleted`, tone: "success" });
+              onDeleted();
             }}
           />
         )}
-        <button type="button" onClick={onEdit} className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black">
+        <button type="button" onClick={onEdit} className={buttonClass("primary")}>
           Edit
         </button>
       </div>
@@ -200,7 +208,7 @@ function SubmissionForm({
       </div>
       <Field label="Client / Vendor Company" name="companyName" defaultValue={submission?.companyName} required />
       <Field label="Rate" name="rate" defaultValue={submission?.rate} placeholder="e.g. $75/hr C2C" />
-      <Field label="Contact Person" name="contactPerson" defaultValue={submission?.contactPerson} />
+      <Field label="Contact person" name="contactPerson" defaultValue={submission?.contactPerson} />
       <Field label="Contact Number" name="contactNumber" type="tel" defaultValue={submission?.contactNumber} />
       <Field label="Contact Email" name="email" type="email" defaultValue={submission?.email} />
       <div>
@@ -210,7 +218,7 @@ function SubmissionForm({
         <select id={statusId} name="status" value={status} onChange={(e) => setStatus(e.target.value)} className={inputClass}>
           {statusOptions.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {statusLabel(s)}
             </option>
           ))}
         </select>
@@ -237,25 +245,21 @@ function SubmissionForm({
       </div>
 
       {state.error && !pending && (
-        <p className="text-sm text-red-600 sm:col-span-2">
+        <p role="alert" className="text-sm text-red-600 sm:col-span-2">
           {state.error}{" "}
           {state.duplicateId && (
-            <button type="button" onClick={() => onOpenExisting(state.duplicateId!)} className="underline">
+            <button type="button" onClick={() => onOpenExisting(state.duplicateId!)} className="font-medium underline">
               Open existing submission
             </button>
           )}
         </p>
       )}
 
-      <div className="flex justify-end gap-2 pt-2 sm:col-span-2">
-        <button type="button" onClick={onCancel} className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15">
+      <div className={`${panelFooterClass} sm:col-span-2`}>
+        <button type="button" onClick={onCancel} className={buttonClass("secondary")}>
           Cancel
         </button>
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
-        >
+        <button type="submit" disabled={pending} className={buttonClass("primary")}>
           {pending ? "Saving…" : "Save"}
         </button>
       </div>

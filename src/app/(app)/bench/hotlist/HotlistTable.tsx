@@ -6,7 +6,10 @@ import { BENCH_HOTLIST_STATUSES, relocationLabel } from "@/lib/bench";
 import { buildHotlistEmailHtml, buildHotlistText } from "@/lib/hotlistEmail";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
-import { ConfirmButton } from "@/components/ConfirmButton";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { buttonClass } from "@/components/ui/button";
+import { DensityToggle, useCellClass, useUi } from "@/components/ui/UiProvider";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 
 type HotlistRow = {
   id: string;
@@ -33,6 +36,8 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
   const [error, setError] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const cell = useCellClass();
+  const { toast } = useUi();
 
   usePageShortcuts({
     onFocusSearch: () => searchInputRef.current?.focus(),
@@ -48,11 +53,12 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
     });
   }, [consultants, search, statusFilter]);
 
-  async function run(id: string, fn: () => Promise<unknown>) {
+  async function run(id: string, fn: () => Promise<unknown>, done?: { message: string; undo?: () => Promise<unknown> }) {
     setBusyId(id);
     setError(null);
     try {
       await fn();
+      if (done) toast({ message: done.message, tone: "success", undo: done.undo });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -61,6 +67,27 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
   }
 
   const activeCount = consultants.filter((c) => c.hotlistStatus === "Active").length;
+  const emptyMessage =
+    consultants.length === 0
+      ? "No one is on the hotlist yet — add consultants from the Consultants tab."
+      : "No hotlist consultants match your filters.";
+
+  // Reversible, so no "are you sure?" — an Undo toast instead (design review 3C).
+  const removeButton = (c: HotlistRow) => (
+    <button
+      type="button"
+      disabled={busyId === c.id}
+      onClick={() =>
+        run(c.id, () => setBenchConsultantHotlist(c.id, false), {
+          message: `${c.consultantName} removed from hotlist`,
+          undo: () => setBenchConsultantHotlist(c.id, true),
+        })
+      }
+      className={buttonClass("subtle", "sm", "hover:text-red-600")}
+    >
+      Remove
+    </button>
+  );
 
   return (
     <div>
@@ -70,14 +97,14 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search name, role, skills, location"
-          placeholder="Search name, role, skills, location..."
-          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          placeholder="Search name, role, skills, location…"
+          className={`${toolbarInputClass} min-w-[220px] flex-1`}
         />
         <select
           aria-label="Filter by hotlist status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
           <option value="">All ({consultants.length})</option>
           {BENCH_HOTLIST_STATUSES.map((s) => (
@@ -86,56 +113,95 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          disabled={consultants.length === 0}
-          onClick={() => setExportOpen(true)}
-          className="ml-auto rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          Export hotlist
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden md:inline-flex">
+            <DensityToggle />
+          </span>
+          <button
+            type="button"
+            disabled={consultants.length === 0}
+            onClick={() => setExportOpen(true)}
+            className={buttonClass("primary")}
+          >
+            Export hotlist
+          </button>
+        </div>
       </div>
       <p className="mb-3 text-xs text-black/50 dark:text-white/50">
         Add or remove consultants from the hotlist on the Consultants tab. {activeCount} active of {consultants.length}.
       </p>
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-3 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
-        <table className="w-full min-w-[1000px] text-left text-sm">
-          <thead className="bg-black/5 dark:bg-white/5">
+      <ul className="space-y-2 md:hidden" aria-label="Hotlist">
+        {filtered.map((c) => (
+          <li key={c.id} className="rounded-lg border border-black/10 bg-white p-3 dark:border-white/10 dark:bg-neutral-950">
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-medium">{c.consultantName}</span>
+              <StatusChip status={c.hotlistStatus ?? "Active"} />
+            </div>
+            <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+              {c.role} · {c.visaStatus} · {c.location}
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-black/45 dark:text-white/45">
+                {c.experience} · {c.availability}
+              </span>
+              {removeButton(c)}
+            </div>
+          </li>
+        ))}
+        {filtered.length === 0 && <li className={emptyCellClass}>{emptyMessage}</li>}
+      </ul>
+
+      <div className={`${tableCardClass} hidden md:block`}>
+        <table className={`${tableClass} min-w-[1000px]`}>
+          <thead className={theadClass}>
             <tr>
-              <th className="px-3 py-2">Name</th>
-              <th className="px-3 py-2">Role</th>
-              <th className="px-3 py-2">Skills</th>
-              <th className="px-3 py-2">Visa</th>
-              <th className="px-3 py-2">Relocation</th>
-              <th className="px-3 py-2">Exp</th>
-              <th className="px-3 py-2">Location</th>
-              <th className="px-3 py-2">Availability</th>
-              <th className="px-3 py-2">Hotlist</th>
-              <th className="px-3 py-2" />
+              <th className={cell}>Name</th>
+              <th className={cell}>Role</th>
+              <th className={cell}>Skills</th>
+              <th className={cell}>Visa</th>
+              <th className={cell}>Relocation</th>
+              <th className={cell}>Exp</th>
+              <th className={cell}>Location</th>
+              <th className={cell}>Availability</th>
+              <th className={cell}>Hotlist</th>
+              <th className={cell}>
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((c) => (
-              <tr key={c.id} className="border-t border-black/10 dark:border-white/10">
-                <td className="px-3 py-2 font-medium">{c.consultantName}</td>
-                <td className="px-3 py-2">{c.role}</td>
-                <td className="max-w-[220px] truncate px-3 py-2" title={c.technologySkills}>
+              <tr key={c.id} className="border-t border-black/5 dark:border-white/10">
+                <td className={`${cell} font-medium`}>{c.consultantName}</td>
+                <td className={cell}>{c.role}</td>
+                <td className={`${cell} max-w-[220px] truncate`} title={c.technologySkills}>
                   {c.technologySkills}
                 </td>
-                <td className="px-3 py-2">{c.visaStatus}</td>
-                <td className="px-3 py-2">{relocationLabel(c.relocation)}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{c.experience}</td>
-                <td className="px-3 py-2">{c.location}</td>
-                <td className="px-3 py-2">{c.availability}</td>
-                <td className="px-3 py-2">
+                <td className={cell}>{c.visaStatus}</td>
+                <td className={cell}>{relocationLabel(c.relocation)}</td>
+                <td className={`${cell} whitespace-nowrap`}>{c.experience}</td>
+                <td className={cell}>{c.location}</td>
+                <td className={cell}>{c.availability}</td>
+                <td className={cell}>
                   <select
                     aria-label={`Hotlist status for ${c.consultantName}`}
                     value={c.hotlistStatus ?? "Active"}
                     disabled={busyId === c.id}
-                    onChange={(e) => run(c.id, () => setBenchHotlistStatus(c.id, e.target.value))}
-                    className="rounded-md border border-black/15 px-2 py-1 text-xs dark:border-white/15 dark:bg-transparent"
+                    onChange={(e) => {
+                      const previous = c.hotlistStatus ?? "Active";
+                      const next = e.target.value;
+                      run(c.id, () => setBenchHotlistStatus(c.id, next), {
+                        message: `${c.consultantName} marked ${next}`,
+                        undo: () => setBenchHotlistStatus(c.id, previous),
+                      });
+                    }}
+                    className="rounded-md border border-black/15 bg-white px-2 py-1 text-xs dark:border-white/15 dark:bg-transparent"
                   >
                     {BENCH_HOTLIST_STATUSES.map((s) => (
                       <option key={s} value={s}>
@@ -144,23 +210,13 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
                     ))}
                   </select>
                 </td>
-                <td className="px-3 py-2 text-right">
-                  <ConfirmButton
-                    label="Remove"
-                    confirmText="Remove from hotlist?"
-                    confirmLabel="Yes, remove"
-                    className="text-sm font-medium text-black/60 hover:text-red-600 dark:text-white/60"
-                    onConfirm={() => run(c.id, () => setBenchConsultantHotlist(c.id, false))}
-                  />
-                </td>
+                <td className={`${cell} text-right`}>{removeButton(c)}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
-                  {consultants.length === 0
-                    ? "No one is on the hotlist yet — add consultants from the Consultants tab."
-                    : "No hotlist consultants match your filters."}
+                <td colSpan={10} className={emptyCellClass}>
+                  {emptyMessage}
                 </td>
               </tr>
             )}
@@ -169,12 +225,7 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
       </div>
 
       {exportOpen && (
-        <ExportModal
-          companyName={companyName}
-          all={consultants}
-          filtered={filtered}
-          onClose={() => setExportOpen(false)}
-        />
+        <ExportModal companyName={companyName} all={consultants} filtered={filtered} onClose={() => setExportOpen(false)} />
       )}
     </div>
   );
@@ -195,8 +246,8 @@ function ExportModal({
   onClose: () => void;
 }) {
   useEscapeToClose(onClose);
+  const { toast } = useUi();
   const [scope, setScope] = useState<Scope>("active");
-  const [copied, setCopied] = useState<string | null>(null);
 
   const rows = scope === "all" ? all : scope === "active" ? all.filter((c) => c.hotlistStatus === "Active") : filtered;
   const forEmail = rows.map((c) => ({ ...c, relocation: relocationLabel(c.relocation) }));
@@ -216,9 +267,9 @@ function ExportModal({
       } else {
         await navigator.clipboard.writeText(text);
       }
-      setCopied("Copied — paste into a new email.");
+      toast({ message: "Hotlist copied — paste it into a new email", tone: "success" });
     } catch {
-      setCopied("Couldn't access the clipboard — use Download instead.");
+      toast({ message: "Couldn't access the clipboard — use Download instead", tone: "error" });
     }
   }
 
@@ -237,12 +288,17 @@ function ExportModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-lg bg-white p-6 dark:bg-black"
+        aria-label="Export hotlist"
+        className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-white p-6 shadow-2xl dark:bg-neutral-950"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold">Export Hotlist</h2>
-          <button onClick={onClose} className="text-xl leading-none text-black/40 hover:text-black dark:text-white/40 dark:hover:text-white" aria-label="Close">
+          <h2 className="text-lg font-semibold">Export hotlist</h2>
+          <button
+            onClick={onClose}
+            className="text-xl leading-none text-black/40 hover:text-black dark:text-white/40 dark:hover:text-white"
+            aria-label="Close"
+          >
             ×
           </button>
         </div>
@@ -256,7 +312,13 @@ function ExportModal({
             ] as [Scope, string][]
           ).map(([value, label]) => (
             <label key={value} className="flex items-center gap-1.5">
-              <input type="radio" name="scope" checked={scope === value} onChange={() => setScope(value)} />
+              <input
+                type="radio"
+                name="scope"
+                checked={scope === value}
+                onChange={() => setScope(value)}
+                className="accent-brand"
+              />
               {label}
             </label>
           ))}
@@ -271,11 +333,10 @@ function ExportModal({
           )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {copied && <span className="mr-auto text-sm text-black/60 dark:text-white/60">{copied}</span>}
-          <button type="button" onClick={download} disabled={rows.length === 0} className="rounded-md border border-black/15 px-3 py-2 text-sm disabled:opacity-50 dark:border-white/15">
+          <button type="button" onClick={download} disabled={rows.length === 0} className={buttonClass("secondary")}>
             Download .html
           </button>
-          <button type="button" onClick={copy} disabled={rows.length === 0} className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black">
+          <button type="button" onClick={copy} disabled={rows.length === 0} className={buttonClass("primary")}>
             Copy for email
           </button>
         </div>

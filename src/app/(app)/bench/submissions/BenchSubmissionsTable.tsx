@@ -3,28 +3,17 @@
 import { useMemo, useRef, useState } from "react";
 import { BenchSubmissionModal } from "./BenchSubmissionModal";
 import { formatDate } from "@/lib/format";
-import { submissionStatusBucket } from "@/lib/bench";
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { rowSelectClass } from "@/lib/tableRow";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { statusLabel } from "@/lib/statusLabels";
+import { buttonClass } from "@/components/ui/button";
+import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 import type { BenchConsultantSummary, SerializedBenchSubmission } from "./types";
-
-const BUCKET_STYLES = {
-  blue: "bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300",
-  amber: "bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300",
-  green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
-  red: "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300",
-} as const;
-
-export function SubmissionStatusBadge({ status }: { status: string }) {
-  return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs whitespace-nowrap ${BUCKET_STYLES[submissionStatusBucket(status)]}`}>
-      {status}
-    </span>
-  );
-}
 
 export function BenchSubmissionsTable({
   submissions,
@@ -43,6 +32,7 @@ export function BenchSubmissionsTable({
   const [submittedByFilter, setSubmittedByFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const cell = useCellClass();
 
   const open = (id: string) => {
     setSelectedId(id);
@@ -89,19 +79,19 @@ export function BenchSubmissionsTable({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search consultant, company, contact"
-          placeholder="Search consultant, company, contact..."
-          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          placeholder="Search consultant, company, contact…"
+          className={`${toolbarInputClass} min-w-[220px] flex-1`}
         />
         <select
           aria-label="Filter by status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Status</option>
+          <option value="">All statuses</option>
           {statusOptions.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {statusLabel(s)}
             </option>
           ))}
         </select>
@@ -109,36 +99,62 @@ export function BenchSubmissionsTable({
           aria-label="Filter by submitted by"
           value={submittedByFilter}
           onChange={(e) => setSubmittedByFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Submitted By</option>
+          <option value="">Anyone</option>
           {submitterOptions.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={() => setModal({ mode: "create", id: null })}
-          className="ml-auto rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-        >
-          + Add Submission
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden md:inline-flex">
+            <DensityToggle />
+          </span>
+          <button type="button" onClick={() => setModal({ mode: "create", id: null })} className={buttonClass("primary")}>
+            + Add submission
+          </button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
-        <table className="w-full min-w-[960px] text-left text-sm">
-          <thead className="bg-black/5 dark:bg-white/5">
+      <ul className="space-y-2 md:hidden" aria-label="Submissions">
+        {paged.map((s) => (
+          <li key={s.id}>
+            <button
+              type="button"
+              onClick={() => open(s.id)}
+              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(s.id === selectedId)}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-medium">{s.consultant.consultantName}</span>
+                <StatusChip status={s.status} />
+              </div>
+              <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+                {s.companyName}
+                {s.contactPerson ? ` · ${s.contactPerson}` : ""}
+              </div>
+              <div className="mt-1 text-xs text-black/45 dark:text-white/45">
+                {s.submissionCode} · {s.submissionDate ? formatDate(s.submissionDate) : "No date"} · {s.rate ?? "No rate"}
+              </div>
+            </button>
+          </li>
+        ))}
+        {filtered.length === 0 && <li className={emptyCellClass}>{submissions.length === 0 ? "No bench submissions yet." : "No submissions match your filters."}</li>}
+      </ul>
+
+      <div className={`${tableCardClass} hidden md:block`}>
+        <table className={`${tableClass} min-w-[960px]`}>
+          <thead className={theadClass}>
             <tr>
-              <th className="px-3 py-2">ID</th>
-              <th className="px-3 py-2">Consultant</th>
-              <th className="px-3 py-2">Company</th>
-              <th className="px-3 py-2">Contact</th>
-              <th className="px-3 py-2">Rate</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Submitted</th>
-              <th className="px-3 py-2">By</th>
+              <th className={cell}>ID</th>
+              <th className={cell}>Consultant</th>
+              <th className={cell}>Company</th>
+              <th className={cell}>Contact</th>
+              <th className={cell}>Rate</th>
+              <th className={cell}>Status</th>
+              <th className={cell}>Submitted</th>
+              <th className={cell}>By</th>
             </tr>
           </thead>
           <tbody>
@@ -146,23 +162,23 @@ export function BenchSubmissionsTable({
               <tr
                 key={s.id}
                 onClick={() => open(s.id)}
-                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(s.id === selectedId)}`}
+                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(s.id === selectedId)}`}
               >
-                <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{s.submissionCode}</td>
-                <td className="px-3 py-2 font-medium">{s.consultant.consultantName}</td>
-                <td className="px-3 py-2">{s.companyName}</td>
-                <td className="px-3 py-2">{s.contactPerson ?? "—"}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{s.rate ?? "—"}</td>
-                <td className="px-3 py-2">
-                  <SubmissionStatusBadge status={s.status} />
+                <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>{s.submissionCode}</td>
+                <td className={`${cell} font-medium`}>{s.consultant.consultantName}</td>
+                <td className={cell}>{s.companyName}</td>
+                <td className={cell}>{s.contactPerson ?? "—"}</td>
+                <td className={`${cell} whitespace-nowrap`}>{s.rate ?? "—"}</td>
+                <td className={cell}>
+                  <StatusChip status={s.status} />
                 </td>
-                <td className="px-3 py-2 whitespace-nowrap">{s.submissionDate ? formatDate(s.submissionDate) : "—"}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{s.submittedByNameRaw ?? "—"}</td>
+                <td className={`${cell} whitespace-nowrap`}>{s.submissionDate ? formatDate(s.submissionDate) : "—"}</td>
+                <td className={`${cell} whitespace-nowrap`}>{s.submittedByNameRaw ?? "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
+                <td colSpan={8} className={emptyCellClass}>
                   {submissions.length === 0 ? "No bench submissions yet." : "No submissions match your filters."}
                 </td>
               </tr>

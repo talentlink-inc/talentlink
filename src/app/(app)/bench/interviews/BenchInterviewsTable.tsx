@@ -8,12 +8,17 @@ import { isValidTimeZone, timeZoneOptions, utcToZonedLocal } from "@/lib/timezon
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
-import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import { PaginationControls } from "@/components/PaginationControls";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { rowSelectClass } from "@/lib/tableRow";
 import { NotesSection } from "../../notes/NotesSection";
 import { Field, FieldTextarea, inputClass, labelClass } from "../FormFields";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { statusLabel } from "@/lib/statusLabels";
+import { buttonClass } from "@/components/ui/button";
+import { DensityToggle, useCellClass, useUi } from "@/components/ui/UiProvider";
+import { RecordPanel, panelFooterClass } from "@/components/ui/RecordPanel";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 import type { BenchInterview } from "@/generated/prisma/client";
 import type { BenchConsultantSummary } from "../submissions/types";
 
@@ -28,7 +33,7 @@ type Interview = Omit<BenchInterview, "tenantId"> & { submission: SubmissionPick
 type Viewer = { id: string; name: string; canDeleteAny: boolean };
 
 const submissionLabel = (s: SubmissionPick) =>
-  `${s.consultant.consultantName} → ${s.companyName} (${s.submissionCode}, ${s.status})`;
+  `${s.consultant.consultantName} → ${s.companyName} (${s.submissionCode}, ${statusLabel(s.status)})`;
 
 export function BenchInterviewsTable({
   interviews,
@@ -44,6 +49,7 @@ export function BenchInterviewsTable({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const cell = useCellClass();
 
   const open = (id: string) => {
     setSelectedId(id);
@@ -62,7 +68,12 @@ export function BenchInterviewsTable({
     const q = search.trim().toLowerCase();
     return interviews.filter((i) => {
       if (statusFilter && i.status !== statusFilter) return false;
-      if (q && !`${i.submission.consultant.consultantName} ${i.submission.companyName} ${i.clientCompany ?? ""}`.toLowerCase().includes(q)) {
+      if (
+        q &&
+        !`${i.submission.consultant.consultantName} ${i.submission.companyName} ${i.clientCompany ?? ""}`
+          .toLowerCase()
+          .includes(q)
+      ) {
         return false;
       }
       return true;
@@ -70,7 +81,7 @@ export function BenchInterviewsTable({
   }, [interviews, search, statusFilter]);
 
   const { page, setPage, paged, totalPages, start, end, total } = usePagination(filtered, 25);
-  const current = modal?.id ? interviews.find((i) => i.id === modal.id) ?? null : null;
+  const current = modal?.id ? (interviews.find((i) => i.id === modal.id) ?? null) : null;
 
   return (
     <div>
@@ -80,42 +91,72 @@ export function BenchInterviewsTable({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search consultant, company"
-          placeholder="Search consultant, company..."
-          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          placeholder="Search consultant, company…"
+          className={`${toolbarInputClass} min-w-[220px] flex-1`}
         />
         <select
           aria-label="Filter by status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Status</option>
+          <option value="">All statuses</option>
           {INTERVIEW_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {statusLabel(s)}
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={() => setModal({ mode: "create", id: null })}
-          className="ml-auto rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-        >
-          + Schedule Interview
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden md:inline-flex">
+            <DensityToggle />
+          </span>
+          <button type="button" onClick={() => setModal({ mode: "create", id: null })} className={buttonClass("primary")}>
+            + Schedule interview
+          </button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
-        <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="bg-black/5 dark:bg-white/5">
+      <ul className="space-y-2 md:hidden" aria-label="Interviews">
+        {paged.map((i) => (
+          <li key={i.id}>
+            <button
+              type="button"
+              onClick={() => open(i.id)}
+              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(i.id === selectedId)}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-medium">{i.submission.consultant.consultantName}</span>
+                <StatusChip status={i.status} />
+              </div>
+              <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+                {i.clientCompany ?? i.submission.companyName} · {statusLabel(i.interviewType)}
+              </div>
+              <div className="mt-1 text-xs text-black/45 dark:text-white/45">
+                {i.scheduledAt ? formatDateTime(i.scheduledAt, i.timezone ?? undefined) : "Not scheduled"}
+                {i.mode ? ` · ${statusLabel(i.mode)}` : ""}
+              </div>
+            </button>
+          </li>
+        ))}
+        {filtered.length === 0 && (
+          <li className={emptyCellClass}>
+            {interviews.length === 0 ? "No bench interviews yet." : "No interviews match your filters."}
+          </li>
+        )}
+      </ul>
+
+      <div className={`${tableCardClass} hidden md:block`}>
+        <table className={`${tableClass} min-w-[900px]`}>
+          <thead className={theadClass}>
             <tr>
-              <th className="px-3 py-2">Consultant</th>
-              <th className="px-3 py-2">Company</th>
-              <th className="px-3 py-2">Round</th>
-              <th className="px-3 py-2">Scheduled</th>
-              <th className="px-3 py-2">Mode</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Scheduled By</th>
+              <th className={cell}>Consultant</th>
+              <th className={cell}>Company</th>
+              <th className={cell}>Round</th>
+              <th className={cell}>Scheduled</th>
+              <th className={cell}>Mode</th>
+              <th className={cell}>Status</th>
+              <th className={cell}>Scheduled by</th>
             </tr>
           </thead>
           <tbody>
@@ -123,20 +164,24 @@ export function BenchInterviewsTable({
               <tr
                 key={i.id}
                 onClick={() => open(i.id)}
-                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(i.id === selectedId)}`}
+                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(i.id === selectedId)}`}
               >
-                <td className="px-3 py-2 font-medium">{i.submission.consultant.consultantName}</td>
-                <td className="px-3 py-2">{i.clientCompany ?? i.submission.companyName}</td>
-                <td className="px-3 py-2">{i.interviewType}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{i.scheduledAt ? formatDateTime(i.scheduledAt, i.timezone ?? undefined) : "—"}</td>
-                <td className="px-3 py-2">{i.mode ?? "—"}</td>
-                <td className="px-3 py-2">{i.status}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{i.scheduledByNameRaw ?? "—"}</td>
+                <td className={`${cell} font-medium`}>{i.submission.consultant.consultantName}</td>
+                <td className={cell}>{i.clientCompany ?? i.submission.companyName}</td>
+                <td className={cell}>{statusLabel(i.interviewType)}</td>
+                <td className={`${cell} whitespace-nowrap`}>
+                  {i.scheduledAt ? formatDateTime(i.scheduledAt, i.timezone ?? undefined) : "—"}
+                </td>
+                <td className={cell}>{i.mode ? statusLabel(i.mode) : "—"}</td>
+                <td className={cell}>
+                  <StatusChip status={i.status} />
+                </td>
+                <td className={`${cell} whitespace-nowrap`}>{i.scheduledByNameRaw ?? "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
+                <td colSpan={7} className={emptyCellClass}>
                   {interviews.length === 0 ? "No bench interviews yet." : "No interviews match your filters."}
                 </td>
               </tr>
@@ -174,88 +219,99 @@ function InterviewModal({
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<"create" | "view" | "edit">(initialMode);
-  const [error, setError] = useState<string | null>(null);
-  useEscapeToClose(onClose);
+  const { toast } = useUi();
   useEffect(() => {
     if (mode !== "create" && !interview) onClose();
   }, [mode, interview, onClose]);
   if (mode !== "create" && !interview) return null;
 
-  const canDelete =
-    !!interview && (viewer.canDeleteAny || interview.scheduledByUserId === viewer.id);
-  const row = (label: string, value: React.ReactNode) => (
-    <div className="grid grid-cols-3 gap-2 border-b border-black/5 py-2 text-sm dark:border-white/5">
-      <dt className="text-black/50 dark:text-white/50">{label}</dt>
-      <dd className="col-span-2 break-words">{value || "—"}</dd>
-    </div>
-  );
+  if (mode === "view" && interview) {
+    const canDelete = viewer.canDeleteAny || interview.scheduledByUserId === viewer.id;
+    const row = (label: string, value: React.ReactNode) => (
+      <div className="grid grid-cols-3 gap-2 border-b border-black/5 py-2 text-sm dark:border-white/5">
+        <dt className="text-black/50 dark:text-white/50">{label}</dt>
+        <dd className="col-span-2 break-words">{value || "—"}</dd>
+      </div>
+    );
+    return (
+      <RecordPanel
+        title={`${interview.submission.consultant.consultantName} — ${statusLabel(interview.interviewType)}`}
+        subtitle={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span>{interview.clientCompany ?? interview.submission.companyName}</span>
+            <StatusChip status={interview.status} />
+          </span>
+        }
+        onClose={onClose}
+        tabs={[
+          {
+            key: "details",
+            label: "Details",
+            content: (
+              <>
+                <dl>
+                  {row("Submission", submissionLabel(interview.submission))}
+                  {row("Round", statusLabel(interview.interviewType))}
+                  {row(
+                    "Scheduled",
+                    interview.scheduledAt && formatDateTime(interview.scheduledAt, interview.timezone ?? undefined),
+                  )}
+                  {row("Timezone", interview.timezone)}
+                  {row("Mode", interview.mode && statusLabel(interview.mode))}
+                  {row("Duration", interview.durationMinutes ? `${interview.durationMinutes} min` : null)}
+                  {row("Client", interview.clientCompany)}
+                  {row("Scheduled by", interview.scheduledByNameRaw)}
+                  {row("Feedback", interview.feedback && <span className="whitespace-pre-wrap">{interview.feedback}</span>)}
+                </dl>
+                <div className={panelFooterClass}>
+                  {canDelete && (
+                    <ConfirmButton
+                      label="Delete"
+                      confirmText="Delete this interview?"
+                      body="This can't be undone."
+                      className={buttonClass("dangerSoft", "md", "mr-auto")}
+                      onConfirm={async () => {
+                        const result = await deleteBenchInterview(interview.id);
+                        if (result.error) throw new Error(result.error);
+                        toast({ message: "Interview deleted", tone: "success" });
+                        onClose();
+                      }}
+                    />
+                  )}
+                  <button type="button" onClick={() => setMode("edit")} className={buttonClass("primary")}>
+                    Edit
+                  </button>
+                </div>
+              </>
+            ),
+          },
+          {
+            key: "notes",
+            label: "Notes",
+            content: <NotesSection module="bench_interview" recordId={interview.id} currentUserId={viewer.id} />,
+          },
+        ]}
+      />
+    );
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 dark:bg-black"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold">
-            {mode === "create"
-              ? "Schedule Bench Interview"
-              : mode === "edit"
-                ? "Edit Bench Interview"
-                : `${interview!.submission.consultant.consultantName} — ${interview!.interviewType}`}
-          </h2>
-          <button onClick={onClose} className="text-xl leading-none text-black/40 hover:text-black dark:text-white/40 dark:hover:text-white" aria-label="Close">
-            ×
-          </button>
-        </div>
-
-        {mode === "view" && interview && (
-          <>
-            <dl>
-              {row("Submission", submissionLabel(interview.submission))}
-              {row("Round", interview.interviewType)}
-              {row("Scheduled", interview.scheduledAt && formatDateTime(interview.scheduledAt, interview.timezone ?? undefined))}
-              {row("Timezone", interview.timezone)}
-              {row("Mode", interview.mode)}
-              {row("Duration", interview.durationMinutes ? `${interview.durationMinutes} min` : null)}
-              {row("Client", interview.clientCompany)}
-              {row("Status", interview.status)}
-              {row("Scheduled By", interview.scheduledByNameRaw)}
-              {row("Feedback", interview.feedback && <span className="whitespace-pre-wrap">{interview.feedback}</span>)}
-            </dl>
-            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-            <div className="mt-4 flex justify-end gap-2">
-              {canDelete && (
-                <ConfirmButton
-                  label="Delete"
-                  confirmText="Delete this interview?"
-                  onConfirm={async () => {
-                    const result = await deleteBenchInterview(interview.id);
-                    if (result.error) setError(result.error);
-                    else onClose();
-                  }}
-                />
-              )}
-              <button type="button" onClick={() => setMode("edit")} className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black">
-                Edit
-              </button>
-            </div>
-            <NotesSection module="bench_interview" recordId={interview.id} currentUserId={viewer.id} />
-          </>
-        )}
-
-        {(mode === "create" || mode === "edit") && (
-          <InterviewForm
-            interview={mode === "edit" ? interview : null}
-            eligibleSubmissions={eligibleSubmissions}
-            onCancel={() => (mode === "edit" ? setMode("view") : onClose())}
-            onSaved={() => (mode === "edit" ? setMode("view") : onClose())}
-          />
-        )}
-      </div>
-    </div>
+    <RecordPanel
+      title={mode === "create" ? "Schedule bench interview" : "Edit bench interview"}
+      subtitle={mode === "edit" ? interview!.submission.consultant.consultantName : undefined}
+      onClose={onClose}
+    >
+      <InterviewForm
+        interview={mode === "edit" ? interview : null}
+        eligibleSubmissions={eligibleSubmissions}
+        onCancel={() => (mode === "edit" ? setMode("view") : onClose())}
+        onSaved={() => {
+          toast({ message: mode === "edit" ? "Interview saved" : "Interview scheduled", tone: "success" });
+          if (mode === "edit") setMode("view");
+          else onClose();
+        }}
+      />
+    </RecordPanel>
   );
 }
 
@@ -298,11 +354,17 @@ function InterviewForm({
     >
       <div className="sm:col-span-2">
         <label htmlFor={ids.sub} className={labelClass}>
-          Consultant Submission *
+          Consultant submission *
         </label>
-        <select id={ids.sub} name="benchSubmissionId" defaultValue={interview?.benchSubmissionId ?? ""} required className={inputClass}>
+        <select
+          id={ids.sub}
+          name="benchSubmissionId"
+          defaultValue={interview?.benchSubmissionId ?? ""}
+          required
+          className={inputClass}
+        >
           <option value="" disabled>
-            {submissionOptions.length ? "Select a submission" : "No submissions at L1_Interview / L2_Interview"}
+            {submissionOptions.length ? "Select a submission" : "No submissions at the L1 or L2 interview stage"}
           </option>
           {submissionOptions.map((s) => (
             <option key={s.id} value={s.id}>
@@ -333,14 +395,14 @@ function InterviewForm({
         <select id={ids.mode} name="mode" defaultValue={interview?.mode ?? "video"} required className={inputClass}>
           {INTERVIEW_MODES.map((m) => (
             <option key={m} value={m}>
-              {m}
+              {statusLabel(m)}
             </option>
           ))}
         </select>
       </div>
       <div>
         <label htmlFor={ids.when} className={labelClass}>
-          Date &amp; Time *
+          Date &amp; time *
         </label>
         <input
           id={ids.when}
@@ -363,8 +425,13 @@ function InterviewForm({
           ))}
         </select>
       </div>
-      <Field label="Duration (min)" name="durationMinutes" type="number" defaultValue={String(interview?.durationMinutes ?? 60)} />
-      <Field label="Client Company" name="clientCompany" defaultValue={interview?.clientCompany} />
+      <Field
+        label="Duration (min)"
+        name="durationMinutes"
+        type="number"
+        defaultValue={String(interview?.durationMinutes ?? 60)}
+      />
+      <Field label="Client company" name="clientCompany" defaultValue={interview?.clientCompany} />
       {interview && (
         <>
           <div>
@@ -374,7 +441,7 @@ function InterviewForm({
             <select id={ids.status} name="status" defaultValue={interview.status} className={inputClass}>
               {INTERVIEW_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {statusLabel(s)}
                 </option>
               ))}
             </select>
@@ -385,12 +452,16 @@ function InterviewForm({
         </>
       )}
 
-      {state.error && !pending && <p className="text-sm text-red-600 sm:col-span-2">{state.error}</p>}
-      <div className="flex justify-end gap-2 pt-2 sm:col-span-2">
-        <button type="button" onClick={onCancel} className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15">
+      {state.error && !pending && (
+        <p role="alert" className="text-sm text-red-600 sm:col-span-2">
+          {state.error}
+        </p>
+      )}
+      <div className={`${panelFooterClass} sm:col-span-2`}>
+        <button type="button" onClick={onCancel} className={buttonClass("secondary")}>
           Cancel
         </button>
-        <button type="submit" disabled={pending} className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black">
+        <button type="submit" disabled={pending} className={buttonClass("primary")}>
           {pending ? "Saving…" : "Save"}
         </button>
       </div>

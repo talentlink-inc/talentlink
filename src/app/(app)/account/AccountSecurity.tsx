@@ -94,7 +94,6 @@ export function AccountSecurity({
             label="Disable"
             confirmLabel="Yes, disable"
             confirmText="Disable two-factor authentication?"
-            className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
           />
         </div>
       ) : enrolling ? (

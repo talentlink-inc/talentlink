@@ -9,23 +9,19 @@ import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { rowSelectClass } from "@/lib/tableRow";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { buttonClass } from "@/components/ui/button";
+import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 import type { SerializedConsultant } from "./types";
 
-// GAS PageBenchSales.html status colors (statusColors).
-const STATUS_STYLES: Record<string, string> = {
-  Available: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
-  Marketing: "bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300",
-  Placed: "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-300",
-  "On Hold": "bg-neutral-100 text-neutral-600 dark:bg-white/10 dark:text-white/60",
+// Stat-card accent per consultant status (matches the StatusChip tones).
+const STAT_ACCENT: Record<string, string> = {
+  Available: "before:bg-emerald-500",
+  Marketing: "before:bg-amber-500",
+  Placed: "before:bg-brand",
+  "On Hold": "before:bg-slate-400",
 };
-
-export function StatusBadge({ status }: { status: string }) {
-  return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs whitespace-nowrap ${STATUS_STYLES[status] ?? STATUS_STYLES["On Hold"]}`}>
-      {status}
-    </span>
-  );
-}
 
 export function ConsultantsTable({
   consultants,
@@ -41,6 +37,7 @@ export function ConsultantsTable({
   const [hotlistOnly, setHotlistOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const cell = useCellClass();
 
   const open = (c: SerializedConsultant) => {
     setSelectedId(c.id);
@@ -87,7 +84,7 @@ export function ConsultantsTable({
   }, [consultants, search, statusFilter, visaFilter, hotlistOnly]);
 
   const { page, setPage, paged, totalPages, start, end, total } = usePagination(filtered, 25);
-  // Keep the open modal showing fresh data after a save revalidates the page.
+  // Keep the open panel showing fresh data after a save revalidates the page.
   const liveModalConsultant = modal?.consultant ? consultants.find((c) => c.id === modal.consultant!.id) ?? null : null;
 
   return (
@@ -97,15 +94,14 @@ export function ConsultantsTable({
           <button
             key={s}
             type="button"
+            aria-pressed={statusFilter === s}
             onClick={() => setStatusFilter((cur) => (cur === s ? "" : s))}
-            className={`rounded-lg border px-4 py-3 text-left transition-colors ${
-              statusFilter === s
-                ? "border-[#00acc1] bg-[#00acc1]/5"
-                : "border-black/10 bg-white hover:border-black/20 dark:border-white/10 dark:bg-black"
-            }`}
+            className={`relative overflow-hidden rounded-lg border bg-white py-3 pr-4 pl-5 text-left transition-shadow before:absolute before:inset-y-0 before:left-0 before:w-1 hover:shadow-sm dark:bg-neutral-950 ${
+              STAT_ACCENT[s]
+            } ${statusFilter === s ? "border-brand ring-2 ring-brand/20" : "border-black/10 dark:border-white/10"}`}
           >
-            <div className="text-xs text-black/50 dark:text-white/50">{s}</div>
-            <div className="text-2xl font-semibold">{counts[s] ?? 0}</div>
+            <div className="text-xs font-medium text-black/55 dark:text-white/55">{s}</div>
+            <div className="text-2xl font-semibold tabular-nums">{counts[s] ?? 0}</div>
           </button>
         ))}
       </div>
@@ -115,30 +111,20 @@ export function ConsultantsTable({
           ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          aria-label="Search name, role, skills, location, marketer"
-          placeholder="Search name, role, skills, location, marketer..."
-          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          aria-label="Search consultants"
+          placeholder="Search name, role, skills, location, marketer…"
+          className={`${toolbarInputClass} min-w-[220px] flex-1`}
         />
-        <select
-          aria-label="Filter by status"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
-        >
-          <option value="">All Status</option>
+        <select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={toolbarInputClass}>
+          <option value="">All statuses</option>
           {BENCH_CONSULTANT_STATUSES.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
           ))}
         </select>
-        <select
-          aria-label="Filter by visa"
-          value={visaFilter}
-          onChange={(e) => setVisaFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
-        >
-          <option value="">All Visa</option>
+        <select aria-label="Filter by visa" value={visaFilter} onChange={(e) => setVisaFilter(e.target.value)} className={toolbarInputClass}>
+          <option value="">All visas</option>
           {visaOptions.map((v) => (
             <option key={v} value={v}>
               {v}
@@ -146,36 +132,65 @@ export function ConsultantsTable({
           ))}
         </select>
         <label className="flex items-center gap-1.5 px-1 text-sm">
-          <input type="checkbox" checked={hotlistOnly} onChange={(e) => setHotlistOnly(e.target.checked)} />
+          <input type="checkbox" checked={hotlistOnly} onChange={(e) => setHotlistOnly(e.target.checked)} className="accent-brand" />
           On hotlist
         </label>
-        <button
-          type="button"
-          onClick={() => setModal({ mode: "create", consultant: null })}
-          className="ml-auto rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-        >
-          + Add Consultant
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden md:inline-flex">
+            <DensityToggle />
+          </span>
+          <button type="button" onClick={() => setModal({ mode: "create", consultant: null })} className={buttonClass("primary")}>
+            + Add consultant
+          </button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
-        <table className="w-full min-w-[1100px] text-left text-sm">
-          <thead className="bg-black/5 dark:bg-white/5">
+      {/* Phones: one card per consultant with the facts that matter (design review 5A). */}
+      <ul className="space-y-2 md:hidden" aria-label="Consultants">
+        {paged.map((c) => (
+          <li key={c.id}>
+            <button
+              type="button"
+              onClick={() => open(c)}
+              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(c.id === selectedId)}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-medium">
+                  {c.consultantName}
+                  {c.onHotlist && <span className="ml-1.5 text-amber-600" title="On hotlist">★</span>}
+                </span>
+                <StatusChip status={c.status} />
+              </div>
+              <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+                {c.role} · {c.visaStatus} · {c.location}
+              </div>
+              <div className="mt-1 text-xs text-black/45 dark:text-white/45">
+                {c.consultantCode} · {c.payRate ?? "No rate"} · {c.submissionCount} submission{c.submissionCount === 1 ? "" : "s"}
+              </div>
+            </button>
+          </li>
+        ))}
+        {filtered.length === 0 && <li className={emptyCellClass}>{consultants.length === 0 ? "No bench consultants yet." : "No consultants match your filters."}</li>}
+      </ul>
+
+      <div className={`${tableCardClass} hidden md:block`}>
+        <table className={`${tableClass} min-w-[1100px]`}>
+          <thead className={theadClass}>
             <tr>
-              <th className="px-3 py-2">Date</th>
-              <th className="px-3 py-2">ID</th>
-              <th className="px-3 py-2">Consultant</th>
-              <th className="px-3 py-2 text-center">#Subs</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Role</th>
-              <th className="px-3 py-2">Technology / Skills</th>
-              <th className="px-3 py-2">Visa</th>
-              <th className="px-3 py-2">Relocation</th>
-              <th className="px-3 py-2">Exp.</th>
-              <th className="px-3 py-2">Location</th>
-              <th className="px-3 py-2">Availability</th>
-              <th className="px-3 py-2">Pay Rate</th>
-              <th className="px-3 py-2">Marketer</th>
+              <th className={cell}>Added</th>
+              <th className={cell}>ID</th>
+              <th className={cell}>Consultant</th>
+              <th className={`${cell} text-center`}>Subs</th>
+              <th className={cell}>Status</th>
+              <th className={cell}>Role</th>
+              <th className={cell}>Skills</th>
+              <th className={cell}>Visa</th>
+              <th className={cell}>Relocation</th>
+              <th className={cell}>Exp.</th>
+              <th className={cell}>Location</th>
+              <th className={cell}>Availability</th>
+              <th className={cell}>Pay rate</th>
+              <th className={cell}>Marketer</th>
             </tr>
           </thead>
           <tbody>
@@ -183,41 +198,50 @@ export function ConsultantsTable({
               <tr
                 key={c.id}
                 onClick={() => open(c)}
-                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(c.id === selectedId)}`}
+                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(c.id === selectedId)}`}
               >
-                <td className="px-3 py-2 whitespace-nowrap">{formatDate(c.addedDate)}</td>
-                <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{c.consultantCode}</td>
-                <td className="px-3 py-2 font-medium">
+                <td className={`${cell} whitespace-nowrap text-black/60 dark:text-white/60`}>{formatDate(c.addedDate)}</td>
+                <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>{c.consultantCode}</td>
+                <td className={`${cell} font-medium`}>
                   {c.consultantName}
                   {c.onHotlist && (
-                    <span title="On hotlist" className="ml-1.5 rounded bg-amber-100 px-1 text-[10px] text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
-                      HOT
+                    <span title="On hotlist" className="ml-1.5 text-amber-600">
+                      ★
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-center">{c.submissionCount}</td>
-                <td className="px-3 py-2">
-                  <StatusBadge status={c.status} />
+                <td className={`${cell} text-center tabular-nums`}>{c.submissionCount}</td>
+                <td className={cell}>
+                  <StatusChip status={c.status} />
                 </td>
-                <td className="max-w-[200px] truncate px-3 py-2" title={c.role}>
+                <td className={`${cell} max-w-[200px] truncate`} title={c.role}>
                   {c.role}
                 </td>
-                <td className="max-w-[220px] truncate px-3 py-2" title={c.technologySkills}>
+                <td className={`${cell} max-w-[220px] truncate`} title={c.technologySkills}>
                   {c.technologySkills}
                 </td>
-                <td className="px-3 py-2">{c.visaStatus}</td>
-                <td className="px-3 py-2">{relocationLabel(c.relocation)}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{c.experience}</td>
-                <td className="px-3 py-2">{c.location}</td>
-                <td className="px-3 py-2">{c.availability}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{c.payRate ?? "—"}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{c.marketerNameRaw ?? "—"}</td>
+                <td className={`${cell} whitespace-nowrap`}>{c.visaStatus}</td>
+                <td className={cell}>{relocationLabel(c.relocation)}</td>
+                <td className={`${cell} whitespace-nowrap`}>{c.experience}</td>
+                <td className={cell}>{c.location}</td>
+                <td className={cell}>{c.availability}</td>
+                <td className={`${cell} whitespace-nowrap`}>{c.payRate ?? "—"}</td>
+                <td className={`${cell} whitespace-nowrap`}>{c.marketerNameRaw ?? "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={14} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
-                  {consultants.length === 0 ? "No bench consultants yet." : "No consultants match your filters."}
+                <td colSpan={14} className={emptyCellClass}>
+                  {consultants.length === 0 ? (
+                    <>
+                      No bench consultants yet.{" "}
+                      <button type="button" onClick={() => setModal({ mode: "create", consultant: null })} className="font-medium text-brand-strong underline">
+                        Add the first one
+                      </button>
+                    </>
+                  ) : (
+                    "No consultants match your filters."
+                  )}
                 </td>
               </tr>
             )}

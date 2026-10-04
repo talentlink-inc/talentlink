@@ -3,6 +3,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { canViewUsers, canManageUsers, canAccessBench } from "@/lib/users";
 import { isPlatformAdmin } from "@/lib/platformAdmin";
 import { ShortcutsProvider } from "@/lib/keyboardShortcuts";
+import { UiProvider } from "@/components/ui/UiProvider";
 import { APP_VERSION } from "@/lib/version";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { Header } from "@/components/shell/Header";
@@ -15,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <ShortcutsProvider>
+      <UiProvider>
       <div className="flex h-screen overflow-hidden">
         <Sidebar
           canManageUsers={canViewUsers(currentUser.role)}
@@ -34,6 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </div>
       <KeyboardShortcutsModal />
+      </UiProvider>
     </ShortcutsProvider>
   );
 }

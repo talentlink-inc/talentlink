@@ -5,9 +5,18 @@
   --foreground: #171717;
 }
 
+/* Brand tokens — GAS's "pattern-grid" look carried through the whole app
+   (design review decision 1B): slate surfaces with a teal accent.
+   Usable as Tailwind classes: bg-brand, text-brand-strong, bg-brand-soft,
+   bg-ink, border-brand, … */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand: #00acc1; /* primary actions, active states */
+  --color-brand-strong: #00838f; /* teal text/links on light surfaces (AA contrast) */
+  --color-brand-soft: #e0f4f6; /* selected rows, soft chips */
+  --color-ink: #37474f; /* slate page headers, matches the sidebar */
+  --color-ink-strong: #263238;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -22,5 +31,27 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Was Arial, which silently overrode the Geist font the layout loads. */
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Skeleton shimmer for loading placeholders. */
+@keyframes tl-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.tl-skeleton {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.06) 25%, rgba(0, 0, 0, 0.1) 37%, rgba(0, 0, 0, 0.06) 63%);
+  background-size: 800px 100%;
+  animation: tl-shimmer 1.4s ease infinite;
+  border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-skeleton { animation: none; }
+}
+
+/* Record side panel entrance (respects prefers-reduced-motion via motion-safe:). */
+@keyframes tl-slide-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }

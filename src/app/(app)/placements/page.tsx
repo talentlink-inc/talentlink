@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { canManageRecruitment } from "@/lib/users";
 import { PlacementsTable } from "./PlacementsTable";
 import { REQUIREMENT_SUMMARY_SELECT, redactCandidateContact, serializeSubmission } from "../submissions/types";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +31,13 @@ export default async function PlacementsPage() {
   });
 
   return (
-    <PlacementsTable
-      placements={placements.map((p) => redactCandidateContact(serializeSubmission(p), currentUser))}
-      currentUserId={currentUser.id}
-      canEdit={canManageRecruitment(currentUser.role)}
-    />
+    <>
+      <PageHeader title="Placements" subtitle="Selected candidates, start dates and bill rates" />
+      <PlacementsTable
+        placements={placements.map((p) => redactCandidateContact(serializeSubmission(p), currentUser))}
+        currentUserId={currentUser.id}
+        canEdit={canManageRecruitment(currentUser.role)}
+      />
+    </>
   );
 }

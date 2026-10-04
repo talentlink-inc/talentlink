@@ -57,6 +57,14 @@ describe("[security] Help Center topics are Admin-managed (GAS HelpContent.js)",
     expect(order).toEqual([c, "b", "a"]);
   });
 
+  it("[module] a save returns the topic id so the page can reopen that topic", async () => {
+    h.db.helpTopic.rows.push(topic("a", 1));
+    const created = await createHelpTopic(initial, form({ title: "New", content: "<p>c</p>" }));
+    expect(created.error).toBeNull();
+    expect(created.savedId).toBe(h.db.helpTopic.rows.at(-1)!.id);
+    expect(await updateHelpTopic("a", initial, form({ title: "A2", content: "<p>c</p>" }))).toEqual({ error: null, savedId: "a" });
+  });
+
   it("[security] can't edit or delete another tenant's topic", async () => {
     h.db.helpTopic.rows.push(topic("z", 1, OTHER_TENANT_ID));
     expect((await updateHelpTopic("z", initial, form({ title: "T", content: "<p>c</p>" }))).error).toBe("Topic not found.");

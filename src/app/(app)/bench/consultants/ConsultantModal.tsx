@@ -15,8 +15,10 @@ import { VISA_STATUSES } from "@/lib/recruitment";
 import { formatDate } from "@/lib/format";
 import { NotesSection } from "../../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { useEscapeToClose } from "@/lib/useEscapeToClose";
-import { StatusBadge } from "./ConsultantsTable";
+import { RecordPanel, panelFooterClass } from "@/components/ui/RecordPanel";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { buttonClass } from "@/components/ui/button";
+import { useUi } from "@/components/ui/UiProvider";
 import { Field, FieldSelect, FieldTextarea, inputClass, labelClass } from "../FormFields";
 import type { SerializedConsultant } from "./types";
 
@@ -40,7 +42,7 @@ export function ConsultantModal({
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<"create" | "view" | "edit">(initialMode);
-  useEscapeToClose(onClose);
+  const { toast } = useUi();
 
   // The record disappeared underneath an open view (deleted) — nothing to show.
   useEffect(() => {
@@ -48,48 +50,51 @@ export function ConsultantModal({
   }, [mode, consultant, onClose]);
   if (mode !== "create" && !consultant) return null;
 
+  if (mode === "view" && consultant) {
+    return (
+      <RecordPanel
+        title={consultant.consultantName}
+        subtitle={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span className="font-mono text-xs">{consultant.consultantCode}</span>
+            <StatusChip status={consultant.status} />
+            {consultant.onHotlist && <span className="text-xs text-amber-700 dark:text-amber-400">★ On hotlist</span>}
+          </span>
+        }
+        onClose={onClose}
+        tabs={[
+          {
+            key: "details",
+            label: "Details",
+            content: <ViewConsultant consultant={consultant} viewer={viewer} onEdit={() => setMode("edit")} onDeleted={onClose} />,
+          },
+          {
+            key: "notes",
+            label: "Notes",
+            content: <NotesSection module="bench_consultant" recordId={consultant.id} currentUserId={viewer.id} />,
+          },
+        ]}
+      />
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 dark:bg-black"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold">
-            {mode === "create"
-              ? "Add Bench Consultant"
-              : mode === "edit"
-                ? `Edit ${consultant!.consultantName}`
-                : `${consultant!.consultantCode} — ${consultant!.consultantName}`}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-xl leading-none text-black/40 hover:text-black dark:text-white/40 dark:hover:text-white"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-
-        {mode === "view" && consultant && (
-          <>
-            <ViewConsultant consultant={consultant} viewer={viewer} onEdit={() => setMode("edit")} onDeleted={onClose} />
-            <NotesSection module="bench_consultant" recordId={consultant.id} currentUserId={viewer.id} />
-          </>
-        )}
-
-        {(mode === "create" || mode === "edit") && (
-          <ConsultantForm
-            consultant={mode === "edit" ? consultant : null}
-            viewer={viewer}
-            onCancel={() => (mode === "edit" ? setMode("view") : onClose())}
-            onSaved={() => (mode === "edit" ? setMode("view") : onClose())}
-          />
-        )}
-      </div>
-    </div>
+    <RecordPanel
+      title={mode === "create" ? "Add bench consultant" : `Edit ${consultant!.consultantName}`}
+      subtitle={mode === "edit" ? consultant!.consultantCode : undefined}
+      onClose={onClose}
+    >
+      <ConsultantForm
+        consultant={mode === "edit" ? consultant : null}
+        viewer={viewer}
+        onCancel={() => (mode === "edit" ? setMode("view") : onClose())}
+        onSaved={() => {
+          toast({ message: mode === "edit" ? "Consultant saved" : "Consultant added", tone: "success" });
+          if (mode === "edit") setMode("view");
+          else onClose();
+        }}
+      />
+    </RecordPanel>
   );
 }
 
@@ -104,6 +109,7 @@ function ViewConsultant({
   onEdit: () => void;
   onDeleted: () => void;
 }) {
+  const { toast } = useUi();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
@@ -116,11 +122,14 @@ function ViewConsultant({
   const canView = isOwn || viewer.canViewResume;
   const canDownload = isOwn || viewer.canDownloadResume;
 
-  async function run(fn: () => Promise<unknown>) {
+  // Runs a quick change and confirms it with a toast; reversible changes
+  // get an Undo instead of an "are you sure?" (design review 3C).
+  async function run(fn: () => Promise<unknown>, done?: { message: string; undo?: () => Promise<unknown> }) {
     setBusy(true);
     setError(null);
     try {
       await fn();
+      if (done) toast({ message: done.message, tone: "success", undo: done.undo });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -128,23 +137,35 @@ function ViewConsultant({
     }
   }
 
+  const userName = (id: string | null) =>
+    !id ? "Unassigned" : users.find((u) => u.id === id)?.name ?? (id === c.assignedToUserId ? c.assignedToNameRaw : null) ?? "user";
+
   const row = (label: string, value: React.ReactNode) => (
     <div className="grid grid-cols-3 gap-2 border-b border-black/5 py-2 text-sm dark:border-white/5">
       <dt className="text-black/50 dark:text-white/50">{label}</dt>
       <dd className="col-span-2 break-words">{value || "—"}</dd>
     </div>
   );
+  const linkClass = "font-medium text-brand-strong underline-offset-2 hover:underline dark:text-brand";
+  const quickSelectClass = "rounded-md border border-black/15 bg-white px-2 py-1 text-sm dark:border-white/15 dark:bg-transparent";
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md bg-black/[0.03] p-3 dark:bg-white/[0.04]">
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg bg-brand-soft/60 p-3 dark:bg-white/[0.04]">
         <label className="flex items-center gap-2 text-sm">
-          <span className="text-black/50 dark:text-white/50">Status</span>
+          <span className="text-black/55 dark:text-white/55">Status</span>
           <select
             value={c.status}
             disabled={busy}
-            onChange={(e) => run(() => updateBenchConsultantStatus(c.id, e.target.value))}
-            className="rounded-md border border-black/15 px-2 py-1 text-sm dark:border-white/15 dark:bg-transparent"
+            onChange={(e) => {
+              const previous = c.status;
+              const next = e.target.value;
+              run(() => updateBenchConsultantStatus(c.id, next), {
+                message: `Status changed to ${next}`,
+                undo: () => updateBenchConsultantStatus(c.id, previous),
+              });
+            }}
+            className={quickSelectClass}
           >
             {BENCH_CONSULTANT_STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -154,12 +175,19 @@ function ViewConsultant({
           </select>
         </label>
         <label className="flex items-center gap-2 text-sm">
-          <span className="text-black/50 dark:text-white/50">Assigned to</span>
+          <span className="text-black/55 dark:text-white/55">Assigned to</span>
           <select
             value={c.assignedToUserId ?? ""}
             disabled={busy}
-            onChange={(e) => run(() => assignBenchConsultant(c.id, e.target.value || null))}
-            className="rounded-md border border-black/15 px-2 py-1 text-sm dark:border-white/15 dark:bg-transparent"
+            onChange={(e) => {
+              const previous = c.assignedToUserId;
+              const next = e.target.value || null;
+              run(() => assignBenchConsultant(c.id, next), {
+                message: next ? `Assigned to ${userName(next)}` : "Unassigned",
+                undo: () => assignBenchConsultant(c.id, previous),
+              });
+            }}
+            className={quickSelectClass}
           >
             <option value="">— Unassigned —</option>
             {c.assignedToUserId && !users.some((u) => u.id === c.assignedToUserId) && (
@@ -175,19 +203,25 @@ function ViewConsultant({
         <button
           type="button"
           disabled={busy}
-          onClick={() => run(() => setBenchConsultantHotlist(c.id, !c.onHotlist))}
-          className={`ml-auto rounded-md border px-3 py-1 text-sm disabled:opacity-50 ${
+          aria-pressed={c.onHotlist}
+          onClick={() => {
+            const next = !c.onHotlist;
+            run(() => setBenchConsultantHotlist(c.id, next), {
+              message: next ? "Added to hotlist" : "Removed from hotlist",
+              undo: () => setBenchConsultantHotlist(c.id, !next),
+            });
+          }}
+          className={
             c.onHotlist
-              ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
-              : "border-black/15 dark:border-white/15"
-          }`}
+              ? buttonClass("secondary", "md", "ml-auto border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300")
+              : buttonClass("secondary", "md", "ml-auto")
+          }
         >
-          {c.onHotlist ? "★ On hotlist — remove" : "☆ Add to hotlist"}
+          {c.onHotlist ? "★ Remove from hotlist" : "☆ Add to hotlist"}
         </button>
       </div>
 
       <dl>
-        {row("Status", <StatusBadge status={c.status} />)}
         {row("Role", c.role)}
         {row("Technology / Skills", <span className="whitespace-pre-wrap">{c.technologySkills}</span>)}
         {row("Visa", c.visaStatus)}
@@ -195,13 +229,13 @@ function ViewConsultant({
         {row("Experience", c.experience)}
         {row("Location", c.location)}
         {row("Availability", c.availability)}
-        {row("Pay Rate", c.payRate)}
-        {row("Marketing Rate", c.marketingRate)}
+        {row("Pay rate", c.payRate)}
+        {row("Marketing rate", c.marketingRate)}
         {row("Marketer", c.marketerNameRaw)}
         {row(
           "LinkedIn",
           c.linkedinUrl && (
-            <a href={c.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline dark:text-sky-400">
+            <a href={c.linkedinUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>
               {c.linkedinUrl}
             </a>
           )
@@ -217,11 +251,11 @@ function ViewConsultant({
           ) : (
             <span className="flex flex-wrap gap-3">
               <span>{c.resumeFileName ?? "Resume"}</span>
-              <a href={`/api/bench/resume/${c.id}`} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline dark:text-sky-400">
+              <a href={`/api/bench/resume/${c.id}`} target="_blank" rel="noopener noreferrer" className={linkClass}>
                 View
               </a>
               {canDownload && (
-                <a href={`/api/bench/resume/${c.id}?download=1`} className="text-sky-700 underline dark:text-sky-400">
+                <a href={`/api/bench/resume/${c.id}?download=1`} className={linkClass}>
                   Download
                 </a>
               )}
@@ -230,23 +264,28 @@ function ViewConsultant({
         )}
       </dl>
 
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
-      <div className="mt-4 flex justify-end gap-2">
+      <div className={panelFooterClass}>
         {canDelete && (
           <ConfirmButton
             label="Delete"
             confirmText={`Delete ${c.consultantName}?`}
-            onConfirm={() =>
-              run(async () => {
-                const result = await deleteBenchConsultant(c.id);
-                if (result.error) throw new Error(result.error);
-                onDeleted();
-              })
-            }
+            body="They'll be removed from the bench and the hotlist. Consultants with submissions can't be deleted."
+            className={buttonClass("dangerSoft", "md", "mr-auto")}
+            onConfirm={async () => {
+              const result = await deleteBenchConsultant(c.id);
+              if (result.error) throw new Error(result.error);
+              toast({ message: `${c.consultantName} deleted`, tone: "success" });
+              onDeleted();
+            }}
           />
         )}
-        <button type="button" onClick={onEdit} className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black">
+        <button type="button" onClick={onEdit} className={buttonClass("primary")}>
           Edit
         </button>
       </div>
@@ -361,17 +400,17 @@ function ConsultantForm({
         />
       </div>
 
-      {state.error && !pending && <p className="text-sm text-red-600 sm:col-span-2">{state.error}</p>}
+      {state.error && !pending && (
+        <p role="alert" className="text-sm text-red-600 sm:col-span-2">
+          {state.error}
+        </p>
+      )}
 
-      <div className="flex justify-end gap-2 pt-2 sm:col-span-2">
-        <button type="button" onClick={onCancel} className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15">
+      <div className={`${panelFooterClass} sm:col-span-2`}>
+        <button type="button" onClick={onCancel} className={buttonClass("secondary")}>
           Cancel
         </button>
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
-        >
+        <button type="submit" disabled={pending} className={buttonClass("primary")}>
           {pending ? "Saving…" : "Save"}
         </button>
       </div>

@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getMfaStatus } from "./actions";
 import { AccountSecurity } from "./AccountSecurity";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export default async function AccountPage() {
 
   return (
     <div className="mx-auto max-w-lg">
-      <h1 className="mb-6 text-xl font-semibold">My Account</h1>
+      <PageHeader title="My Account" subtitle="Your profile and sign-in security" />
 
       <div className="mb-6 rounded-lg border border-black/10 p-4 dark:border-white/10">
         <div className="mb-3">

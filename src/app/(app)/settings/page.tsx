@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { canManageUsers } from "@/lib/users";
 import { getTenantSettings } from "./actions";
 import { SettingsForm } from "./SettingsForm";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-lg">
-      <h1 className="mb-6 text-xl font-semibold">Settings</h1>
+      <PageHeader title="Settings" subtitle="Company-wide preferences" />
       <SettingsForm initialSettings={settings} />
     </div>
   );

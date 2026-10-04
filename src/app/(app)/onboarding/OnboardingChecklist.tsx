@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type ChecklistItem = {
   key: string;
@@ -24,15 +25,18 @@ export function OnboardingChecklist({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="mb-2 flex items-baseline justify-between">
-        <h1 className="text-xl font-semibold">Welcome, {tenantName}</h1>
-        <span className="font-mono text-sm text-black/40 dark:text-white/40">
-          {doneCount} / {items.length} done
-        </span>
-      </div>
+      <PageHeader
+        title={`Welcome, ${tenantName}`}
+        subtitle="Getting started"
+        actions={
+          <span className="font-mono text-sm text-white/70">
+            {doneCount} / {items.length} done
+          </span>
+        }
+      />
       <div className="mb-6 h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
         <div
-          className="h-full rounded-full bg-orange-500 transition-[width] duration-300"
+          className="h-full rounded-full bg-brand transition-[width] duration-300"
           style={{ width: `${progress}%` }}
         />
       </div>

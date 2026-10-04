@@ -1,63 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useUi } from "@/components/ui/UiProvider";
+import { buttonClass } from "@/components/ui/button";
 
+// A button that asks first, in a proper dialog (design review 3C) instead
+// of the old inline prompt that shifted the layout and ran off-screen in
+// table cells. Same props as before, so every caller upgraded at once.
 export function ConfirmButton({
   onConfirm,
   label = "Delete",
   confirmLabel = "Yes, delete",
   confirmText = "Delete this? This can't be undone.",
-  className = "",
+  body,
+  className = buttonClass("dangerSoft"),
 }: {
-  // May return a promise: while it's pending the buttons are disabled and
-  // show progress (no silent multi-second wait, no double-submit), and the
-  // prompt closes once it settles — e.g. when the delete was refused and
-  // the caller shows an error instead.
+  // May return a promise: the dialog stays open showing "Please wait…"
+  // until it settles, so there's no silent wait and no double-submit.
   onConfirm: () => void | Promise<unknown>;
   label?: string;
   confirmLabel?: string;
   confirmText?: string;
+  body?: string;
   className?: string;
 }) {
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  async function confirm() {
-    setBusy(true);
-    try {
-      await onConfirm();
-    } finally {
-      setBusy(false);
-      setConfirming(false);
-    }
-  }
-
-  if (confirming) {
-    return (
-      <div className="flex items-center gap-2 whitespace-nowrap">
-        <span className="text-sm text-red-600">{confirmText}</span>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setConfirming(false)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm disabled:opacity-50 dark:border-white/15"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={confirm}
-          className="rounded-md bg-red-600 px-3 py-2 text-sm text-white disabled:opacity-60"
-        >
-          {busy ? "Please wait…" : confirmLabel}
-        </button>
-      </div>
-    );
-  }
-
+  const { confirm } = useUi();
   return (
-    <button type="button" onClick={() => setConfirming(true)} className={className}>
+    <button
+      type="button"
+      onClick={() =>
+        confirm({
+          title: confirmText,
+          body,
+          // "Yes, delete" → "Delete": a dialog button names the action itself.
+          confirmLabel: confirmLabel.replace(/^Yes,\s*/i, "").replace(/^\w/, (c) => c.toUpperCase()),
+          action: async () => {
+            await onConfirm();
+          },
+        })
+      }
+      className={className}
+    >
       {label}
     </button>
   );

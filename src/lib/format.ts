@@ -12,13 +12,15 @@ export function formatDateTime(date: Date | string, timeZone?: string): string {
     // toLocaleString throw a RangeError, which took down the whole page.
     timeZone: timeZone && isValidTimeZone(timeZone) ? timeZone : "UTC",
     year: "numeric",
-    month: "numeric",
+    month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
   });
 }
 
+// "Jul 13, 2026" — one unambiguous format everywhere (design review): the
+// old 7/13/2026 read as 13 July or 7 December depending on who was looking.
 export function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString("en-US", { timeZone: "UTC" });
+  return new Date(date).toLocaleDateString("en-US", { timeZone: "UTC", year: "numeric", month: "short", day: "numeric" });
 }

@@ -306,7 +306,6 @@ function ViewInterview({
           <ConfirmButton
             onConfirm={onDelete}
             confirmText={`Delete this interview for "${interview.submission.candidate.name}"?`}
-            className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
           />
           <button
             onClick={onEdit}
