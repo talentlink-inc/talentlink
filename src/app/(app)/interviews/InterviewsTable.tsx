@@ -280,6 +280,7 @@ export function InterviewsTable({
 
       {modal && (
         <InterviewModal
+          key={`${modal.mode}-${modal.interview?.id ?? "new"}`}
           mode={modal.mode}
           interview={modal.interview}
           eligibleSubmissions={eligibleSubmissions}

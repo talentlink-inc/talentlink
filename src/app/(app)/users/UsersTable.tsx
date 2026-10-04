@@ -175,6 +175,7 @@ export function UsersTable({ users, currentUserId, canEdit }: { users: User[]; c
 
       {modal && (
         <UserModal
+          key={`${modal.mode}-${modal.userId ?? "new"}`}
           mode={modal.mode}
           user={modalUser}
           currentUserId={currentUserId}

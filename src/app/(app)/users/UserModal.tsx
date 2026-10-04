@@ -1,25 +1,22 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import {
-  createUser,
-  updateUser,
-  toggleUserStatus,
-  resetUserPassword,
-  deleteUser,
-  type UserFormState,
-} from "./actions";
+import { createUser, updateUser, toggleUserStatus, resetUserPassword, deleteUser, type UserFormState } from "./actions";
 import { USER_ROLES, USER_STATUSES } from "@/lib/users";
 import { SUPPORTED_REGIONS, parseRegionsCsv, toggleRegion } from "@/lib/regions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { formatDateTime } from "@/lib/format";
 import { useEscapeToClose } from "@/lib/useEscapeToClose";
+import { RecordPanel, panelFooterClass } from "@/components/ui/RecordPanel";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { buttonClass } from "@/components/ui/button";
+import { useUi } from "@/components/ui/UiProvider";
+import { toolbarInputClass } from "@/components/ui/table";
 import type { User } from "@/generated/prisma/client";
 
 type Mode = "create" | "view" | "edit";
 
-const inputClass =
-  "w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent";
+const inputClass = `${toolbarInputClass} w-full`;
 const labelClass = "mb-1 block text-xs font-medium text-black/60 dark:text-white/60";
 
 export function UserModal({
@@ -44,7 +41,7 @@ export function UserModal({
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [regions, setRegions] = useState(user?.regions ?? "");
-  useEscapeToClose(onClose);
+  const { toast, confirm } = useUi();
 
   const action = user ? updateUser.bind(null, user.id) : createUser;
   const [state, formAction, formPending] = useActionState<UserFormState, FormData>(action, {
@@ -54,201 +51,216 @@ export function UserModal({
   const wasSubmitting = useRef(false);
   useEffect(() => {
     if (wasSubmitting.current && !formPending && !state.error && !state.generatedPassword) {
+      toast({ message: user ? "User saved" : "User added", tone: "success" });
       onClose();
     }
     wasSubmitting.current = formPending;
-  }, [formPending, state, onClose]);
+  }, [formPending, state, onClose, toast, user]);
 
   const shownPassword = state.generatedPassword ?? revealedPassword;
   if (shownPassword) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-md rounded-lg bg-white p-6 dark:bg-black">
-          <h2 className="mb-2 text-lg font-semibold">Save this password</h2>
-          <p className="mb-4 text-sm text-black/60 dark:text-white/60">
-            This is shown once. Share it securely with the user — they can change it after signing in.
-          </p>
-          <div className="mb-4 flex items-center gap-2 rounded-md border border-black/15 bg-black/5 px-3 py-2 font-mono text-sm dark:border-white/15 dark:bg-white/5">
-            <span className="flex-1 select-all">{shownPassword}</span>
-            <button
-              type="button"
-              onClick={() => navigator.clipboard.writeText(shownPassword)}
-              className="rounded-md border border-black/15 px-2 py-1 text-xs dark:border-white/15"
-            >
-              Copy
-            </button>
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <PasswordReveal password={shownPassword} onClose={onClose} />;
   }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <RecordPanel
+      title={mode === "create" ? "Add user" : mode === "edit" ? `Edit ${user?.name}` : user?.name}
+      subtitle={
+        user && (
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span>{user.role}</span>
+            <StatusChip status={user.status} />
+          </span>
+        )
+      }
+      onClose={onClose}
+    >
+      {mode === "view" && user && (
+        <ViewUser
+          user={user}
+          isSelf={user.id === currentUserId}
+          canEdit={canEdit}
+          actionError={actionError}
+          pending={pending}
+          onEdit={() => setMode("edit")}
+          onToggleStatus={() =>
+            // Reversible, so an Undo toast rather than an "are you sure?".
+            startTransition(async () => {
+              const res = await toggleUserStatus(user.id);
+              setActionError(res.error);
+              if (!res.error) {
+                toast({
+                  message: user.status === "active" ? `${user.name} deactivated` : `${user.name} activated`,
+                  tone: "success",
+                  undo: async () => {
+                    const undo = await toggleUserStatus(user.id);
+                    if (undo.error) throw new Error(undo.error);
+                  },
+                });
+              }
+            })
+          }
+          onResetPassword={() =>
+            // Not reversible — their current password stops working.
+            confirm({
+              title: `Reset ${user.name}'s password?`,
+              body: "Their current password stops working right away. You'll get a new one to share with them.",
+              confirmLabel: "Reset password",
+              action: async () => {
+                const res = await resetUserPassword(user.id);
+                if (res.error) return res.error;
+                if (res.password) setRevealedPassword(res.password);
+              },
+            })
+          }
+          onDelete={async () => {
+            const res = await deleteUser(user.id);
+            if (res.error) throw new Error(res.error);
+            toast({ message: `${user.name} deleted`, tone: "success" });
+            onClose();
+          }}
+        />
+      )}
+
+      {isForm && (
+        <form action={formAction} className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className={labelClass}>Full Name *</label>
+            <input name="name" defaultValue={user?.name} required className={inputClass} />
+          </div>
+          <div className="col-span-2">
+            <label className={labelClass}>Email *</label>
+            <input name="email" type="email" defaultValue={user?.email} required className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Role *</label>
+            <select name="role" defaultValue={user?.role ?? "Recruiter"} className={inputClass}>
+              {USER_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Status</label>
+            <select name="status" defaultValue={user?.status ?? "active"} className={inputClass}>
+              {USER_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="col-span-2">
+            <label className={labelClass}>Phone</label>
+            <input name="phone" defaultValue={user?.phone ?? ""} className={inputClass} />
+          </div>
+
+          <div className="col-span-2 rounded-md border border-black/10 p-3 dark:border-white/10">
+            <p className="mb-2 text-xs font-medium text-black/60 dark:text-white/60">Candidate data visibility</p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="canViewResume" defaultChecked={user?.canViewResume ?? true} />
+                View resumes
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="canDownloadResume" defaultChecked={user?.canDownloadResume ?? true} />
+                Download resumes
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="canViewPhone" defaultChecked={user?.canViewPhone ?? true} />
+                View phone numbers
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="canViewEmail" defaultChecked={user?.canViewEmail ?? true} />
+                View email addresses
+              </label>
+            </div>
+          </div>
+
+          <div className="col-span-2 rounded-md border border-black/10 p-3 dark:border-white/10">
+            <p className="mb-2 text-xs font-medium text-black/60 dark:text-white/60">
+              Region restriction{" "}
+              <span className="font-normal text-black/40 dark:text-white/40">
+                (leave all unchecked to see requirements from every region)
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {SUPPORTED_REGIONS.map((r) => (
+                <label key={r} className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={parseRegionsCsv(regions).includes(r)}
+                    onChange={() => setRegions(toggleRegion(regions, r))}
+                  />
+                  {r}
+                </label>
+              ))}
+            </div>
+            <input type="hidden" name="regions" value={regions} />
+          </div>
+
+          {state.error && (
+            <p role="alert" className="col-span-2 text-sm text-red-600">
+              {state.error}
+            </p>
+          )}
+
+          <div className={`${panelFooterClass} col-span-2`}>
+            <button type="button" onClick={() => (user ? setMode("view") : onClose())} className={buttonClass("secondary")}>
+              Cancel
+            </button>
+            <button type="submit" disabled={formPending} className={buttonClass("primary")}>
+              {formPending ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </form>
+      )}
+    </RecordPanel>
+  );
+}
+
+// Shown once after creating a user or resetting a password. A blocking
+// dialog on purpose: the password can't be retrieved again once it closes.
+function PasswordReveal({ password, onClose }: { password: string; onClose: () => void }) {
+  useEscapeToClose(onClose);
+  const { toast } = useUi();
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 dark:bg-black"
-        onClick={(e) => e.stopPropagation()}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="tl-password-title"
+        className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl dark:bg-neutral-900"
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            {mode === "create" ? "Add User" : mode === "edit" ? "Edit User" : user?.name}
-          </h2>
+        <h2 id="tl-password-title" className="mb-2 text-lg font-semibold">
+          Save this password
+        </h2>
+        <p className="mb-4 text-sm text-black/60 dark:text-white/60">
+          This is shown once. Share it securely with the user — they can change it after signing in.
+        </p>
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-black/15 bg-black/5 px-3 py-2 font-mono text-sm dark:border-white/15 dark:bg-white/5">
+          <span className="flex-1 select-all">{password}</span>
           <button
-            onClick={onClose}
-            className="text-xl leading-none text-black/40 hover:text-black dark:text-white/40 dark:hover:text-white"
-            aria-label="Close"
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(password);
+                toast({ message: "Password copied", tone: "success" });
+              } catch {
+                toast({ message: "Couldn't access the clipboard — select the password and copy it", tone: "error" });
+              }
+            }}
+            className={buttonClass("secondary", "sm")}
           >
-            ×
+            Copy
           </button>
         </div>
-
-        {mode === "view" && user && (
-          <ViewUser
-            user={user}
-            isSelf={user.id === currentUserId}
-            canEdit={canEdit}
-            actionError={actionError}
-            pending={pending}
-            onEdit={() => setMode("edit")}
-            onToggleStatus={() =>
-              startTransition(async () => {
-                const res = await toggleUserStatus(user.id);
-                setActionError(res.error);
-              })
-            }
-            onResetPassword={() =>
-              startTransition(async () => {
-                const res = await resetUserPassword(user.id);
-                if (res.error) setActionError(res.error);
-                else if (res.password) setRevealedPassword(res.password);
-              })
-            }
-            onDelete={async () => {
-              const res = await deleteUser(user.id);
-              if (res.error) setActionError(res.error);
-              else onClose();
-            }}
-          />
-        )}
-
-        {isForm && (
-          <form action={formAction} className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className={labelClass}>Full Name *</label>
-              <input name="name" defaultValue={user?.name} required className={inputClass} />
-            </div>
-            <div className="col-span-2">
-              <label className={labelClass}>Email *</label>
-              <input name="email" type="email" defaultValue={user?.email} required className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Role *</label>
-              <select name="role" defaultValue={user?.role ?? "Recruiter"} className={inputClass}>
-                {USER_ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Status</label>
-              <select name="status" defaultValue={user?.status ?? "active"} className={inputClass}>
-                {USER_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-span-2">
-              <label className={labelClass}>Phone</label>
-              <input name="phone" defaultValue={user?.phone ?? ""} className={inputClass} />
-            </div>
-
-            <div className="col-span-2 rounded-md border border-black/10 p-3 dark:border-white/10">
-              <p className="mb-2 text-xs font-medium text-black/60 dark:text-white/60">
-                Candidate data visibility
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="canViewResume"
-                    defaultChecked={user?.canViewResume ?? true}
-                  />
-                  View resumes
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="canDownloadResume"
-                    defaultChecked={user?.canDownloadResume ?? true}
-                  />
-                  Download resumes
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" name="canViewPhone" defaultChecked={user?.canViewPhone ?? true} />
-                  View phone numbers
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" name="canViewEmail" defaultChecked={user?.canViewEmail ?? true} />
-                  View email addresses
-                </label>
-              </div>
-            </div>
-
-            <div className="col-span-2 rounded-md border border-black/10 p-3 dark:border-white/10">
-              <p className="mb-2 text-xs font-medium text-black/60 dark:text-white/60">
-                Region restriction{" "}
-                <span className="font-normal text-black/40 dark:text-white/40">
-                  (leave all unchecked to see requirements from every region)
-                </span>
-              </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                {SUPPORTED_REGIONS.map((r) => (
-                  <label key={r} className="flex items-center gap-1.5">
-                    <input
-                      type="checkbox"
-                      checked={parseRegionsCsv(regions).includes(r)}
-                      onChange={() => setRegions(toggleRegion(regions, r))}
-                    />
-                    {r}
-                  </label>
-                ))}
-              </div>
-              <input type="hidden" name="regions" value={regions} />
-            </div>
-
-            {state.error && <p className="col-span-2 text-sm text-red-600">{state.error}</p>}
-
-            <div className="col-span-2 flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => (user ? setMode("view") : onClose())}
-                className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={formPending}
-                className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
-              >
-                {formPending ? "Saving…" : "Save"}
-              </button>
-            </div>
-          </form>
-        )}
+        <div className="flex justify-end">
+          <button type="button" onClick={onClose} className={buttonClass("primary")}>
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -288,51 +300,37 @@ function ViewUser({
         {row("Email", user.email)}
         {row("Phone", user.phone)}
         {row("Role", user.role)}
-        {row(
-          "Status",
-          <span
-            className={
-              user.status === "active"
-                ? "rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/40 dark:text-green-300"
-                : "rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
-            }
-          >
-            {user.status}
-          </span>
-        )}
-        {row("Created", formatDateTime(user.createdAt))}
+        {row("Added", formatDateTime(user.createdAt))}
         {isSelf && row("This is you", "—")}
       </dl>
 
-      {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
+      {actionError && (
+        <p role="alert" className="mt-3 text-sm text-red-600">
+          {actionError}
+        </p>
+      )}
 
       {canEdit && (
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <div className={panelFooterClass}>
           <ConfirmButton
             onConfirm={onDelete}
-            confirmText={`Delete user "${user.name}"?`}
+            confirmText={`Delete ${user.name}?`}
+            body="Their account is removed for good. Users who own records can't be deleted — deactivate them instead."
+            className={buttonClass("dangerSoft", "md", "mr-auto")}
           />
-          <button
-            type="button"
-            disabled={pending}
-            onClick={onResetPassword}
-            className="rounded-md border border-black/15 px-3 py-2 text-sm disabled:opacity-50 dark:border-white/15"
-          >
-            Reset Password
+          <button type="button" disabled={pending} onClick={onResetPassword} className={buttonClass("secondary")}>
+            Reset password
           </button>
           <button
             type="button"
             disabled={pending || isSelf}
             onClick={onToggleStatus}
             title={isSelf ? "You cannot deactivate your own account" : undefined}
-            className="rounded-md border border-black/15 px-3 py-2 text-sm disabled:opacity-50 dark:border-white/15"
+            className={buttonClass("secondary")}
           >
             {user.status === "active" ? "Deactivate" : "Activate"}
           </button>
-          <button
-            onClick={onEdit}
-            className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-          >
+          <button type="button" onClick={onEdit} className={buttonClass("primary")}>
             Edit
           </button>
         </div>

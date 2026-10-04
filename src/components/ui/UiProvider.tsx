@@ -180,8 +180,10 @@ function ConfirmDialog({
   onConfirm: () => void;
 }) {
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    confirmRef.current?.focus();
+    // A destructive dialog starts on Cancel so a stray Enter can't delete.
+    (options.tone === "primary" ? confirmRef : cancelRef).current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
@@ -190,7 +192,7 @@ function ConfirmDialog({
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [onCancel]);
+  }, [onCancel, options.tone]);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onCancel}>
@@ -212,7 +214,7 @@ function ConfirmDialog({
         )}
         {error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={onCancel} disabled={busy} className={buttonClass("secondary")}>
+          <button ref={cancelRef} type="button" onClick={onCancel} disabled={busy} className={buttonClass("secondary")}>
             Cancel
           </button>
           <button

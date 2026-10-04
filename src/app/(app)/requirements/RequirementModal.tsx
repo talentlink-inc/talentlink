@@ -723,7 +723,7 @@ function ViewRequirement({
         {row("Account manager", requirement.accountManagerRaw)}
         {row("Mandatory skills", requirement.mandatorySkills)}
         {row(
-          "Job Description",
+          "Job description",
           requirement.jobDescription && (
             <div
               className="prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
@@ -732,7 +732,7 @@ function ViewRequirement({
           ),
         )}
         {row(
-          "Apply Link",
+          "Apply link",
           applyUrl && (
             <div className="flex items-center gap-2">
               <code className="truncate text-xs">{applyUrl}</code>

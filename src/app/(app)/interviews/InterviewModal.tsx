@@ -7,15 +7,18 @@ import { NotesSection } from "../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { formatDateTime } from "@/lib/format";
 import { isValidTimeZone, timeZoneOptions, utcToZonedLocal } from "@/lib/timezone";
-import { useEscapeToClose } from "@/lib/useEscapeToClose";
+import { RecordPanel, panelFooterClass } from "@/components/ui/RecordPanel";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { buttonClass } from "@/components/ui/button";
+import { useUi } from "@/components/ui/UiProvider";
+import { toolbarInputClass } from "@/components/ui/table";
+import { statusLabel } from "@/lib/statusLabels";
 import type { SerializedInterview } from "./types";
 import type { SerializedSubmission } from "../submissions/types";
 
 type Mode = "create" | "view" | "edit";
 
-
-const inputClass =
-  "w-full rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent";
+const inputClass = `${toolbarInputClass} w-full`;
 const labelClass = "mb-1 block text-xs font-medium text-black/60 dark:text-white/60";
 
 // Pre-fills in the interview's own timezone (the same one the server reads
@@ -44,7 +47,7 @@ export function InterviewModal({
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const isForm = mode === "create" || mode === "edit";
-  useEscapeToClose(onClose);
+  const { toast } = useUi();
 
   const action = interview ? updateInterview.bind(null, interview.id) : createInterview;
   const [state, formAction, pending] = useActionState(action, { error: null });
@@ -52,211 +55,188 @@ export function InterviewModal({
   const wasSubmitting = useRef(false);
   useEffect(() => {
     if (wasSubmitting.current && !pending && !state.error) {
+      toast({ message: interview ? "Interview saved" : "Interview scheduled", tone: "success" });
       onClose();
     }
     wasSubmitting.current = pending;
-  }, [pending, state, onClose]);
+  }, [pending, state, onClose, toast, interview]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 dark:bg-black"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            {mode === "create"
-              ? "Schedule Interview"
-              : mode === "edit"
-                ? "Edit Interview"
-                : `${interview?.submission.candidate.name} — ${interview?.interviewType}`}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-xl leading-none text-black/40 hover:text-black dark:text-white/40 dark:hover:text-white"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-
-        {mode === "view" && interview && (
-          <>
-            <ViewInterview
-              interview={interview}
-              canEdit={canEdit}
-              onEdit={() => setMode("edit")}
-              onDelete={async () => {
-                await deleteInterview(interview.id);
-                onClose();
-              }}
-            />
-            <NotesSection module="interview" recordId={interview.id} currentUserId={currentUserId} />
-          </>
-        )}
-
-        {isForm && (
-          <form
-            // Dispatched by hand rather than via <form action>: React resets an
-            // action form's uncontrolled fields after every submit, so a single
-            // validation error used to wipe everything the recruiter had typed.
-            onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              startTransition(() => formAction(formData));
-            }}
-            className="grid grid-cols-2 gap-4"
-          >
-            <div className="col-span-2">
-              <label className={labelClass}>Candidate Submission *</label>
-              <select
-                name="submissionId"
-                defaultValue={interview?.submissionId ?? ""}
-                required
-                className={inputClass}
-              >
-                <option value="" disabled>
-                  Select a submission
-                </option>
-                {eligibleSubmissions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.candidate.name} — {s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "—"} (
-                    {s.status})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className={labelClass}>Round *</label>
-              <select
-                name="interviewType"
-                defaultValue={interview?.interviewType ?? "L1"}
-                required
-                className={inputClass}
-              >
-                {INTERVIEW_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Mode</label>
-              <select name="mode" defaultValue={interview?.mode ?? "video"} className={inputClass}>
-                {INTERVIEW_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className={labelClass}>Date & Time *</label>
-              <input
-                type="datetime-local"
-                name="scheduledAt"
-                defaultValue={toDatetimeLocalValue(interview?.scheduledAt, interview?.timezone)}
-                required
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Duration (min)</label>
-              <input
-                type="number"
-                name="durationMinutes"
-                min={1}
-                step={1}
-                defaultValue={interview?.durationMinutes ?? 60}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>Timezone *</label>
-              <select
-                name="timezone"
-                defaultValue={interview?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}
-                required
-                className={inputClass}
-              >
-                {timeZoneOptions(interview?.timezone).map((o) => (
-                  <option key={o.zone} value={o.zone}>
-                    {o.label === o.zone ? o.zone : `${o.label} — ${o.zone}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <Field
-              label="Client Company"
-              name="clientCompany"
-              defaultValue={interview?.clientCompany ?? interview?.submission.requirement?.clientName ?? ""}
-            />
-
-            {mode === "edit" && (
-              <>
-                <div>
-                  <label className={labelClass}>Status</label>
-                  <select name="status" defaultValue={interview?.status ?? "Scheduled"} className={inputClass}>
-                    {INTERVIEW_STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className={labelClass}>Feedback</label>
-                  <textarea
-                    name="feedback"
-                    defaultValue={interview?.feedback ?? ""}
-                    rows={3}
-                    className={inputClass}
+    <RecordPanel
+      title={
+        mode === "create"
+          ? "Schedule interview"
+          : mode === "edit"
+            ? "Edit interview"
+            : `${interview?.submission.candidate.name} — ${statusLabel(interview?.interviewType)}`
+      }
+      subtitle={
+        interview && (
+          <span className="inline-flex flex-wrap items-center gap-2">
+            {mode === "view" && <StatusChip status={interview.status} />}
+            <span>{interview.submission.requirement?.jobTitle ?? interview.clientCompany}</span>
+          </span>
+        )
+      }
+      onClose={onClose}
+      tabs={
+        mode === "view" && interview
+          ? [
+              {
+                key: "details",
+                label: "Details",
+                content: (
+                  <ViewInterview
+                    interview={interview}
+                    canEdit={canEdit}
+                    onEdit={() => setMode("edit")}
+                    onDelete={async () => {
+                      await deleteInterview(interview.id);
+                      toast({ message: "Interview deleted", tone: "success" });
+                      onClose();
+                    }}
                   />
-                </div>
-              </>
-            )}
+                ),
+              },
+              {
+                key: "notes",
+                label: "Notes",
+                content: <NotesSection module="interview" recordId={interview.id} currentUserId={currentUserId} />,
+              },
+            ]
+          : undefined
+      }
+    >
+      {isForm && (
+        <form
+          // Dispatched by hand rather than via <form action>: React resets an
+          // action form's uncontrolled fields after every submit, so a single
+          // validation error used to wipe everything the recruiter had typed.
+          onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            startTransition(() => formAction(formData));
+          }}
+          className="grid grid-cols-2 gap-4"
+        >
+          <div className="col-span-2">
+            <label className={labelClass}>Candidate submission *</label>
+            <select name="submissionId" defaultValue={interview?.submissionId ?? ""} required className={inputClass}>
+              <option value="" disabled>
+                Select a submission
+              </option>
+              {eligibleSubmissions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.candidate.name} — {s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "—"} ({statusLabel(s.status)})
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {state.error && !pending && <p className="col-span-2 text-sm text-red-600">{state.error}</p>}
+          <div>
+            <label className={labelClass}>Round *</label>
+            <select name="interviewType" defaultValue={interview?.interviewType ?? "L1"} required className={inputClass}>
+              {INTERVIEW_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {statusLabel(t)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Mode</label>
+            <select name="mode" defaultValue={interview?.mode ?? "video"} className={inputClass}>
+              {INTERVIEW_MODES.map((m) => (
+                <option key={m} value={m}>
+                  {statusLabel(m)}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div className="col-span-2 flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => (interview ? setMode("view") : onClose())}
-                className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={pending}
-                className="rounded-md bg-black px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
-              >
-                {pending ? "Saving…" : "Save"}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+          <div>
+            <label className={labelClass}>Date & time *</label>
+            <input
+              type="datetime-local"
+              name="scheduledAt"
+              defaultValue={toDatetimeLocalValue(interview?.scheduledAt, interview?.timezone)}
+              required
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Duration (min)</label>
+            <input
+              type="number"
+              name="durationMinutes"
+              min={1}
+              step={1}
+              defaultValue={interview?.durationMinutes ?? 60}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>Timezone *</label>
+            <select
+              name="timezone"
+              defaultValue={interview?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}
+              required
+              className={inputClass}
+            >
+              {timeZoneOptions(interview?.timezone).map((o) => (
+                <option key={o.zone} value={o.zone}>
+                  {o.label === o.zone ? o.zone : `${o.label} — ${o.zone}`}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Field
+            label="Client Company"
+            name="clientCompany"
+            defaultValue={interview?.clientCompany ?? interview?.submission.requirement?.clientName ?? ""}
+          />
+
+          {mode === "edit" && (
+            <>
+              <div>
+                <label className={labelClass}>Status</label>
+                <select name="status" defaultValue={interview?.status ?? "Scheduled"} className={inputClass}>
+                  {INTERVIEW_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {statusLabel(s)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className={labelClass}>Feedback</label>
+                <textarea name="feedback" defaultValue={interview?.feedback ?? ""} rows={3} className={inputClass} />
+              </div>
+            </>
+          )}
+
+          {state.error && !pending && (
+            <p role="alert" className="col-span-2 text-sm text-red-600">
+              {state.error}
+            </p>
+          )}
+
+          <div className={`${panelFooterClass} col-span-2`}>
+            <button type="button" onClick={() => (interview ? setMode("view") : onClose())} className={buttonClass("secondary")}>
+              Cancel
+            </button>
+            <button type="submit" disabled={pending} className={buttonClass("primary")}>
+              {pending ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </form>
+      )}
+    </RecordPanel>
   );
 }
 
-function Field({
-  label,
-  name,
-  defaultValue,
-}: {
-  label: string;
-  name: string;
-  defaultValue?: string;
-}) {
+function Field({ label, name, defaultValue }: { label: string; name: string; defaultValue?: string }) {
   return (
     <div>
       <label className={labelClass}>{label}</label>
@@ -288,29 +268,24 @@ function ViewInterview({
       <dl className="divide-y divide-black/5 dark:divide-white/5">
         {row("Candidate", interview.submission.candidate.name)}
         {row("Requirement", interview.submission.requirement?.jobTitle)}
-        {row("Round", interview.interviewType)}
-        {row(
-          "Scheduled",
-          interview.scheduledAt && formatDateTime(interview.scheduledAt, interview.timezone ?? undefined)
-        )}
+        {row("Round", statusLabel(interview.interviewType))}
+        {row("Scheduled", interview.scheduledAt && formatDateTime(interview.scheduledAt, interview.timezone ?? undefined))}
         {row("Timezone", interview.timezone)}
-        {row("Mode", interview.mode)}
+        {row("Mode", interview.mode && statusLabel(interview.mode))}
         {row("Duration", interview.durationMinutes && `${interview.durationMinutes} min`)}
         {row("Client", interview.clientCompany)}
-        {row("Status", interview.status)}
-        {row("Scheduled By", interview.scheduledByNameRaw)}
+        {row("Scheduled by", interview.scheduledByNameRaw)}
         {row("Feedback", interview.feedback && <p className="whitespace-pre-wrap">{interview.feedback}</p>)}
       </dl>
       {canEdit && (
-        <div className="mt-4 flex justify-end gap-2">
+        <div className={panelFooterClass}>
           <ConfirmButton
             onConfirm={onDelete}
-            confirmText={`Delete this interview for "${interview.submission.candidate.name}"?`}
+            confirmText={`Delete this interview for ${interview.submission.candidate.name}?`}
+            body="This can't be undone."
+            className={buttonClass("dangerSoft", "md", "mr-auto")}
           />
-          <button
-            onClick={onEdit}
-            className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-          >
+          <button type="button" onClick={onEdit} className={buttonClass("primary")}>
             Edit
           </button>
         </div>
