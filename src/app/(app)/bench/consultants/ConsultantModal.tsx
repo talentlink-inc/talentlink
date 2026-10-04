@@ -147,13 +147,14 @@ function ViewConsultant({
     </div>
   );
   const linkClass = "font-medium text-brand-strong underline-offset-2 hover:underline dark:text-brand";
-  const quickSelectClass = "rounded-md border border-black/15 bg-white px-2 py-1 text-sm dark:border-white/15 dark:bg-transparent";
+  const quickSelectClass = "w-full rounded-md border border-black/15 bg-white px-2 py-1.5 text-sm dark:border-white/15 dark:bg-transparent";
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg bg-brand-soft/60 p-3 dark:bg-white/[0.04]">
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-black/55 dark:text-white/55">Status</span>
+      {/* Fixed grid so the bar doesn't re-wrap when the assignee list loads. */}
+      <div className="mb-4 grid grid-cols-1 items-end gap-3 rounded-lg bg-brand-soft/60 p-3 sm:grid-cols-[1fr_1fr_auto] dark:bg-white/[0.04]">
+        <label className="flex min-w-0 flex-col gap-1 text-xs">
+          <span className="font-medium text-black/55 dark:text-white/55">Status</span>
           <select
             value={c.status}
             disabled={busy}
@@ -174,8 +175,8 @@ function ViewConsultant({
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-black/55 dark:text-white/55">Assigned to</span>
+        <label className="flex min-w-0 flex-col gap-1 text-xs">
+          <span className="font-medium text-black/55 dark:text-white/55">Assigned to</span>
           <select
             value={c.assignedToUserId ?? ""}
             disabled={busy}
@@ -213,8 +214,8 @@ function ViewConsultant({
           }}
           className={
             c.onHotlist
-              ? buttonClass("secondary", "md", "ml-auto border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300")
-              : buttonClass("secondary", "md", "ml-auto")
+              ? buttonClass("secondary", "md", "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300")
+              : buttonClass("secondary")
           }
         >
           {c.onHotlist ? "★ Remove from hotlist" : "☆ Add to hotlist"}

@@ -101,12 +101,18 @@ export function Sidebar({
     // On a phone-width screen the expanded 230px sidebar took half the
     // viewport, so start collapsed there — without persisting it, so the
     // desktop preference in localStorage is left alone.
-    const isNarrow = window.matchMedia("(max-width: 767px)").matches;
-    if (isNarrow || localStorage.getItem("sidebarCollapsed") === "true") {
+    const narrow = window.matchMedia("(max-width: 767px)");
+    if (narrow.matches || localStorage.getItem("sidebarCollapsed") === "true") {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of a browser-only API, not derivable during SSR
       setCollapsed(true);
     }
     setMounted(true);
+    // Also collapse when the window shrinks to phone width (rotation, resize).
+    const onChange = (e: MediaQueryListEvent) => {
+      if (e.matches) setCollapsed(true);
+    };
+    narrow.addEventListener("change", onChange);
+    return () => narrow.removeEventListener("change", onChange);
   }, []);
 
   function toggleCollapsed() {

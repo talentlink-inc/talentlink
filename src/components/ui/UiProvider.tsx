@@ -58,14 +58,31 @@ export function UiProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const dismiss = useCallback((id: number) => setToasts((all) => all.filter((t) => t.id !== id)), []);
+  // Auto-dismiss timers, paused while the pointer is over a toast so an
+  // Undo can't vanish just as someone reaches for it.
+  const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  const dismiss = useCallback((id: number) => {
+    clearTimeout(timers.current.get(id));
+    timers.current.delete(id);
+    setToasts((all) => all.filter((t) => t.id !== id));
+  }, []);
+  const schedule = useCallback(
+    (id: number, ms: number) => {
+      clearTimeout(timers.current.get(id));
+      timers.current.set(
+        id,
+        setTimeout(() => dismiss(id), ms)
+      );
+    },
+    [dismiss]
+  );
   const toast = useCallback(
     (t: ToastInput) => {
       const id = nextId.current++;
       setToasts((all) => [...all.slice(-2), { ...t, id }]);
-      setTimeout(() => dismiss(id), t.undo ? 7000 : 4000);
+      schedule(id, t.undo ? 10000 : 4000);
     },
-    [dismiss]
+    [schedule]
   );
 
   const confirm = useCallback((o: ConfirmOptions) => {
@@ -106,11 +123,16 @@ export function UiProvider({ children }: { children: React.ReactNode }) {
           onConfirm={runConfirm}
         />
       )}
-      <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-4 z-[70] flex flex-col items-center gap-2 px-4">
+      {/* Sits above the side panel's sticky action bar rather than over it. */}
+      <div
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 bottom-20 z-[70] flex flex-col items-center gap-2 px-4">
         {toasts.map((t) => (
           <div
             key={t.id}
             role="status"
+            onMouseEnter={() => clearTimeout(timers.current.get(t.id))}
+            onMouseLeave={() => schedule(t.id, 3000)}
             className="pointer-events-auto flex max-w-md items-center gap-4 rounded-lg bg-ink-strong px-4 py-2.5 text-sm text-white shadow-lg"
           >
             <span className={t.tone === "error" ? "text-red-300" : t.tone === "success" ? "text-white" : "text-white/90"}>
