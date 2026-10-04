@@ -78,7 +78,7 @@ export function AccountSecurity({
   }
 
   return (
-    <div className="rounded-lg border border-black/10 p-4 dark:border-white/10">
+    <div className="rounded-lg border border-black/10 border-t-[3px] border-t-brand bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-950">
       <h2 className="mb-1 text-sm font-semibold">Two-Factor Authentication</h2>
       <p className="mb-3 text-sm text-black/50 dark:text-white/50">
         Adds a 6-digit code from an authenticator app (Google Authenticator, Authy, etc.) at sign-in.

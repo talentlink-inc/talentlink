@@ -14,9 +14,11 @@ export default async function SettingsPage() {
   const settings = await getTenantSettings();
 
   return (
-    <div className="mx-auto max-w-lg">
+    <>
       <PageHeader title="Settings" subtitle="Company-wide preferences" />
-      <SettingsForm initialSettings={settings} />
-    </div>
+      <div className="max-w-2xl">
+        <SettingsForm initialSettings={settings} />
+      </div>
+    </>
   );
 }

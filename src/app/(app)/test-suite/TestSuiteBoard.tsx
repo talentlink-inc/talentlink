@@ -146,13 +146,13 @@ export function TestSuiteBoard({
               }}
               className={`flex shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm whitespace-nowrap ${
                 active
-                  ? "bg-black text-white dark:bg-white dark:text-black"
+                  ? "bg-brand-soft font-medium text-ink-strong shadow-[inset_3px_0_0] shadow-brand dark:bg-white/10 dark:text-white"
                   : "hover:bg-black/5 dark:hover:bg-white/10"
               }`}
             >
               <span>{c.label}</span>
               {count !== undefined && count > 0 && (
-                <span className={`rounded-full px-1.5 text-xs ${active ? "bg-white/20" : "bg-black/10 dark:bg-white/10"}`}>
+                <span className={`rounded-full px-1.5 text-xs ${active ? "bg-brand/15 text-brand-strong" : "bg-black/10 dark:bg-white/10"}`}>
                   {count}
                 </span>
               )}
@@ -237,7 +237,7 @@ export function TestSuiteBoard({
             <button
               onClick={handleDispatchCi}
               disabled={ciDispatching}
-              className="mt-4 flex items-center gap-1 rounded-md border border-black/15 px-3 py-2 text-sm hover:bg-black/5 disabled:opacity-50 dark:border-white/15 dark:hover:bg-white/10"
+              className={buttonClass("secondary", "md", "mt-4")}
             >
               <RefreshCw size={14} className={ciDispatching ? "animate-spin" : ""} /> Trigger CI run
             </button>
@@ -250,7 +250,7 @@ export function TestSuiteBoard({
               <button
                 onClick={() => runIds([...selectedIds], selectedCategory)}
                 disabled={running || selectedIds.size === 0}
-                className="flex items-center gap-1 rounded-md border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5 disabled:opacity-40 dark:border-white/15 dark:hover:bg-white/10"
+                className={buttonClass("secondary")}
               >
                 <Play size={14} /> Run Selected ({selectedIds.size})
               </button>

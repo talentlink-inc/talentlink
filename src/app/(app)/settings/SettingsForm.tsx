@@ -22,7 +22,7 @@ export function SettingsForm({ initialSettings }: { initialSettings: TenantSetti
 
   return (
     <form action={formAction} className="space-y-6">
-      <section className="rounded-lg border border-black/10 p-4 dark:border-white/10">
+      <section className="rounded-lg border border-black/10 border-t-[3px] border-t-brand bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-950">
         <h2 className="mb-1 text-sm font-semibold">AI-Assisted Parsing</h2>
         <p className="mb-4 text-xs text-black/50 dark:text-white/50">
           Powers &ldquo;Parse with AI&rdquo; on Job Descriptions and resumes. Nothing is called until a key is set here.
@@ -64,7 +64,7 @@ export function SettingsForm({ initialSettings }: { initialSettings: TenantSetti
         </div>
       </section>
 
-      <section className="rounded-lg border border-black/10 p-4 dark:border-white/10">
+      <section className="rounded-lg border border-black/10 border-t-[3px] border-t-brand bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-950">
         <h2 className="mb-1 text-sm font-semibold">Branding</h2>
         <p className="mb-4 text-xs text-black/50 dark:text-white/50">
           Which logo variant shows in the sidebar and on the sign-in page.
