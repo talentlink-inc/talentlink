@@ -7,36 +7,33 @@ import { formatDate } from "@/lib/format";
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { rowSelectClass } from "@/lib/tableRow";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { buttonClass } from "@/components/ui/button";
+import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 import type { User } from "@/generated/prisma/client";
 
-export function UsersTable({
-  users,
-  currentUserId,
-  canEdit,
-}: {
-  users: User[];
-  currentUserId: string;
-  canEdit: boolean;
-}) {
+export function UsersTable({ users, currentUserId, canEdit }: { users: User[]; currentUserId: string; canEdit: boolean }) {
   // Stores the id, not the row object — actions like toggle-status/reset
   // password mutate server-side and revalidate without closing the modal, so
   // the modal must look the user up fresh from `users` on every render
   // rather than hold a stale snapshot from when it was opened.
-  const [modal, setModal] = useState<{ mode: "create" | "view" | "edit"; userId: string | null } | null>(
-    null
-  );
+  const [modal, setModal] = useState<{ mode: "create" | "view" | "edit"; userId: string | null } | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  const cell = useCellClass();
+  const open = (u: User) => {
+    setSelectedId(u.id);
+    setModal({ mode: "view", userId: u.id });
+  };
+
   useOpenParam((id) => {
     const found = users.find((u) => u.id === id);
-    if (found) {
-      setSelectedId(found.id);
-      setModal({ mode: "view", userId: found.id });
-    }
+    if (found) open(found);
   });
 
   usePageShortcuts({
@@ -62,34 +59,22 @@ export function UsersTable({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">User Management</h1>
-        {canEdit && (
-          <button
-            onClick={() => setModal({ mode: "create", userId: null })}
-            className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-          >
-            + Add User
-          </button>
-        )}
-      </div>
-
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search by name, email, or role"
-          placeholder="Search by name, email, or role..."
-          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          placeholder="Search name, email, role…"
+          className={`${toolbarInputClass} min-w-[220px] flex-1`}
         />
         <select
           aria-label="Filter by role"
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Roles</option>
+          <option value="">All roles</option>
           {USER_ROLES.map((r) => (
             <option key={r} value={r}>
               {r}
@@ -100,50 +85,86 @@ export function UsersTable({
           aria-label="Filter by status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Status</option>
+          <option value="">All statuses</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden md:inline-flex">
+            <DensityToggle />
+          </span>
+          {canEdit && (
+            <button type="button" onClick={() => setModal({ mode: "create", userId: null })} className={buttonClass("primary")}>
+              + Add user
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="bg-black/5 dark:bg-white/5">
+      <ul className="space-y-2 md:hidden" aria-label="Users">
+        {filtered.map((u) => (
+          <li key={u.id}>
+            <button
+              type="button"
+              onClick={() => open(u)}
+              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(u.id === selectedId)}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-medium">
+                  {u.name}
+                  {u.id === currentUserId && (
+                    <span className="ml-1 text-xs font-normal text-black/40 dark:text-white/40">(you)</span>
+                  )}
+                </span>
+                <StatusChip status={u.status} />
+              </div>
+              <div className="mt-1 truncate text-sm text-black/60 dark:text-white/60">{u.email}</div>
+              <div className="mt-1 text-xs text-black/45 dark:text-white/45">
+                {u.role} · Added {formatDate(u.createdAt)}
+              </div>
+            </button>
+          </li>
+        ))}
+        {filtered.length === 0 && (
+          <li className={emptyCellClass}>{users.length === 0 ? "No users yet." : "No users match your filters."}</li>
+        )}
+      </ul>
+
+      <div className={`${tableCardClass} hidden md:block`}>
+        <table className={`${tableClass} min-w-[720px]`}>
+          <thead className={theadClass}>
             <tr>
-              <th className="px-4 py-2">Name</th>
-              <th className="px-4 py-2">Email</th>
-              <th className="px-4 py-2">Role</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Created</th>
+              <th className={cell}>Name</th>
+              <th className={cell}>Email</th>
+              <th className={cell}>Role</th>
+              <th className={cell}>Status</th>
+              <th className={cell}>Added</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((u) => (
               <tr
                 key={u.id}
-                onClick={() => {
-                  setSelectedId(u.id);
-                  setModal({ mode: "view", userId: u.id });
-                }}
-                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(u.id === selectedId)}`}
+                onClick={() => open(u)}
+                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(u.id === selectedId)}`}
               >
-                <td className="px-4 py-2">
+                <td className={`${cell} font-medium`}>
                   {u.name}
-                  {u.id === currentUserId && (
-                    <span className="ml-1 text-xs text-black/40 dark:text-white/40">(you)</span>
-                  )}
+                  {u.id === currentUserId && <span className="ml-1 text-xs text-black/40 dark:text-white/40">(you)</span>}
                 </td>
-                <td className="px-4 py-2">{u.email}</td>
-                <td className="px-4 py-2">{u.role}</td>
-                <td className="px-4 py-2">{u.status}</td>
-                <td className="px-4 py-2">{formatDate(u.createdAt)}</td>
+                <td className={cell}>{u.email}</td>
+                <td className={cell}>{u.role}</td>
+                <td className={cell}>
+                  <StatusChip status={u.status} />
+                </td>
+                <td className={`${cell} whitespace-nowrap`}>{formatDate(u.createdAt)}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
+                <td colSpan={5} className={emptyCellClass}>
                   {users.length === 0 ? "No users yet." : "No users match your filters."}
                 </td>
               </tr>

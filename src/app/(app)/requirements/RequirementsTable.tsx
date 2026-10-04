@@ -11,6 +11,10 @@ import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { rowSelectClass } from "@/lib/tableRow";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { buttonClass } from "@/components/ui/button";
+import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 import type { SerializedRequirement } from "./types";
 
 export function RequirementsTable({
@@ -35,6 +39,14 @@ export function RequirementsTable({
   const [, startTransition] = useTransition();
   const [priorityOverrides, setPriorityOverrides] = useState<Record<string, number>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const cell = useCellClass();
+
+  // Row click opens the record (design review) and also selects the row, so
+  // the Clone button keeps working as in GAS.
+  const open = (r: SerializedRequirement) => {
+    setSelectedId(r.id);
+    setModal({ mode: "view", requirement: r });
+  };
 
   function handleStarClick(r: SerializedRequirement, n: number) {
     const current = priorityOverrides[r.id] ?? r.priority;
@@ -48,10 +60,7 @@ export function RequirementsTable({
 
   useOpenParam((id) => {
     const found = requirements.find((r) => r.id === id);
-    if (found) {
-      setSelectedId(found.id);
-      setModal({ mode: "view", requirement: found });
-    }
+    if (found) open(found);
   });
 
   usePageShortcuts({
@@ -81,49 +90,29 @@ export function RequirementsTable({
   // `selectedId`, since a filter/search/page change can leave `selectedId`
   // pointing at a row that's no longer visible.
   const selectedRequirement = paged.find((r) => r.id === selectedId) ?? null;
+  const emptyMessage =
+    requirements.length === 0
+      ? "No requirements yet — add the first one with “+ New requirement”."
+      : "No requirements match your filters.";
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Requirements</h1>
-        <div className="flex items-center gap-2">
-          {canEdit && selectedRequirement && (
-            <button
-              onClick={() => setModal({ mode: "create", requirement: null, cloneFrom: selectedRequirement })}
-              title="Clone selected requirement"
-              aria-label="Clone selected requirement"
-              className="rounded-md border border-black/15 p-2 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
-            >
-              <Copy size={16} />
-            </button>
-          )}
-          {canEdit && (
-            <button
-              onClick={() => setModal({ mode: "create", requirement: null })}
-              className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-            >
-              + New Requirement
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search job title, client"
-          placeholder="Search job title, client..."
-          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          placeholder="Search job ID, title, client…"
+          className={`${toolbarInputClass} min-w-[220px] flex-1`}
         />
         <select
           aria-label="Filter by status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Status</option>
+          <option value="">All statuses</option>
           {REQUIREMENT_STATUSES.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -134,53 +123,95 @@ export function RequirementsTable({
           aria-label="Filter by employment type"
           value={empTypeFilter}
           onChange={(e) => setEmpTypeFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Employment Type</option>
+          <option value="">All employment types</option>
           {REQUIREMENT_EMPLOYMENT_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
             </option>
           ))}
         </select>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden md:inline-flex">
+            <DensityToggle />
+          </span>
+          {canEdit && selectedRequirement && (
+            <button
+              type="button"
+              onClick={() => setModal({ mode: "create", requirement: null, cloneFrom: selectedRequirement })}
+              title="Clone selected requirement"
+              className={buttonClass("secondary")}
+            >
+              <Copy size={14} aria-hidden /> Clone
+            </button>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setModal({ mode: "create", requirement: null })}
+              className={buttonClass("primary")}
+            >
+              + New requirement
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="bg-black/5 dark:bg-white/5">
+      <ul className="space-y-2 md:hidden" aria-label="Requirements">
+        {paged.map((r) => (
+          <li key={r.id}>
+            <button
+              type="button"
+              onClick={() => open(r)}
+              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(r.id === selectedId)}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-medium">{r.jobTitle}</span>
+                <StatusChip status={r.status} />
+              </div>
+              <div className="mt-1 text-sm text-black/60 dark:text-white/60">{r.clientName ?? "No client"}</div>
+              <div className="mt-1 flex items-center gap-2 text-xs text-black/45 dark:text-white/45">
+                <span className="font-mono">{r.jobId}</span>
+                {r.billRate ? <span>· {`${r.billRateCurrency} ${r.billRate}`}</span> : null}
+                {r.priority > 0 && (
+                  <span className="text-amber-500" aria-label={`Priority ${r.priority}`}>
+                    · {"★".repeat(r.priority)}
+                  </span>
+                )}
+              </div>
+            </button>
+          </li>
+        ))}
+        {filtered.length === 0 && <li className={emptyCellClass}>{emptyMessage}</li>}
+      </ul>
+
+      <div className={`${tableCardClass} hidden md:block`}>
+        <table className={`${tableClass} min-w-[720px]`}>
+          <thead className={theadClass}>
             <tr>
-              <th className="px-4 py-2">Job ID</th>
-              <th className="px-4 py-2">Title</th>
-              <th className="px-4 py-2">Client</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Priority</th>
-              <th className="px-4 py-2">Bill Rate</th>
+              <th className={cell}>Job ID</th>
+              <th className={cell}>Title</th>
+              <th className={cell}>Client</th>
+              <th className={cell}>Status</th>
+              <th className={cell}>Priority</th>
+              <th className={cell}>Bill rate</th>
             </tr>
           </thead>
           <tbody>
             {paged.map((r) => (
               <tr
                 key={r.id}
-                onClick={() => setSelectedId((id) => (id === r.id ? null : r.id))}
-                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(r.id === selectedId)}`}
+                onClick={() => open(r)}
+                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(r.id === selectedId)}`}
               >
-                <td className="px-4 py-2 font-mono text-xs">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setModal({ mode: "view", requirement: r });
-                    }}
-                    className="hover:underline"
-                    title="View details"
-                  >
-                    {r.jobId}
-                  </button>
+                <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>{r.jobId}</td>
+                <td className={`${cell} font-medium`}>{r.jobTitle}</td>
+                <td className={cell}>{r.clientName ?? "—"}</td>
+                <td className={cell}>
+                  <StatusChip status={r.status} />
                 </td>
-                <td className="px-4 py-2">{r.jobTitle}</td>
-                <td className="px-4 py-2">{r.clientName ?? "—"}</td>
-                <td className="px-4 py-2">{r.status}</td>
-                <td className="px-4 py-2">
+                <td className={cell}>
                   {canEdit ? (
                     <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
                       {[1, 2, 3, 4, 5].map((n) => (
@@ -190,9 +221,7 @@ export function RequirementsTable({
                           onClick={() => handleStarClick(r, n)}
                           aria-label={`Priority ${n}`}
                           className={`text-sm leading-none ${
-                            n <= (priorityOverrides[r.id] ?? r.priority)
-                              ? "text-amber-400"
-                              : "text-black/15 dark:text-white/15"
+                            n <= (priorityOverrides[r.id] ?? r.priority) ? "text-amber-400" : "text-black/15 dark:text-white/15"
                           }`}
                         >
                           ★
@@ -203,17 +232,13 @@ export function RequirementsTable({
                     "★".repeat(r.priority) || "—"
                   )}
                 </td>
-                <td className="px-4 py-2">
-                  {r.billRate ? `${r.billRateCurrency} ${r.billRate}` : "—"}
-                </td>
+                <td className={cell}>{r.billRate ? `${r.billRateCurrency} ${r.billRate}` : "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
-                  {requirements.length === 0
-                    ? "No requirements yet. Add one, or run the migration script to pull recent JDs in."
-                    : "No requirements match your filters."}
+                <td colSpan={6} className={emptyCellClass}>
+                  {emptyMessage}
                 </td>
               </tr>
             )}

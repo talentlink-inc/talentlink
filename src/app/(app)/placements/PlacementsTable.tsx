@@ -9,6 +9,10 @@ import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { rowSelectClass } from "@/lib/tableRow";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { statusLabel } from "@/lib/statusLabels";
+import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 import type { SerializedSubmission } from "../submissions/types";
 
 const FELL_THROUGH = "__fell_through__";
@@ -29,12 +33,15 @@ export function PlacementsTable({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  const cell = useCellClass();
+  const open = (p: SerializedSubmission) => {
+    setSelectedId(p.id);
+    setSelected(p);
+  };
+
   useOpenParam((id) => {
     const found = placements.find((p) => p.id === id);
-    if (found) {
-      setSelectedId(found.id);
-      setSelected(found);
-    }
+    if (found) open(found);
   });
 
   // No onNew here — placements aren't created directly, they fall out of a
@@ -73,81 +80,112 @@ export function PlacementsTable({
 
   return (
     <div>
-      <h1 className="mb-6 text-xl font-semibold">Placements</h1>
-
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search by candidate, client, role"
-          placeholder="Search by candidate, client, role..."
-          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          placeholder="Search candidate, client, role…"
+          className={`${toolbarInputClass} min-w-[220px] flex-1`}
         />
         <select
           aria-label="Filter by status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Status</option>
+          <option value="">All statuses</option>
           {QUALIFYING_PLACEMENT_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {statusLabel(s)}
             </option>
           ))}
-          <option value={FELL_THROUGH}>Fell Through</option>
+          <option value={FELL_THROUGH}>Fell through</option>
         </select>
         <select
-          aria-label="Filter by sales by"
+          aria-label="Filter by salesperson"
           value={salesByFilter}
           onChange={(e) => setSalesByFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Sales By</option>
+          <option value="">All salespeople</option>
           {salesByOptions.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
           ))}
         </select>
+        <span className="ml-auto hidden md:inline-flex">
+          <DensityToggle />
+        </span>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
-        <table className="w-full min-w-[840px] text-left text-sm">
-          <thead className="bg-black/5 dark:bg-white/5">
+      <ul className="space-y-2 md:hidden" aria-label="Placements">
+        {paged.map((p) => (
+          <li key={p.id}>
+            <button
+              type="button"
+              onClick={() => open(p)}
+              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(p.id === selectedId)}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-medium">{p.candidate.name}</span>
+                <StatusChip status={p.status} />
+              </div>
+              <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+                {p.requirement?.jobTitle ?? p.requirementJobIdRaw ?? "No requirement"}
+              </div>
+              <div className="mt-1 text-xs text-black/45 dark:text-white/45">
+                {p.placementId ?? "—"} · Starts {p.doj ? formatDate(p.doj) : "—"}
+                {p.billRate ? ` · ${p.billRateCurrency} ${p.billRate}` : ""}
+              </div>
+            </button>
+          </li>
+        ))}
+        {filtered.length === 0 && (
+          <li className={emptyCellClass}>
+            {placements.length === 0 ? "No placements yet." : "No placements match your filters."}
+          </li>
+        )}
+      </ul>
+
+      <div className={`${tableCardClass} hidden md:block`}>
+        <table className={`${tableClass} min-w-[840px]`}>
+          <thead className={theadClass}>
             <tr>
-              <th className="px-4 py-2">Placement ID</th>
-              <th className="px-4 py-2">Candidate</th>
-              <th className="px-4 py-2">Requirement</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Selected</th>
-              <th className="px-4 py-2">DOJ</th>
-              <th className="px-4 py-2">Bill Rate</th>
+              <th className={cell}>Placement ID</th>
+              <th className={cell}>Candidate</th>
+              <th className={cell}>Requirement</th>
+              <th className={cell}>Status</th>
+              <th className={cell}>Selected</th>
+              <th className={cell}>Start date</th>
+              <th className={cell}>Bill rate</th>
             </tr>
           </thead>
           <tbody>
             {paged.map((p) => (
               <tr
                 key={p.id}
-                onClick={() => {
-                  setSelectedId(p.id);
-                  setSelected(p);
-                }}
-                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(p.id === selectedId)}`}
+                onClick={() => open(p)}
+                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(p.id === selectedId)}`}
               >
-                <td className="px-4 py-2 font-mono text-xs">{p.placementId ?? "—"}</td>
-                <td className="px-4 py-2">{p.candidate.name}</td>
-                <td className="px-4 py-2">{p.requirement?.jobTitle ?? p.requirementJobIdRaw ?? "—"}</td>
-                <td className="px-4 py-2">{p.status}</td>
-                <td className="px-4 py-2">{p.selectedDate ? formatDate(p.selectedDate) : "—"}</td>
-                <td className="px-4 py-2">{p.doj ? formatDate(p.doj) : "—"}</td>
-                <td className="px-4 py-2">{p.billRate ? `${p.billRateCurrency} ${p.billRate}` : "—"}</td>
+                <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>
+                  {p.placementId ?? "—"}
+                </td>
+                <td className={`${cell} font-medium`}>{p.candidate.name}</td>
+                <td className={cell}>{p.requirement?.jobTitle ?? p.requirementJobIdRaw ?? "—"}</td>
+                <td className={cell}>
+                  <StatusChip status={p.status} />
+                </td>
+                <td className={`${cell} whitespace-nowrap`}>{p.selectedDate ? formatDate(p.selectedDate) : "—"}</td>
+                <td className={`${cell} whitespace-nowrap`}>{p.doj ? formatDate(p.doj) : "—"}</td>
+                <td className={cell}>{p.billRate ? `${p.billRateCurrency} ${p.billRate}` : "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
+                <td colSpan={7} className={emptyCellClass}>
                   {placements.length === 0 ? "No placements yet." : "No placements match your filters."}
                 </td>
               </tr>
@@ -158,12 +196,7 @@ export function PlacementsTable({
       <PaginationControls page={page} totalPages={totalPages} start={start} end={end} total={total} onPageChange={setPage} />
 
       {selected && (
-        <PlacementModal
-          placement={selected}
-          currentUserId={currentUserId}
-          canEdit={canEdit}
-          onClose={() => setSelected(null)}
-        />
+        <PlacementModal placement={selected} currentUserId={currentUserId} canEdit={canEdit} onClose={() => setSelected(null)} />
       )}
     </div>
   );

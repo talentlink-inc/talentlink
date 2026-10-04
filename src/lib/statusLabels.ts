@@ -47,6 +47,9 @@ const LABELS: Record<string, string> = {
   phone: "Phone",
   video: "Video",
   in_person: "In person",
+  // User accounts (stored lowercase)
+  active: "Active",
+  inactive: "Inactive",
 };
 
 const TONES: Record<string, StatusTone> = {
@@ -82,6 +85,8 @@ const TONES: Record<string, StatusTone> = {
   Filled: "placed",
   Active: "placed",
   Inactive: "neutral",
+  active: "placed",
+  inactive: "neutral",
 };
 
 /** Human label for a stored code; unknown values are de-underscored as-is. */

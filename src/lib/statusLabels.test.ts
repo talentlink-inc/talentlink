@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { statusLabel, statusTone } from "./statusLabels";
-import { INTERVIEW_STATUSES, REJECTED_STATUSES, SUBMISSION_STATUSES } from "./recruitment";
-import { BENCH_CONSULTANT_STATUSES } from "./bench";
+import { INTERVIEW_MODES, INTERVIEW_STATUSES, INTERVIEW_TYPES, REJECTED_STATUSES, REQUIREMENT_STATUSES, SUBMISSION_STATUSES } from "./recruitment";
+import { BENCH_CONSULTANT_STATUSES, BENCH_HOTLIST_STATUSES } from "./bench";
 
 describe("[module] status labels", () => {
   it("gives every submission and interview status a readable label (no underscores)", () => {
@@ -30,5 +30,17 @@ describe("[module] status tones", () => {
 
   it("covers every bench consultant status explicitly", () => {
     for (const s of BENCH_CONSULTANT_STATUSES) expect(statusTone(s)).not.toBe("closed");
+  });
+
+  it("non-pipeline statuses (requirements, hotlist, user accounts) never show as red", () => {
+    for (const s of [...REQUIREMENT_STATUSES, ...BENCH_HOTLIST_STATUSES, "active", "inactive"]) {
+      expect(statusTone(s)).not.toBe("closed");
+    }
+    expect(statusLabel("active")).toBe("Active");
+  });
+
+  it("interview rounds and modes read in plain English", () => {
+    for (const s of [...INTERVIEW_TYPES, ...INTERVIEW_MODES]) expect(statusLabel(s)).not.toContain("_");
+    expect(statusLabel("in_person")).toBe("In person");
   });
 });

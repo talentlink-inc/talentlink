@@ -9,6 +9,10 @@ import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { rowSelectClass } from "@/lib/tableRow";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { buttonClass } from "@/components/ui/button";
+import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 import type { DataPermissions } from "@/lib/users";
 import type { SerializedSubmission } from "./types";
 import type { RequirementSummary } from "./types";
@@ -37,13 +41,15 @@ export function SubmissionsTable({
   const [empTypeFilter, setEmpTypeFilter] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const cell = useCellClass();
+  const open = (s: SerializedSubmission) => {
+    setSelectedId(s.id);
+    setModal({ mode: "view", submission: s });
+  };
 
   useOpenParam((id) => {
     const found = submissions.find((s) => s.id === id);
-    if (found) {
-      setSelectedId(found.id);
-      setModal({ mode: "view", submission: found });
-    }
+    if (found) open(found);
   });
 
   usePageShortcuts({
@@ -71,34 +77,22 @@ export function SubmissionsTable({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Submissions</h1>
-        {canEdit && (
-          <button
-            onClick={() => setModal({ mode: "create", submission: null })}
-            className="rounded-md bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
-          >
-            + Submit Candidate
-          </button>
-        )}
-      </div>
-
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search name, email, phone, location"
-          placeholder="Search name, email, phone, location..."
-          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          placeholder="Search ID, name, email, phone, location…"
+          className={`${toolbarInputClass} min-w-[220px] flex-1`}
         />
         <select
           aria-label="Filter by visa"
           value={visaFilter}
           onChange={(e) => setVisaFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Visa</option>
+          <option value="">All visas</option>
           {VISA_STATUSES.map((v) => (
             <option key={v} value={v}>
               {v}
@@ -109,50 +103,94 @@ export function SubmissionsTable({
           aria-label="Filter by employment type"
           value={empTypeFilter}
           onChange={(e) => setEmpTypeFilter(e.target.value)}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm dark:border-white/15 dark:bg-transparent"
+          className={toolbarInputClass}
         >
-          <option value="">All Employment Type</option>
+          <option value="">All employment types</option>
           {SUBMISSION_EMPLOYMENT_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
             </option>
           ))}
         </select>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden md:inline-flex">
+            <DensityToggle />
+          </span>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setModal({ mode: "create", submission: null })}
+              className={buttonClass("primary")}
+            >
+              + Submit candidate
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
-        <table className="w-full min-w-[840px] text-left text-sm">
-          <thead className="bg-black/5 dark:bg-white/5">
+      <ul className="space-y-2 md:hidden" aria-label="Submissions">
+        {paged.map((s) => (
+          <li key={s.id}>
+            <button
+              type="button"
+              onClick={() => open(s)}
+              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(s.id === selectedId)}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-medium">{s.candidate.name}</span>
+                <StatusChip status={s.status} />
+              </div>
+              <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+                {s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "No requirement"}
+              </div>
+              <div className="mt-1 text-xs text-black/45 dark:text-white/45">
+                {s.submissionId ?? "—"} · {s.submissionDate ? formatDate(s.submissionDate) : "No date"}
+                {s.billRate ? ` · ${s.billRateCurrency} ${s.billRate}` : ""}
+              </div>
+            </button>
+          </li>
+        ))}
+        {filtered.length === 0 && (
+          <li className={emptyCellClass}>
+            {submissions.length === 0 ? "No submissions yet." : "No submissions match your filters."}
+          </li>
+        )}
+      </ul>
+
+      <div className={`${tableCardClass} hidden md:block`}>
+        <table className={`${tableClass} min-w-[840px]`}>
+          <thead className={theadClass}>
             <tr>
-              <th className="px-4 py-2">Submission ID</th>
-              <th className="px-4 py-2">Candidate</th>
-              <th className="px-4 py-2">Requirement</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Submitted</th>
-              <th className="px-4 py-2">Bill Rate</th>
+              <th className={cell}>ID</th>
+              <th className={cell}>Candidate</th>
+              <th className={cell}>Requirement</th>
+              <th className={cell}>Status</th>
+              <th className={cell}>Submitted</th>
+              <th className={cell}>Bill rate</th>
             </tr>
           </thead>
           <tbody>
             {paged.map((s) => (
               <tr
                 key={s.id}
-                onClick={() => {
-                  setSelectedId(s.id);
-                  setModal({ mode: "view", submission: s });
-                }}
-                className={`cursor-pointer border-t border-black/10 dark:border-white/10 ${rowSelectClass(s.id === selectedId)}`}
+                onClick={() => open(s)}
+                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(s.id === selectedId)}`}
               >
-                <td className="px-4 py-2 font-mono text-xs">{s.submissionId ?? "—"}</td>
-                <td className="px-4 py-2">{s.candidate.name}</td>
-                <td className="px-4 py-2">{s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "—"}</td>
-                <td className="px-4 py-2">{s.status}</td>
-                <td className="px-4 py-2">{s.submissionDate ? formatDate(s.submissionDate) : "—"}</td>
-                <td className="px-4 py-2">{s.billRate ? `${s.billRateCurrency} ${s.billRate}` : "—"}</td>
+                <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>
+                  {s.submissionId ?? "—"}
+                </td>
+                <td className={`${cell} font-medium`}>{s.candidate.name}</td>
+                <td className={cell}>{s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "—"}</td>
+                <td className={cell}>
+                  <StatusChip status={s.status} />
+                </td>
+                <td className={`${cell} whitespace-nowrap`}>{s.submissionDate ? formatDate(s.submissionDate) : "—"}</td>
+                <td className={cell}>{s.billRate ? `${s.billRateCurrency} ${s.billRate}` : "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-black/50 dark:text-white/50">
+                <td colSpan={6} className={emptyCellClass}>
                   {submissions.length === 0 ? "No submissions yet." : "No submissions match your filters."}
                 </td>
               </tr>
