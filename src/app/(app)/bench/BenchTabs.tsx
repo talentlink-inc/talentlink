@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 // Mirrors GAS PageBenchSales.html's tab bar, in the same order.
 const TABS = [
@@ -15,11 +16,17 @@ const TABS = [
 
 export function BenchTabs() {
   const pathname = usePathname();
+  const navRef = useRef<HTMLElement>(null);
+  // Keep the current tab visible when the bar is scrolled on a phone.
+  useEffect(() => {
+    navRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [pathname]);
   return (
     // On phones the tabs scroll sideways; the fade on the right edge hints
     // that there are more of them.
     <div className="relative -mr-5">
       <nav
+        ref={navRef}
         aria-label="Bench Sales sections"
         className="-mb-px flex gap-1 overflow-x-auto pr-8 [scrollbar-width:none] md:pr-5 [&::-webkit-scrollbar]:hidden"
       >
