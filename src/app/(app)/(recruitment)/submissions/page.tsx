@@ -4,7 +4,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageRecruitment, canManageUsers } from "@/lib/users";
 import { SubmissionsTable } from "./SubmissionsTable";
-import { REQUIREMENT_SUMMARY_SELECT, redactCandidateContact, serializeSubmission } from "./types";
+import { REQUIREMENT_SUMMARY_SELECT, RESUME_SUMMARY_SELECT, redactCandidateContact, serializeSubmission } from "./types";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export default async function SubmissionsPage() {
   const [submissions, requirements] = await Promise.all([
     db.submission.findMany({
       where: { tenantId: tenant.id, deletedAt: null },
-      include: { candidate: true, requirement: { select: REQUIREMENT_SUMMARY_SELECT }, resume: true },
+      include: { candidate: true, requirement: { select: REQUIREMENT_SUMMARY_SELECT }, resume: { select: RESUME_SUMMARY_SELECT } },
       orderBy: { submissionDate: "desc" },
       take: MAX_LIST_ROWS,
     }),

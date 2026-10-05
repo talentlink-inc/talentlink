@@ -11,6 +11,26 @@ import { extractSubdomain, hasRootDomainConfigured } from "@/lib/subdomain";
 //
 // Resolves the tenant from the request's Host header, then refreshes the
 // Supabase session cookie and gates /(app) routes behind auth + 2FA.
+//
+// Performance: this runs on EVERY request (pages, RSC navigations, prefetches),
+// and users reach the US servers from India, so it must not make network
+// calls on the hot path. The tenant lookup is cached per server instance and
+// the session is verified locally from its signed JWT (getClaims) instead of
+// a round trip to Supabase Auth (getUser). Deactivated users are still cut off
+// on the very next request by getCurrentUser()'s users-table check.
+const TENANT_CACHE_MS = 60_000;
+const tenantCache = new Map<string, { value: { id: string; status: string } | null; expires: number }>();
+
+async function resolveTenant(subdomain: string) {
+  const hit = tenantCache.get(subdomain);
+  if (hit && hit.expires > Date.now()) return hit.value;
+  const value = await prisma.tenant.findUnique({ where: { subdomain }, select: { id: true, status: true } });
+  // Unknown subdomains are cached too (briefly), so junk hosts can't make
+  // every request hit the database.
+  tenantCache.set(subdomain, { value, expires: Date.now() + TENANT_CACHE_MS });
+  return value;
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
@@ -49,10 +69,7 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    const tenant = await prisma.tenant.findUnique({
-      where: { subdomain: tenantSubdomain },
-      select: { id: true, status: true },
-    });
+    const tenant = await resolveTenant(tenantSubdomain);
 
     if (!tenant) {
       const url = request.nextUrl.clone();
@@ -96,9 +113,11 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Verifies the access token's signature locally (refreshing it first if it
+  // has expired); only falls back to a network call if the project uses a
+  // symmetric JWT secret.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims ?? null;
 
   const isAuthRoute = pathname.startsWith("/login");
   const isPublicRoute =

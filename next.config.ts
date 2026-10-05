@@ -25,6 +25,14 @@ const nextConfig: NextConfig = {
   env: {
     APP_VERSION: computeVersion(),
   },
+  experimental: {
+    // Client-side reuse of pages already loaded (seconds). Going back to a tab
+    // within this window is instant instead of another India→US round trip.
+    // Saves call revalidatePath, which clears this immediately, so people
+    // always see their own changes; others' changes show within the window.
+    // `static` also covers pages prefetched in full on hover (IntentLink).
+    staleTimes: { dynamic: 30, static: 60 },
+  },
 };
 
 export default nextConfig;

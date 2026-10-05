@@ -7,6 +7,7 @@ import {
   deleteRequirement,
   parseJobDescriptionWithAI,
   getAccountManagerSuggestions,
+  getRequirementJobDescription,
 } from "./actions";
 import {
   REQUIREMENT_STATUSES,
@@ -64,6 +65,13 @@ export function RequirementModal({
 
   const seed = requirement ?? cloneFrom ?? null;
 
+  // The list leaves job descriptions out (payload size); fetch this one now.
+  // Until it arrives the view shows a placeholder and Save stays disabled,
+  // so an edit can never post an empty description over the real one.
+  const jdMissing = !!seed && seed.jobDescription === undefined;
+  const [loadedJd, setLoadedJd] = useState<string | null | undefined>(jdMissing ? undefined : (seed?.jobDescription ?? null));
+  const jdReady = loadedJd !== undefined;
+
   // Every field here is controlled (rather than defaultValue) so a failed
   // save — a validation error is just as likely as a duplicate-ID error —
   // doesn't wipe what the user typed. React clears uncontrolled fields after
@@ -91,6 +99,23 @@ export function RequirementModal({
   function set<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((v) => ({ ...v, [key]: value }));
   }
+
+  // Fetch the job description; it lands in the view and the form state in the
+  // same update, so the editor is seeded with it however the panel opened.
+  const seedId = seed?.id;
+  useEffect(() => {
+    if (!jdMissing || !seedId) return;
+    let live = true;
+    const apply = (jd: string | null) => {
+      if (!live) return;
+      setLoadedJd(jd);
+      setValues((v) => ({ ...v, jobDescription: jd ?? "" }));
+    };
+    getRequirementJobDescription(seedId).then(apply, () => apply(null));
+    return () => {
+      live = false;
+    };
+  }, [jdMissing, seedId]);
 
   const [questions, setQuestions] = useState<ScreeningQuestion[]>(screeningQuestionsOf(seed));
 
@@ -133,10 +158,13 @@ export function RequirementModal({
   // input and for anything that needs to *set* the editor's content
   // programmatically (AI parse, clone-seeding on mount).
   const jdEditorRef = useRef<HTMLDivElement>(null);
+  // Seed the editor whenever it appears (opening in edit/create mode, or
+  // View → Edit). It used to be seeded only when the panel first opened, so
+  // View → Edit showed an empty editor.
   useEffect(() => {
-    if (jdEditorRef.current) jdEditorRef.current.innerHTML = values.jobDescription;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (isForm && jdReady && jdEditorRef.current) jdEditorRef.current.innerHTML = values.jobDescription;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the editor (re)appears, never while typing
+  }, [isForm, jdReady]);
   function exec(command: string) {
     jdEditorRef.current?.focus();
     document.execCommand(command);
@@ -219,7 +247,7 @@ export function RequirementModal({
                 label: "Details",
                 content: (
                   <ViewRequirement
-                    requirement={requirement}
+                    requirement={{ ...requirement, jobDescription: loadedJd }}
                     canEdit={canEdit}
                     onEdit={() => setMode("edit")}
                     onClone={onClone ? () => onClone(requirement) : undefined}
@@ -454,10 +482,16 @@ export function RequirementModal({
             </div>
             <div
               ref={jdEditorRef}
-              contentEditable
+              contentEditable={jdReady}
+              aria-busy={!jdReady}
+              data-placeholder={jdReady ? undefined : "Loading job description…"}
               suppressContentEditableWarning
               onInput={(e) => set("jobDescription", e.currentTarget.innerHTML)}
-              className={inputClass + " min-h-[120px] rounded-t-none"}
+              className={
+                inputClass +
+                " min-h-[120px] rounded-t-none" +
+                (jdReady ? "" : " tl-skeleton before:text-sm before:text-black/40 before:content-[attr(data-placeholder)]")
+              }
             />
             <input type="hidden" name="jobDescription" value={values.jobDescription} required />
           </div>
@@ -478,7 +512,7 @@ export function RequirementModal({
             >
               Cancel
             </button>
-            <button type="submit" disabled={pending} className={buttonClass("primary")}>
+            <button type="submit" disabled={pending || !jdReady} className={buttonClass("primary")}>
               {pending ? "Saving…" : "Save"}
             </button>
           </div>
@@ -724,7 +758,13 @@ function ViewRequirement({
         {row("Mandatory skills", requirement.mandatorySkills)}
         {row(
           "Job description",
-          requirement.jobDescription && (
+          requirement.jobDescription === undefined ? (
+            <span className="block space-y-2" aria-label="Loading job description">
+              <span className="tl-skeleton block h-3.5 w-full" />
+              <span className="tl-skeleton block h-3.5 w-11/12" />
+              <span className="tl-skeleton block h-3.5 w-4/5" />
+            </span>
+          ) : requirement.jobDescription && (
             <div
               className="prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
               dangerouslySetInnerHTML={{ __html: requirement.jobDescription }}

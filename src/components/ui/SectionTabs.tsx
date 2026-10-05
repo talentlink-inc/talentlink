@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/ui/IntentLink";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";

@@ -4,7 +4,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageRecruitment } from "@/lib/users";
 import { PlacementsTable } from "./PlacementsTable";
-import { REQUIREMENT_SUMMARY_SELECT, redactCandidateContact, serializeSubmission } from "../submissions/types";
+import { REQUIREMENT_SUMMARY_SELECT, RESUME_SUMMARY_SELECT, redactCandidateContact, serializeSubmission } from "../submissions/types";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export default async function PlacementsPage() {
       deletedAt: null,
       placementId: { not: null },
     },
-    include: { candidate: true, requirement: { select: REQUIREMENT_SUMMARY_SELECT }, resume: true },
+    include: { candidate: true, requirement: { select: REQUIREMENT_SUMMARY_SELECT }, resume: { select: RESUME_SUMMARY_SELECT } },
     orderBy: { selectedDate: "desc" },
     take: MAX_LIST_ROWS,
   });

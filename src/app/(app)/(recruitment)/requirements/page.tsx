@@ -15,6 +15,8 @@ export default async function RequirementsPage() {
   const db = await getTenantDb();
   const requirements = await db.requirement.findMany({
     where: { tenantId: tenant.id, deletedAt: null },
+    // Loaded per requirement when its panel opens (getRequirementJobDescription).
+    omit: { jobDescription: true },
     orderBy: { createdAt: "desc" },
     take: MAX_LIST_ROWS,
   });

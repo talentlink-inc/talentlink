@@ -11,11 +11,13 @@ import { hasRootDomainConfigured } from "@/lib/subdomain";
 // `users` row (role, name, tenant) is a separate lookup by authUserId.
 export const getCurrentUser = cache(async () => {
   const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  // getClaims verifies the session JWT locally (proxy.ts has already
+  // refreshed it), avoiding a second Supabase Auth round trip per request.
+  // The tenant lookup doesn't depend on the user, so it runs alongside.
+  const [{ data: claimsData }, tenant] = await Promise.all([supabase.auth.getClaims(), getCurrentTenant()]);
+  const authUserId = claimsData?.claims?.sub;
 
-  if (!authUser) {
+  if (!authUserId) {
     throw new Error("No authenticated session — this should be unreachable past proxy.ts.");
   }
 
@@ -24,11 +26,9 @@ export const getCurrentUser = cache(async () => {
   // below — so the `users` RLS policy can't be scoped to a tenant here yet.
   // getAuthBypassDb() is the one sanctioned exception to that policy.
   const bypassDb = await getAuthBypassDb();
-  const user = await bypassDb.user.findUnique({ where: { authUserId: authUser.id } });
+  const user = await bypassDb.user.findUnique({ where: { authUserId } });
   if (!user) {
-    throw new Error(
-      `Authenticated as ${authUser.email} but no matching users row (authUserId=${authUser.id}).`
-    );
+    throw new Error(`Authenticated session has no matching users row (authUserId=${authUserId}).`);
   }
 
   // An Admin deactivating a user (User Management) should actually end their
@@ -45,7 +45,6 @@ export const getCurrentUser = cache(async () => {
   // one workspace's subdomain and then navigates to another's. Trusting the
   // subdomain alone there would leak this user into a tenant they don't
   // belong to, so cross-check here before any tenant-scoped query runs.
-  const tenant = await getCurrentTenant();
   if (user.tenantId !== tenant.id) {
     await supabase.auth.signOut();
     if (hasRootDomainConfigured()) {
