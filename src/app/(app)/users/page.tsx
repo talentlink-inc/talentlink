@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function UsersPage() {
   const currentUser = await getCurrentUser();
   if (!canViewUsers(currentUser.role)) {
-    redirect("/requirements");
+    redirect("/insights");
   }
 
   const tenant = await getCurrentTenant();

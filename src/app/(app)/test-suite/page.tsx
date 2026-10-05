@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TestSuitePage() {
   const currentUser = await getCurrentUser();
-  if (!canManageUsers(currentUser.role)) redirect("/requirements");
+  if (!canManageUsers(currentUser.role)) redirect("/insights");
 
   const [testCases, ciSnapshots, recentRuns] = await Promise.all([
     listTestCases(),

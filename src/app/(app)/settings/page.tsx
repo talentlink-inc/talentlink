@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const currentUser = await getCurrentUser();
-  if (!canManageUsers(currentUser.role)) redirect("/requirements");
+  if (!canManageUsers(currentUser.role)) redirect("/insights");
 
   const settings = await getTenantSettings();
 

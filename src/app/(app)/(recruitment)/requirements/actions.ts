@@ -230,6 +230,7 @@ export async function parseJobDescriptionWithAI(jdText: string): Promise<ParsedJ
 // Distinct Account Manager names already on file, for the autocomplete —
 // mirrors the original's getCPOCList.
 export async function getAccountManagerSuggestions(): Promise<string[]> {
+  await getCurrentUser(); // signed-in, active, right workspace
   const tenant = await getCurrentTenant();
   const db = await getTenantDb();
   const rows = await db.requirement.findMany({

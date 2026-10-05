@@ -62,7 +62,16 @@ function validateDefinitionForKind(kind: string, definition: unknown): string | 
   return `Unknown test kind "${kind}".`;
 }
 
+// Read actions are Admin-only too: the page is, and test definitions can hold
+// endpoints and request headers. Without these checks any signed-in user
+// could call them directly.
+async function assertAdmin() {
+  const user = await getCurrentUser();
+  if (!canManageUsers(user.role)) throw new Error(PERMISSION_ERROR);
+}
+
 export async function listTestCases() {
+  await assertAdmin();
   const db = await getTenantDb();
   return db.testCase.findMany({ orderBy: [{ category: "asc" }, { createdAt: "asc" }] });
 }
@@ -71,6 +80,7 @@ export async function listTestCases() {
 // any tenant's data — read via the plain client, not getTenantDb(). See
 // the CiSuiteSnapshot model comment in schema.prisma.
 export async function getCiSnapshots() {
+  await assertAdmin();
   return prisma.ciSuiteSnapshot.findMany();
 }
 
@@ -205,6 +215,8 @@ export async function runTestCases(ids: string[], scope: string): Promise<RunSum
 }
 
 export async function runCategory(category: string): Promise<RunSummary> {
+  const user = await getCurrentUser();
+  if (!canManageUsers(user.role)) return { error: PERMISSION_ERROR, passCount: 0, failCount: 0, results: [] };
   const db = await getTenantDb();
   const testCases = await db.testCase.findMany({ where: { category, isActive: true }, select: { id: true } });
   return runTestCases(
@@ -214,6 +226,8 @@ export async function runCategory(category: string): Promise<RunSummary> {
 }
 
 export async function runAllCustomTestCases(): Promise<RunSummary> {
+  const user = await getCurrentUser();
+  if (!canManageUsers(user.role)) return { error: PERMISSION_ERROR, passCount: 0, failCount: 0, results: [] };
   const db = await getTenantDb();
   const testCases = await db.testCase.findMany({ where: { isActive: true }, select: { id: true } });
   return runTestCases(
@@ -223,8 +237,10 @@ export async function runAllCustomTestCases(): Promise<RunSummary> {
 }
 
 export async function listRunBatches(limit = 10) {
+  await assertAdmin();
   const db = await getTenantDb();
-  return db.testRunBatch.findMany({ orderBy: { startedAt: "desc" }, take: limit });
+  const take = Math.min(Math.max(Math.trunc(Number(limit)) || 10, 1), 50);
+  return db.testRunBatch.findMany({ orderBy: { startedAt: "desc" }, take });
 }
 
 export type CiDispatchState = { error: string | null; message: string | null };

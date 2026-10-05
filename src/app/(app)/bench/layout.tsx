@@ -8,7 +8,7 @@ import { BenchTabs } from "./BenchTabs";
 // enforced here for every /bench page, not just by hiding the menu item.
 export default async function BenchLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
-  if (!canAccessBench(user.role)) redirect("/requirements");
+  if (!canAccessBench(user.role)) redirect("/insights");
 
   return (
     <div>

@@ -104,6 +104,8 @@ export function createFakeDb() {
     requirement: model("requirement", []),
     submission: model("submission", []),
     interview: model("interview", []),
+    testCase: model("testCase", []),
+    testRunBatch: model("testRunBatch", []),
     candidate: {
       ...model("candidate", []),
       // Prisma upsert on the (tenantId, identityHash) compound key.

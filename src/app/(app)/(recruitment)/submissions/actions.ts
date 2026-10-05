@@ -477,6 +477,7 @@ export async function deleteSubmission(id: string) {
 // Recruiters an Admin can reassign a submission to — mirrors the original's
 // Recruiter Name dropdown source list.
 export async function getRecruiterOptions(): Promise<{ id: string; name: string }[]> {
+  await getCurrentUser(); // signed-in, active, right workspace
   const tenant = await getCurrentTenant();
   const db = await getTenantDb();
   const users = await db.user.findMany({

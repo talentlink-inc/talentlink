@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 // its own cross-tenant authUserId lookup — see src/lib/tenantDb.ts.
 export default async function OpsPage() {
   if (!(await isPlatformAdmin())) {
-    redirect("/requirements");
+    redirect("/insights");
   }
 
   const [tenants, userCounts] = await Promise.all([
