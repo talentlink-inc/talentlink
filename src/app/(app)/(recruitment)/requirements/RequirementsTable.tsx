@@ -4,7 +4,9 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
 import { RequirementModal } from "./RequirementModal";
-import { updateRequirementPriority } from "./actions";
+import { getRequirementDetail, updateRequirementPriority } from "./actions";
+import { RequirementPanelLoader } from "./RequirementPanelLoader";
+import { useDetailLoader } from "@/components/ui/useDetailLoader";
 import { REQUIREMENT_STATUSES, REQUIREMENT_EMPLOYMENT_TYPES, parseEmploymentTypes } from "@/lib/recruitment";
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
@@ -15,22 +17,23 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { buttonClass } from "@/components/ui/button";
 import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
 import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
-import type { SerializedRequirement } from "./types";
+import type { RequirementListRow } from "./types";
 
 export function RequirementsTable({
   requirements,
   currentUserId,
   canEdit,
 }: {
-  requirements: SerializedRequirement[];
+  requirements: RequirementListRow[];
   currentUserId: string;
   canEdit: boolean;
 }) {
-  const [modal, setModal] = useState<{
-    mode: "create" | "view" | "edit";
-    requirement: SerializedRequirement | null;
-    cloneFrom?: SerializedRequirement | null;
-  } | null>(null);
+  // Slim rows here; the full requirement is fetched by id when it's opened or
+  // cloned (prefetched on row hover).
+  const [modal, setModal] = useState<
+    { kind: "new" } | { kind: "view"; id: string } | { kind: "clone"; id: string } | null
+  >(null);
+  const detail = useDetailLoader(getRequirementDetail, requirements);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [empTypeFilter, setEmpTypeFilter] = useState("");
@@ -43,12 +46,13 @@ export function RequirementsTable({
 
   // Row click opens the record (design review) and also selects the row, so
   // the Clone button keeps working as in GAS.
-  const open = (r: SerializedRequirement) => {
+  const open = (r: RequirementListRow) => {
     setSelectedId(r.id);
-    setModal({ mode: "view", requirement: r });
+    setModal({ kind: "view", id: r.id });
   };
+  const warm = (r: RequirementListRow) => () => void detail.prefetch(r.id);
 
-  function handleStarClick(r: SerializedRequirement, n: number) {
+  function handleStarClick(r: RequirementListRow, n: number) {
     const current = priorityOverrides[r.id] ?? r.priority;
     const next = n === current ? 0 : n;
     setPriorityOverrides((prev) => ({ ...prev, [r.id]: next }));
@@ -59,12 +63,12 @@ export function RequirementsTable({
   }
 
   useOpenParam((id) => {
-    const found = requirements.find((r) => r.id === id);
-    if (found) open(found);
+    setSelectedId(id);
+    setModal({ kind: "view", id });
   });
 
   usePageShortcuts({
-    onNew: canEdit ? () => setModal({ mode: "create", requirement: null }) : undefined,
+    onNew: canEdit ? () => setModal({ kind: "new" }) : undefined,
     onFocusSearch: () => searchInputRef.current?.focus(),
     onClearSearch: () => setSearch(""),
   });
@@ -139,7 +143,8 @@ export function RequirementsTable({
           {canEdit && selectedRequirement && (
             <button
               type="button"
-              onClick={() => setModal({ mode: "create", requirement: null, cloneFrom: selectedRequirement })}
+              onClick={() => setModal({ kind: "clone", id: selectedRequirement.id })}
+              onMouseEnter={() => void detail.prefetch(selectedRequirement.id)}
               title="Clone selected requirement"
               className={buttonClass("secondary")}
             >
@@ -149,7 +154,7 @@ export function RequirementsTable({
           {canEdit && (
             <button
               type="button"
-              onClick={() => setModal({ mode: "create", requirement: null })}
+              onClick={() => setModal({ kind: "new" })}
               className={buttonClass("primary")}
             >
               + New requirement
@@ -164,6 +169,8 @@ export function RequirementsTable({
             <button
               type="button"
               onClick={() => open(r)}
+              onTouchStart={warm(r)}
+              onFocus={warm(r)}
               className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(r.id === selectedId)}`}
             >
               <div className="flex items-start justify-between gap-2">
@@ -203,6 +210,7 @@ export function RequirementsTable({
               <tr
                 key={r.id}
                 onClick={() => open(r)}
+                onMouseEnter={warm(r)}
                 className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(r.id === selectedId)}`}
               >
                 <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>{r.jobId}</td>
@@ -247,16 +255,20 @@ export function RequirementsTable({
       </div>
       <PaginationControls page={page} totalPages={totalPages} start={start} end={end} total={total} onPageChange={setPage} />
 
-      {modal && (
-        <RequirementModal
-          key={`${modal.mode}-${modal.requirement?.id ?? "new"}-${modal.cloneFrom?.id ?? "none"}`}
-          mode={modal.mode}
-          requirement={modal.requirement}
-          cloneFrom={modal.cloneFrom}
+      {modal?.kind === "new" && (
+        <RequirementModal key="new" mode="create" requirement={null} currentUserId={currentUserId} canEdit={canEdit} onClose={() => setModal(null)} />
+      )}
+      {(modal?.kind === "view" || modal?.kind === "clone") && (
+        <RequirementPanelLoader
+          key={`${modal.kind}-${modal.id}`}
+          id={modal.id}
+          purpose={modal.kind}
+          row={requirements.find((r) => r.id === modal.id)}
+          load={detail.load}
           currentUserId={currentUserId}
           canEdit={canEdit}
           onClose={() => setModal(null)}
-          onClone={(source) => setModal({ mode: "create", requirement: null, cloneFrom: source })}
+          onClone={(source) => setModal({ kind: "clone", id: source.id })}
         />
       )}
     </div>

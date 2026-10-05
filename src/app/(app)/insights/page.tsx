@@ -5,7 +5,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { inRange, nowWindows, pipelineNow } from "@/lib/insights";
 import { statusLabel } from "@/lib/statusLabels";
 import { StatusChip } from "@/components/ui/StatusChip";
-import { loadBenchRows, loadRecruitmentRows } from "./data";
+import { loadOverviewData } from "./data";
 import { BarList, Kpi, KpiGrid, Panel, TwoCol } from "./ui";
 
 export const dynamic = "force-dynamic";
@@ -15,22 +15,16 @@ export const dynamic = "force-dynamic";
 export default async function InsightsOverviewPage() {
   const user = await getCurrentUser();
   const benchOk = canAccessBench(user.role);
-  const [rec, bench] = await Promise.all([loadRecruitmentRows(), benchOk ? loadBenchRows() : null]);
   const now = new Date();
   const { today, week, month } = nowWindows(now);
+  const d = await loadOverviewData({ includeBench: benchOk, today, week, month, now });
+  const bench = d.bench;
   const in7Days = new Date(now.getTime() + 7 * 86_400_000);
-  const live = (s: string) => s !== "Cancelled";
 
-  const openReqs = rec.requirements.filter((r) => r.status === "Open");
-  const highPriority = openReqs.filter((r) => r.priority >= 4).length;
-
-  const subsIn = (w: { start: Date; end: Date }) => rec.submissions.filter((s) => inRange(s.submissionDate, w.start, w.end)).length;
-  const benchSubsIn = (w: { start: Date; end: Date }) =>
-    bench ? bench.submissions.filter((s) => inRange(s.submissionDate, w.start, w.end)).length : 0;
-
-  // Interviews from both modules (bench only for roles that can see it).
+  // Interviews from both modules (bench only for roles that can see it);
+  // cancelled ones are already excluded by the query.
   const interviews = [
-    ...rec.interviews.map((i) => ({
+    ...d.interviews.map((i) => ({
       id: i.id,
       module: "Recruitment" as const,
       href: `/interviews?open=${i.id}`,
@@ -39,7 +33,6 @@ export default async function InsightsOverviewPage() {
       client: i.clientCompany,
       at: i.scheduledAt,
       tz: i.timezone,
-      status: i.status,
     })),
     ...(bench?.interviews ?? []).map((i) => ({
       id: i.id,
@@ -50,17 +43,14 @@ export default async function InsightsOverviewPage() {
       client: i.clientCompany ?? i.submission.companyName,
       at: i.scheduledAt,
       tz: i.timezone,
-      status: i.status,
     })),
   ];
-  const intIn = (w: { start: Date; end: Date }) => interviews.filter((i) => live(i.status) && inRange(i.at, w.start, w.end)).length;
-  const upcoming = interviews
-    .filter((i) => live(i.status) && i.at && i.at >= now)
-    .sort((a, b) => a.at!.getTime() - b.at!.getTime());
+  const intIn = (w: { start: Date; end: Date }) => interviews.filter((i) => inRange(i.at, w.start, w.end)).length;
+  const upcoming = interviews.filter((i) => i.at && i.at >= now).sort((a, b) => a.at!.getTime() - b.at!.getTime());
   const nextWeek = upcoming.filter((i) => i.at! < in7Days);
 
   const recent = [
-    ...rec.submissions.map((s) => ({
+    ...d.recentSubs.map((s) => ({
       id: s.id,
       code: s.submissionId,
       href: `/submissions?open=${s.id}`,
@@ -70,7 +60,7 @@ export default async function InsightsOverviewPage() {
       at: s.createdAt,
       date: s.submissionDate,
     })),
-    ...(bench?.submissions ?? []).map((s) => ({
+    ...(bench?.recentSubs ?? []).map((s) => ({
       id: s.id,
       code: s.submissionCode,
       href: `/bench/submissions?open=${s.id}`,
@@ -86,19 +76,19 @@ export default async function InsightsOverviewPage() {
     .sort((a, b) => (b.date ?? b.at).getTime() - (a.date ?? a.at).getTime() || b.at.getTime() - a.at.getTime())
     .slice(0, 8);
 
-  const available = bench?.consultants.filter((c) => c.status === "Available").length ?? 0;
-  const marketing = bench?.consultants.filter((c) => c.status === "Marketing").length ?? 0;
-  const hotlistActive = bench?.consultants.filter((c) => c.onHotlist && (c.hotlistStatus ?? "Active") === "Active").length ?? 0;
-  const placementsThisMonth = rec.submissions.filter((s) => s.placementId && inRange(s.selectedDate, month.start, month.end)).length;
+  const consultants = bench?.consultants ?? [];
+  const available = consultants.filter((c) => c.status === "Available").length;
+  const marketing = consultants.filter((c) => c.status === "Marketing").length;
+  const hotlistActive = consultants.filter((c) => c.onHotlist && (c.hotlistStatus ?? "Active") === "Active").length;
 
   return (
     <div>
       <KpiGrid>
-        <Kpi label="Open requirements" value={openReqs.length} detail={`${highPriority} at priority 4–5`} href="/requirements" />
+        <Kpi label="Open requirements" value={d.openReqs} detail={`${d.highPriority} at priority 4–5`} href="/requirements" />
         <Kpi
           label="Submissions this week"
-          value={subsIn(week)}
-          detail={`${subsIn(today)} today · ${subsIn(month)} this month`}
+          value={d.subsWeek}
+          detail={`${d.subsToday} today · ${d.subsMonth} this month`}
           href="/submissions"
         />
         <Kpi
@@ -111,11 +101,11 @@ export default async function InsightsOverviewPage() {
           <Kpi
             label="Bench available"
             value={available}
-            detail={`${marketing} marketing · ${hotlistActive} on hotlist · ${benchSubsIn(week)} subs this week`}
+            detail={`${marketing} marketing · ${hotlistActive} on hotlist · ${bench.subsWeek} subs this week`}
             href="/bench/consultants"
           />
         ) : (
-          <Kpi label="Placements this month" value={placementsThisMonth} detail="Selected candidates" href="/placements" />
+          <Kpi label="Placements this month" value={d.placementsMonth} detail="Selected candidates" href="/placements" />
         )}
       </KpiGrid>
 
@@ -154,11 +144,11 @@ export default async function InsightsOverviewPage() {
           )}
         </Panel>
         <Panel title="Recruitment pipeline now" note="Active submissions by stage (rejected, on hold and started are left out)">
-          <BarList items={pipelineNow(rec.submissions)} empty="No active submissions." />
+          <BarList items={pipelineNow(d.subStatuses)} empty="No active submissions." />
           {bench && (
             <div className="mt-5 border-t border-black/5 pt-4 dark:border-white/10">
               <h3 className="mb-3 text-sm font-semibold">Bench pipeline now</h3>
-              <BarList items={pipelineNow(bench.submissions)} empty="No active bench submissions." />
+              <BarList items={pipelineNow(bench.subStatuses)} empty="No active bench submissions." />
             </div>
           )}
         </Panel>

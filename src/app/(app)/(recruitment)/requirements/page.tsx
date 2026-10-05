@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { canManageRecruitment } from "@/lib/users";
 import { userCanSeeRegions } from "@/lib/regions";
 import { RequirementsTable } from "./RequirementsTable";
-import { serializeRequirement } from "./types";
+import { REQUIREMENT_LIST_SELECT, toRequirementListRow } from "./types";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +15,9 @@ export default async function RequirementsPage() {
   const db = await getTenantDb();
   const requirements = await db.requirement.findMany({
     where: { tenantId: tenant.id, deletedAt: null },
-    // Loaded per requirement when its panel opens (getRequirementJobDescription).
-    omit: { jobDescription: true },
+    // Slim rows; the full requirement loads when opened (getRequirementDetail).
+    // country is only for the region check below — not sent to the browser.
+    select: { ...REQUIREMENT_LIST_SELECT, country: true },
     orderBy: { createdAt: "desc" },
     take: MAX_LIST_ROWS,
   });
@@ -27,7 +28,8 @@ export default async function RequirementsPage() {
 
   return (
     <RequirementsTable
-      requirements={visible.map(serializeRequirement)}
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      requirements={visible.map(({ country, ...r }) => toRequirementListRow(r))}
       currentUserId={currentUser.id}
       canEdit={canManageRecruitment(currentUser.role)}
     />

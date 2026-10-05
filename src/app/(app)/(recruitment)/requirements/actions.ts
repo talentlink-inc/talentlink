@@ -11,25 +11,22 @@ import { canManageRecruitment } from "@/lib/users";
 import { callAiForJson, AiNotConfiguredError } from "@/lib/ai";
 import { requirementSchema, screeningQuestionSchema } from "@/lib/schemas/requirement";
 import { sanitizeRichText } from "@/lib/sanitizeRichText";
+import { serializeRequirement, type SerializedRequirement } from "./types";
 
 const PERMISSION_ERROR = "Your role only has view access to Requirements.";
 
 /**
- * A requirement's job description, loaded when its panel opens. The list page
- * leaves job descriptions out — they were most of its payload (~550 KB of
- * HTML for ~300 rows), each sanitized on every page load. Same visibility
- * rules as the list: tenant-scoped and region-restricted.
+ * One requirement in full (job description included), loaded when it's
+ * opened or cloned — the list sends slim rows. Same visibility rules as the
+ * list: tenant-scoped and region-restricted.
  */
-export async function getRequirementJobDescription(id: string): Promise<string | null> {
+export async function getRequirementDetail(id: string): Promise<SerializedRequirement | null> {
   const user = await getCurrentUser();
   const tenant = await getCurrentTenant();
   const db = await getTenantDb();
-  const r = await db.requirement.findFirst({
-    where: { id, tenantId: tenant.id, deletedAt: null },
-    select: { jobDescription: true, country: true },
-  });
+  const r = await db.requirement.findFirst({ where: { id, tenantId: tenant.id, deletedAt: null } });
   if (!r || !userCanSeeRegions(user.regions, r.country)) return null;
-  return r.jobDescription ? sanitizeRichText(r.jobDescription) : null;
+  return serializeRequirement(r);
 }
 
 function parseScreeningQuestions(raw: FormDataEntryValue | null) {
