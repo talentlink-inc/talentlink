@@ -117,6 +117,13 @@ describe("[unit] breakdowns", () => {
     ]);
   });
 
+  it("countBy treats spreadsheet placeholders (N/A, -, TBD) as not set", () => {
+    expect(countBy([{ v: "N/A" }, { v: "na" }, { v: "-" }, { v: "TBD" }, { v: "H1B" }], (r) => r.v)).toEqual([
+      { label: "Not set", count: 4 },
+      { label: "H1B", count: 1 },
+    ]);
+  });
+
   it("topSkills counts each consultant once per skill, case-insensitively", () => {
     expect(topSkills(["Java, Spring, java", "JAVA; AWS", "AWS/Azure"])).toEqual([
       { label: "AWS", count: 2 }, // ties sort alphabetically

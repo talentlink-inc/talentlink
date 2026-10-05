@@ -264,12 +264,15 @@ export function pipelineNow(rows: { status: string }[]) {
 
 export type Count = { label: string; count: number };
 
-/** Group and count, biggest first; blanks become `blankLabel`. */
+// Placeholder text imported from spreadsheets ("N/A", "-", …) means "not set".
+const PLACEHOLDER = /^(n\/?a|na|none|nil|null|-+|\.+|\?+|tbd)$/i;
+
+/** Group and count, biggest first; blanks and placeholders become `blankLabel`. */
 export function countBy<T>(rows: T[], key: (r: T) => string | null | undefined, blankLabel = "Not set"): Count[] {
   const map = new Map<string, number>();
   for (const r of rows) {
     const raw = key(r)?.toString().trim();
-    const label = raw ? raw : blankLabel;
+    const label = raw && !PLACEHOLDER.test(raw) ? raw : blankLabel;
     map.set(label, (map.get(label) ?? 0) + 1);
   }
   return [...map.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));

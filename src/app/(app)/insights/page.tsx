@@ -81,7 +81,9 @@ export default async function InsightsOverviewPage() {
       date: s.submissionDate,
     })),
   ]
-    .sort((a, b) => b.at.getTime() - a.at.getTime())
+    // By submission date (the business date); imported rows' createdAt is the
+    // import time, which would float a whole migrated batch to the top.
+    .sort((a, b) => (b.date ?? b.at).getTime() - (a.date ?? a.at).getTime() || b.at.getTime() - a.at.getTime())
     .slice(0, 8);
 
   const available = bench?.consultants.filter((c) => c.status === "Available").length ?? 0;
@@ -162,7 +164,7 @@ export default async function InsightsOverviewPage() {
         </Panel>
       </TwoCol>
 
-      <Panel title="Recent activity" note="Latest submissions added">
+      <Panel title="Recent activity" note="Latest submissions, recruitment and bench">
         {recent.length === 0 ? (
           <p className="py-4 text-center text-sm text-black/45">No submissions yet.</p>
         ) : (
