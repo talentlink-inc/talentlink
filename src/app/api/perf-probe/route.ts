@@ -1,11 +1,12 @@
 // TEMPORARY (performance audit, 2026-10-04): times each per-request step from
-// inside Vercel. Platform-admin only; removed after the audit.
+// inside Vercel. Admin only; removed after the audit.
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getTenantDbFor } from "@/lib/tenantDb";
-import { isPlatformAdmin } from "@/lib/platformAdmin";
+import { getCurrentUser } from "@/lib/auth";
+import { canManageUsers } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ async function time<T>(fn: () => Promise<T>) {
 }
 
 export async function GET() {
-  if (!(await isPlatformAdmin())) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!canManageUsers((await getCurrentUser()).role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const tenant = await getCurrentTenant();
   const supabase = await createClient();
   const db = getTenantDbFor(tenant.id);
