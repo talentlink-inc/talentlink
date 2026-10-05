@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { updatePlacement } from "./actions";
 import { SUBMISSION_STATUSES, REJECT_REASON_OPTIONS, isRejectedStatus } from "@/lib/recruitment";
-import { NotesSection } from "../notes/NotesSection";
+import { NotesSection } from "../../notes/NotesSection";
 import { formatDate } from "@/lib/format";
 import { RecordPanel, panelFooterClass } from "@/components/ui/RecordPanel";
 import { StatusChip } from "@/components/ui/StatusChip";

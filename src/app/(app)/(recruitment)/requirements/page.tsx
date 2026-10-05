@@ -6,7 +6,6 @@ import { canManageRecruitment } from "@/lib/users";
 import { userCanSeeRegions } from "@/lib/regions";
 import { RequirementsTable } from "./RequirementsTable";
 import { serializeRequirement } from "./types";
-import { PageHeader } from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +24,10 @@ export default async function RequirementsPage() {
   const visible = requirements.filter((r) => userCanSeeRegions(currentUser.regions, r.country));
 
   return (
-    <>
-      <PageHeader title="Requirements" subtitle="Open positions from clients and vendors" />
-      <RequirementsTable
-        requirements={visible.map(serializeRequirement)}
-        currentUserId={currentUser.id}
-        canEdit={canManageRecruitment(currentUser.role)}
-      />
-    </>
+    <RequirementsTable
+      requirements={visible.map(serializeRequirement)}
+      currentUserId={currentUser.id}
+      canEdit={canManageRecruitment(currentUser.role)}
+    />
   );
 }

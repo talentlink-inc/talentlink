@@ -3,7 +3,7 @@
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { createInterview, updateInterview, deleteInterview } from "./actions";
 import { INTERVIEW_STATUSES, INTERVIEW_MODES, INTERVIEW_TYPES } from "@/lib/recruitment";
-import { NotesSection } from "../notes/NotesSection";
+import { NotesSection } from "../../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { formatDateTime } from "@/lib/format";
 import { isValidTimeZone, timeZoneOptions, utcToZonedLocal } from "@/lib/timezone";

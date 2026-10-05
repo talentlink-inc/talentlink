@@ -89,6 +89,12 @@ describe("[security] bench notes are hidden from roles without Bench Sales", () 
     expect(await addNote("bench_board", "board", null, form({ body: "team note" }))).toBeNull();
     expect(h.db.note.rows).toHaveLength(2);
   });
+
+  it.each(["Recruiter", "HR", "BenchSales"])("[module] %s can use the Recruitment team notes board", async (role) => {
+    h.user = makeUser(role);
+    expect(await addNote("recruitment_board", "board", null, form({ body: "team note" }))).toBeNull();
+    expect((await listNotes("recruitment_board", "board")).map((n) => n.body)).toContain("team note");
+  });
 });
 
 describe("[security] who may delete a note", () => {

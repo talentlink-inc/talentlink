@@ -19,7 +19,7 @@ import {
 } from "@/lib/recruitment";
 import { SUPPORTED_REGIONS, parseRegionsCsv, toggleRegion } from "@/lib/regions";
 import { SUPPORTED_CURRENCIES, defaultCurrencyForRegions } from "@/lib/currency";
-import { NotesSection } from "../notes/NotesSection";
+import { NotesSection } from "../../notes/NotesSection";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { RecordPanel, panelFooterClass } from "@/components/ui/RecordPanel";
 import { StatusChip } from "@/components/ui/StatusChip";

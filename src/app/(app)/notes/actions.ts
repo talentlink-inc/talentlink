@@ -14,7 +14,8 @@ export type NoteModule =
   | "bench_consultant"
   | "bench_submission"
   | "bench_interview"
-  | "bench_board"; // GAS Bench Sales "Notes" tab — team notes not tied to one record
+  | "bench_board" // GAS Bench Sales "Notes" tab — team notes not tied to one record
+  | "recruitment_board"; // GAS Recruitment "Notes" tab — same idea, open to every role
 
 // Bench Sales is hidden from Recruiters/HR entirely, so its notes have to be
 // too — the record ids alone aren't a secret worth relying on.

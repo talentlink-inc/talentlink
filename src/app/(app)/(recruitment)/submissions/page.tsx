@@ -5,7 +5,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { canManageRecruitment, canManageUsers } from "@/lib/users";
 import { SubmissionsTable } from "./SubmissionsTable";
 import { REQUIREMENT_SUMMARY_SELECT, redactCandidateContact, serializeSubmission } from "./types";
-import { PageHeader } from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -28,21 +27,18 @@ export default async function SubmissionsPage() {
   ]);
 
   return (
-    <>
-      <PageHeader title="Submissions" subtitle="Candidates submitted against requirements" />
-      <SubmissionsTable
-        submissions={submissions.map((s) => redactCandidateContact(serializeSubmission(s), currentUser))}
-        requirements={requirements}
-        currentUserId={currentUser.id}
-        canEdit={canManageRecruitment(currentUser.role)}
-        isAdmin={canManageUsers(currentUser.role)}
-        permissions={{
-          canViewResume: currentUser.canViewResume,
-          canDownloadResume: currentUser.canDownloadResume,
-          canViewPhone: currentUser.canViewPhone,
-          canViewEmail: currentUser.canViewEmail,
-        }}
-      />
-    </>
+    <SubmissionsTable
+      submissions={submissions.map((s) => redactCandidateContact(serializeSubmission(s), currentUser))}
+      requirements={requirements}
+      currentUserId={currentUser.id}
+      canEdit={canManageRecruitment(currentUser.role)}
+      isAdmin={canManageUsers(currentUser.role)}
+      permissions={{
+        canViewResume: currentUser.canViewResume,
+        canDownloadResume: currentUser.canDownloadResume,
+        canViewPhone: currentUser.canViewPhone,
+        canViewEmail: currentUser.canViewEmail,
+      }}
+    />
   );
 }

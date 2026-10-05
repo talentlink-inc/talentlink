@@ -5,9 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   FileText,
-  Users,
-  CalendarClock,
-  Briefcase,
   ShieldCheck,
   Building2,
   Rocket,
@@ -34,12 +31,9 @@ const SIDEBAR_GRID_SVG =
   "<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><path d='M 48 0 L 0 0 0 48' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1'/></svg>";
 const SIDEBAR_BACKGROUND = `url("data:image/svg+xml;utf8,${encodeURIComponent(SIDEBAR_GRID_SVG)}") repeat, #37474f`;
 
-const RECRUITMENT_NAV = [
-  { href: "/requirements", label: "Requirements", icon: FileText },
-  { href: "/submissions", label: "Submissions", icon: Users },
-  { href: "/interviews", label: "Interviews", icon: CalendarClock },
-  { href: "/placements", label: "Placements", icon: Briefcase },
-];
+// Recruitment is one section with tabs (like Bench Sales); the menu entry
+// stays highlighted on any of its tabs.
+const RECRUITMENT_PATHS = ["/requirements", "/submissions", "/interviews", "/placements", "/team-notes"];
 
 export function Sidebar({
   canManageUsers,
@@ -123,8 +117,8 @@ export function Sidebar({
     });
   }
 
-  const navItem = (href: string, label: string, Icon: typeof FileText) => {
-    const active = pathname?.startsWith(href);
+  const navItem = (href: string, label: string, Icon: typeof FileText, matches: string[] = [href]) => {
+    const active = matches.some((m) => pathname === m || pathname?.startsWith(`${m}/`));
     return (
       <li key={href}>
         <Link
@@ -203,12 +197,10 @@ export function Sidebar({
 
         {!collapsed && (
           <div className="px-2 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-white/40">
-            RECRUITMENT
+            HIRING
           </div>
         )}
-        <ul className="space-y-0.5">
-          {RECRUITMENT_NAV.map((item) => navItem(item.href, item.label, item.icon))}
-        </ul>
+        <ul className="space-y-0.5">{navItem("/requirements", "Recruitment", FileText, RECRUITMENT_PATHS)}</ul>
 
         {canAccessBench && (
           <>
