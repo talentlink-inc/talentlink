@@ -20,5 +20,5 @@ export async function setPassword(_prevState: string | null, formData: FormData)
     return error.message;
   }
 
-  redirect("/requirements");
+  redirect("/insights");
 }

@@ -101,7 +101,7 @@ export async function signIn(_prevState: string | null, formData: FormData) {
     redirect("/login/verify");
   }
 
-  redirect("/requirements");
+  redirect("/insights");
 }
 
 export async function signOut() {

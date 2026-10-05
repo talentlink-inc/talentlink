@@ -19,5 +19,5 @@ export async function verifyMfaLogin(_prevState: string | null, formData: FormDa
   const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
   if (error) return authErrorMessage(error);
 
-  redirect("/requirements");
+  redirect("/insights");
 }

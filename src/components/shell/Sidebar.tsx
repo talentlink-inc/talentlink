@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   FileText,
+  LayoutDashboard,
   ShieldCheck,
   Building2,
   Rocket,
@@ -193,7 +194,10 @@ export function Sidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto px-2">
-        <ul className="space-y-0.5 pt-2">{navItem("/onboarding", "Getting Started", Rocket)}</ul>
+        <ul className="space-y-0.5 pt-2">
+          {navItem("/insights", "Insights", LayoutDashboard)}
+          {navItem("/onboarding", "Getting Started", Rocket)}
+        </ul>
 
         {!collapsed && (
           <div className="px-2 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-white/40">

@@ -11,7 +11,20 @@ export type SectionTab = { href: string; label: string; icon: LucideIcon };
 // strip under the slate PageHeader — icon + bold label, teal underline for the
 // current one, as in GAS's .rec-tabs. Sits apart from the title so it reads
 // as navigation, not as a second line of heading text.
-export function SectionTabs({ tabs, label }: { tabs: SectionTab[]; label: string }) {
+export function SectionTabs({
+  tabs,
+  label,
+  query = "",
+  exact = [],
+}: {
+  tabs: SectionTab[];
+  label: string;
+  // Appended to every tab link (e.g. "?period=month" so a filter carries over).
+  query?: string;
+  // Tabs that match only their exact path (a section's index tab, whose path
+  // prefixes all the others).
+  exact?: string[];
+}) {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
 
@@ -28,11 +41,11 @@ export function SectionTabs({ tabs, label }: { tabs: SectionTab[]; label: string
         className="flex overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {tabs.map(({ href, label: text, icon: Icon }) => {
-          const active = pathname === href || pathname?.startsWith(`${href}/`);
+          const active = pathname === href || (!exact.includes(href) && pathname?.startsWith(`${href}/`));
           return (
             <Link
               key={href}
-              href={href}
+              href={`${href}${query}`}
               aria-current={active ? "page" : undefined}
               className={`flex shrink-0 items-center gap-2 border-b-[3px] px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
                 active
