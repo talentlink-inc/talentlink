@@ -5,8 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { INTERVIEW_ELIGIBLE_SUBMISSION_STATUSES } from "@/lib/recruitment";
 import { canManageRecruitment, canManageUsers } from "@/lib/users";
 import { InterviewsTable } from "./InterviewsTable";
-import { serializeInterview } from "./types";
-import { REQUIREMENT_SUMMARY_SELECT, RESUME_SUMMARY_SELECT, redactCandidateContact, serializeSubmission } from "../submissions/types";
+import { INTERVIEW_SUBMISSION_SELECT, serializeInterview } from "./types";
 import { getIntegrationStatus } from "./integration-actions";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +24,7 @@ export default async function InterviewsPage({
   const [interviews, eligibleSubmissions, integrationStatus] = await Promise.all([
     db.interview.findMany({
       where: { tenantId: tenant.id, deletedAt: null },
-      include: { submission: { include: { candidate: true, requirement: { select: REQUIREMENT_SUMMARY_SELECT }, resume: { select: RESUME_SUMMARY_SELECT } } } },
+      include: { submission: { select: INTERVIEW_SUBMISSION_SELECT } },
       orderBy: { scheduledAt: "desc" },
       take: MAX_LIST_ROWS,
     }),
@@ -35,7 +34,7 @@ export default async function InterviewsPage({
         deletedAt: null,
         status: { in: [...INTERVIEW_ELIGIBLE_SUBMISSION_STATUSES] },
       },
-      include: { candidate: true, requirement: { select: REQUIREMENT_SUMMARY_SELECT }, resume: { select: RESUME_SUMMARY_SELECT } },
+      select: INTERVIEW_SUBMISSION_SELECT,
       orderBy: { submissionDate: "desc" },
     }),
     canManageIntegration ? getIntegrationStatus() : Promise.resolve(null),
@@ -43,11 +42,9 @@ export default async function InterviewsPage({
 
   return (
     <InterviewsTable
-      interviews={interviews.map((i) => {
-        const serialized = serializeInterview(i);
-        return { ...serialized, submission: redactCandidateContact(serialized.submission, currentUser) };
-      })}
-      eligibleSubmissions={eligibleSubmissions.map((s) => redactCandidateContact(serializeSubmission(s), currentUser))}
+      // Only names and titles are sent — no candidate contact details to redact.
+      interviews={interviews.map(serializeInterview)}
+      eligibleSubmissions={eligibleSubmissions}
       currentUserId={currentUser.id}
       canEdit={canManageRecruitment(currentUser.role)}
       canManageIntegration={canManageIntegration}

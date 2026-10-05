@@ -18,6 +18,13 @@ import { callAiForJson, AiNotConfiguredError } from "@/lib/ai";
 import { candidateSchema } from "@/lib/schemas/submission";
 import { nextPlacementId, withNewSubmissionId } from "@/lib/recruitmentIds";
 import { createHash } from "node:crypto";
+import {
+  REQUIREMENT_SUMMARY_SELECT,
+  RESUME_SUMMARY_SELECT,
+  redactCandidateContact,
+  serializeSubmission,
+  type SerializedSubmission,
+} from "./types";
 
 const MAX_RESUME_BYTES = 10 * 1024 * 1024; // 10MB, matches ITStaffing's cap
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
@@ -435,6 +442,22 @@ export async function updateSubmission(
   revalidatePath("/submissions");
   revalidatePath("/placements");
   return initialFormState;
+}
+
+/**
+ * One submission in full, loaded when it's opened from a list (the lists send
+ * only slim rows). Same rules as the Submissions page: tenant-scoped, and the
+ * candidate's email/phone only for people allowed to see them.
+ */
+export async function getSubmissionDetail(id: string): Promise<SerializedSubmission | null> {
+  const user = await getCurrentUser();
+  const tenant = await getCurrentTenant();
+  const db = await getTenantDb();
+  const s = await db.submission.findFirst({
+    where: { id, tenantId: tenant.id, deletedAt: null },
+    include: { candidate: true, requirement: { select: REQUIREMENT_SUMMARY_SELECT }, resume: { select: RESUME_SUMMARY_SELECT } },
+  });
+  return s ? redactCandidateContact(serializeSubmission(s), user) : null;
 }
 
 export async function deleteSubmission(id: string) {

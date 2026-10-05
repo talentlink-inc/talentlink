@@ -14,8 +14,10 @@ import { buttonClass } from "@/components/ui/button";
 import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
 import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 import type { DataPermissions } from "@/lib/users";
-import type { SerializedSubmission } from "./types";
-import type { RequirementSummary } from "./types";
+import { getSubmissionDetail } from "./actions";
+import { SubmissionPanelLoader } from "./SubmissionPanelLoader";
+import { useDetailLoader } from "@/components/ui/useDetailLoader";
+import type { RequirementSummary, SubmissionListRow } from "./types";
 
 export function SubmissionsTable({
   submissions,
@@ -25,35 +27,38 @@ export function SubmissionsTable({
   isAdmin,
   permissions,
 }: {
-  submissions: SerializedSubmission[];
+  submissions: SubmissionListRow[];
   requirements: RequirementSummary[];
   currentUserId: string;
   canEdit: boolean;
   isAdmin: boolean;
   permissions: DataPermissions;
 }) {
-  const [modal, setModal] = useState<{
-    mode: "create" | "view" | "edit";
-    submission: SerializedSubmission | null;
-  } | null>(null);
+  // The list holds slim rows; an opened submission's full record is fetched
+  // (and prefetched on row hover) by id.
+  const [modal, setModal] = useState<{ mode: "create" | "view"; id: string | null } | null>(null);
+  const detail = useDetailLoader(getSubmissionDetail, submissions);
   const [search, setSearch] = useState("");
   const [visaFilter, setVisaFilter] = useState("");
   const [empTypeFilter, setEmpTypeFilter] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const cell = useCellClass();
-  const open = (s: SerializedSubmission) => {
+  const open = (s: SubmissionListRow) => {
     setSelectedId(s.id);
-    setModal({ mode: "view", submission: s });
+    setModal({ mode: "view", id: s.id });
   };
+  const warm = (s: SubmissionListRow) => () => void detail.prefetch(s.id);
 
+  // Deep links (?open=id from search, Insights, notifications) open by id,
+  // even for a submission outside the rows listed here.
   useOpenParam((id) => {
-    const found = submissions.find((s) => s.id === id);
-    if (found) open(found);
+    setSelectedId(id);
+    setModal({ mode: "view", id });
   });
 
   usePageShortcuts({
-    onNew: canEdit ? () => setModal({ mode: "create", submission: null }) : undefined,
+    onNew: canEdit ? () => setModal({ mode: "create", id: null }) : undefined,
     onFocusSearch: () => searchInputRef.current?.focus(),
     onClearSearch: () => setSearch(""),
   });
@@ -119,7 +124,7 @@ export function SubmissionsTable({
           {canEdit && (
             <button
               type="button"
-              onClick={() => setModal({ mode: "create", submission: null })}
+              onClick={() => setModal({ mode: "create", id: null })}
               className={buttonClass("primary")}
             >
               + Submit candidate
@@ -134,6 +139,8 @@ export function SubmissionsTable({
             <button
               type="button"
               onClick={() => open(s)}
+              onTouchStart={warm(s)}
+              onFocus={warm(s)}
               className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(s.id === selectedId)}`}
             >
               <div className="flex items-start justify-between gap-2">
@@ -174,6 +181,7 @@ export function SubmissionsTable({
               <tr
                 key={s.id}
                 onClick={() => open(s)}
+                onMouseEnter={warm(s)}
                 className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(s.id === selectedId)}`}
               >
                 <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>
@@ -200,21 +208,34 @@ export function SubmissionsTable({
       </div>
       <PaginationControls page={page} totalPages={totalPages} start={start} end={end} total={total} onPageChange={setPage} />
 
-      {modal && (
+      {modal?.mode === "create" && (
         <SubmissionModal
-          key={`${modal.mode}-${modal.submission?.id ?? "new"}`}
-          mode={modal.mode}
-          submission={modal.submission}
+          key="create"
+          mode="create"
+          submission={null}
           requirements={requirements}
           currentUserId={currentUserId}
           canEdit={canEdit}
           isAdmin={isAdmin}
           permissions={permissions}
           onClose={() => setModal(null)}
-          onOpenExisting={(id) => {
-            const found = submissions.find((s) => s.id === id);
-            if (found) setModal({ mode: "view", submission: found });
-          }}
+          onOpenExisting={(id) => setModal({ mode: "view", id })}
+        />
+      )}
+      {modal?.mode === "view" && modal.id && (
+        <SubmissionPanelLoader
+          key={modal.id}
+          id={modal.id}
+          row={submissions.find((s) => s.id === modal.id)}
+          load={detail.load}
+          mode="view"
+          requirements={requirements}
+          currentUserId={currentUserId}
+          canEdit={canEdit}
+          isAdmin={isAdmin}
+          permissions={permissions}
+          onClose={() => setModal(null)}
+          onOpenExisting={(id) => setModal({ mode: "view", id })}
         />
       )}
     </div>

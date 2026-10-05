@@ -14,7 +14,7 @@ import { useUi } from "@/components/ui/UiProvider";
 import { toolbarInputClass } from "@/components/ui/table";
 import { statusLabel } from "@/lib/statusLabels";
 import type { SerializedInterview } from "./types";
-import type { SerializedSubmission } from "../submissions/types";
+import type { InterviewSubmissionSummary } from "./types";
 
 type Mode = "create" | "view" | "edit";
 
@@ -40,7 +40,7 @@ export function InterviewModal({
 }: {
   mode: Mode;
   interview: SerializedInterview | null;
-  eligibleSubmissions: SerializedSubmission[];
+  eligibleSubmissions: InterviewSubmissionSummary[];
   currentUserId: string;
   canEdit: boolean;
   onClose: () => void;
@@ -125,7 +125,13 @@ export function InterviewModal({
               <option value="" disabled>
                 Select a submission
               </option>
-              {eligibleSubmissions.map((s) => (
+              {/* The interview's own submission stays selectable even after its
+                  status has moved past the interview stage — otherwise editing
+                  it fell back to the empty option and Save failed validation. */}
+              {(interview && !eligibleSubmissions.some((s) => s.id === interview.submissionId)
+                ? [interview.submission, ...eligibleSubmissions]
+                : eligibleSubmissions
+              ).map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.candidate.name} — {s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "—"} ({statusLabel(s.status)})
                 </option>

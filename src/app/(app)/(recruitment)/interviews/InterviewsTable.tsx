@@ -19,7 +19,7 @@ import { buttonClass } from "@/components/ui/button";
 import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
 import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 import type { SerializedInterview } from "./types";
-import type { SerializedSubmission } from "../submissions/types";
+import type { InterviewSubmissionSummary } from "./types";
 import type { IntegrationStatus } from "./integration-actions";
 
 export function InterviewsTable({
@@ -33,7 +33,7 @@ export function InterviewsTable({
   integrationError,
 }: {
   interviews: SerializedInterview[];
-  eligibleSubmissions: SerializedSubmission[];
+  eligibleSubmissions: InterviewSubmissionSummary[];
   currentUserId: string;
   canEdit: boolean;
   canManageIntegration: boolean;

@@ -98,3 +98,47 @@ export function redactCandidateContact<
     },
   };
 }
+
+// What the Submissions list needs per row (its columns, filters and search).
+// The full record loads when a submission is opened (getSubmissionDetail), so
+// the list stays small enough to arrive quickly from the US to India.
+export const SUBMISSION_LIST_SELECT = {
+  id: true,
+  submissionId: true,
+  status: true,
+  submissionDate: true,
+  billRate: true,
+  billRateCurrency: true,
+  employmentType: true,
+  requirementJobIdRaw: true,
+  requirement: { select: { jobTitle: true } },
+  candidate: { select: { name: true, email: true, phone: true, currentLocation: true, visaStatus: true } },
+} as const;
+
+export type SubmissionListRow = {
+  id: string;
+  submissionId: string | null;
+  status: string;
+  submissionDate: Date | null;
+  billRate: string | null;
+  billRateCurrency: string;
+  employmentType: string | null;
+  requirementJobIdRaw: string | null;
+  requirement: { jobTitle: string } | null;
+  candidate: { name: string; email: string | null; phone: string | null; currentLocation: string | null; visaStatus: string | null };
+};
+
+export function toSubmissionListRow(
+  s: Omit<SubmissionListRow, "billRate"> & { billRate: { toString(): string } | null },
+  permissions: Pick<DataPermissions, "canViewEmail" | "canViewPhone">
+): SubmissionListRow {
+  return {
+    ...s,
+    billRate: s.billRate?.toString() ?? null,
+    candidate: {
+      ...s.candidate,
+      email: permissions.canViewEmail ? s.candidate.email : null,
+      phone: permissions.canViewPhone ? s.candidate.phone : null,
+    },
+  };
+}
