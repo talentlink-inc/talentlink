@@ -192,7 +192,7 @@ export function PlacementsTable({
                 <td className={`${cell} ${idClass}`}>
                   {p.placementId ?? "—"}
                 </td>
-                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>{p.candidate.name}</td>
+                <td className={`${cell} font-semibold whitespace-nowrap text-text-strong dark:text-white`}>{p.candidate.name}</td>
                 <td className={cell}>{p.requirement?.jobTitle ?? p.requirementJobIdRaw ?? "—"}</td>
                 <td className={cell}>
                   <StatusChip status={p.status} />

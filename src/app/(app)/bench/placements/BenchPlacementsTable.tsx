@@ -145,7 +145,7 @@ export function BenchPlacementsTable({
                 <td className={`${cell} ${idClass}`}>
                   {p.placementId}
                 </td>
-                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>{p.consultant.consultantName}</td>
+                <td className={`${cell} font-semibold whitespace-nowrap text-text-strong dark:text-white`}>{p.consultant.consultantName}</td>
                 <td className={cell}>{p.companyName}</td>
                 <td className={cell}>
                   <StatusChip status={p.status} />

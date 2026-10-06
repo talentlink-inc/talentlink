@@ -270,7 +270,7 @@ export function InterviewsTable({
                     onClick={() => open(i)}
                     className={`cursor-pointer ${rowClass} ${rowSelectClass(i.id === selectedId)}`}
                   >
-                    <td className={`${cell} font-semibold text-text-strong dark:text-white`}>{i.submission.candidate.name}</td>
+                    <td className={`${cell} font-semibold whitespace-nowrap text-text-strong dark:text-white`}>{i.submission.candidate.name}</td>
                     <td className={cell}>{statusLabel(i.interviewType)}</td>
                     <td className={`${cell} whitespace-nowrap`}>
                       {i.scheduledAt ? formatDateTime(i.scheduledAt, i.timezone ?? undefined) : "—"}

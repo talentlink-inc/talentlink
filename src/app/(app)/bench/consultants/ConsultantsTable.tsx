@@ -203,7 +203,7 @@ export function ConsultantsTable({
               >
                 <td className={`${cell} whitespace-nowrap text-black/60 dark:text-white/60`}>{formatDate(c.addedDate)}</td>
                 <td className={`${cell} ${idClass}`}>{c.consultantCode}</td>
-                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>
+                <td className={`${cell} font-semibold whitespace-nowrap text-text-strong dark:text-white`}>
                   {c.consultantName}
                   {c.onHotlist && (
                     <span title="On hotlist" className="ml-1.5 text-amber-600">

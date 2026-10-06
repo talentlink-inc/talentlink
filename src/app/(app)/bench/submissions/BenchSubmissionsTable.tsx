@@ -166,7 +166,7 @@ export function BenchSubmissionsTable({
                 className={`cursor-pointer ${rowClass} ${rowSelectClass(s.id === selectedId)}`}
               >
                 <td className={`${cell} ${idClass}`}>{s.submissionCode}</td>
-                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>{s.consultant.consultantName}</td>
+                <td className={`${cell} font-semibold whitespace-nowrap text-text-strong dark:text-white`}>{s.consultant.consultantName}</td>
                 <td className={cell}>{s.companyName}</td>
                 <td className={cell}>{s.contactPerson ?? "—"}</td>
                 <td className={`${cell} whitespace-nowrap`}>{s.rate ?? "—"}</td>
