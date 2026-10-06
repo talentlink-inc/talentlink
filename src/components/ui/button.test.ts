@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 import { buttonClass } from "./button";
 
 describe("buttonClass", () => {
-  it("[unit] defaults to a medium primary button in the brand colour", () => {
+  it("[unit] defaults to a medium primary button in GAS indigo", () => {
     const c = buttonClass();
-    expect(c).toContain("bg-brand");
+    expect(c).toContain("bg-primary");
     expect(c).toContain("px-3.5 py-2 text-sm");
   });
 
   it("[unit] every variant keeps the shared focus ring and disabled styling", () => {
     for (const v of ["primary", "secondary", "danger", "dangerSoft", "subtle", "onDark"] as const) {
       const c = buttonClass(v);
-      expect(c).toContain("focus-visible:outline-brand");
+      expect(c).toContain("focus-visible:outline-primary");
       expect(c).toContain("disabled:opacity-50");
     }
   });

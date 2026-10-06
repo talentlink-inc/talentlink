@@ -5,10 +5,10 @@ export type ButtonVariant = "primary" | "secondary" | "danger" | "dangerSoft" | 
 export type ButtonSize = "sm" | "md";
 
 const BASE =
-  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-brand text-white hover:bg-brand-strong",
+  primary: "bg-primary text-white shadow-sm hover:bg-primary-mid",
   secondary:
     "border border-black/15 bg-white text-black/80 hover:bg-black/[0.04] dark:border-white/15 dark:bg-transparent dark:text-white/85 dark:hover:bg-white/10",
   danger: "bg-red-600 text-white hover:bg-red-700",

@@ -17,6 +17,18 @@
   --color-brand-soft: #e0f4f6; /* selected rows, soft chips */
   --color-ink: #37474f; /* slate page headers, matches the sidebar */
   --color-ink-strong: #263238;
+  /* GAS's indigo: primary buttons, IDs, active tabs (GAS Css.html --primary). */
+  --color-primary: #1a237e;
+  --color-primary-strong: #0d1257;
+  --color-primary-mid: #3949ab;
+  --color-primary-soft: #e8eaf6;
+  /* Page ground and text greys, as in GAS. */
+  --color-page: #f0f2f5;
+  --color-line: #e2e6ea;
+  --color-line-soft: #f0f1f3;
+  --color-text-strong: #1a1a2e;
+  --color-text-secondary: #5a6270;
+  --color-text-muted: #8c94a0;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

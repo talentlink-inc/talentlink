@@ -10,9 +10,10 @@ import { TableSkeleton } from "@/components/ui/TableSkeleton";
 export default function AppLoading() {
   return (
     <div role="status" aria-label="Loading">
-      <div className="mb-5 rounded-xl bg-ink px-5 py-4 shadow-sm">
-        <div className="h-5 w-40 rounded bg-white/20" />
-        <div className="mt-2 h-3.5 w-64 max-w-full rounded bg-white/10" />
+      <div className="mb-5 flex gap-6 border-b border-line pb-3">
+        <div className="tl-skeleton h-5 w-28" />
+        <div className="tl-skeleton h-5 w-28" />
+        <div className="tl-skeleton h-5 w-24" />
       </div>
       <TableSkeleton />
     </div>

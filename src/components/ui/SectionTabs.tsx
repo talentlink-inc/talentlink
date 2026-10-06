@@ -7,10 +7,9 @@ import type { LucideIcon } from "lucide-react";
 
 export type SectionTab = { href: string; label: string; icon: LucideIcon };
 
-// The sub-feature tabs of a section (Recruitment, Bench Sales), on a white
-// strip under the slate PageHeader — icon + bold label, teal underline for the
-// current one, as in GAS's .rec-tabs. Sits apart from the title so it reads
-// as navigation, not as a second line of heading text.
+// The sub-feature tabs of a section (Recruitment, Bench Sales, Insights),
+// as in GAS's .rec-tabs: icon + bold label on the page, indigo text and
+// underline for the current one, a hairline under the row.
 export function SectionTabs({
   tabs,
   label,
@@ -38,7 +37,7 @@ export function SectionTabs({
       <nav
         ref={navRef}
         aria-label={label}
-        className="flex overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex overflow-x-auto border-b border-line [scrollbar-width:none] dark:border-white/10 [&::-webkit-scrollbar]:hidden"
       >
         {tabs.map(({ href, label: text, icon: Icon }) => {
           const active = pathname === href || (!exact.includes(href) && pathname?.startsWith(`${href}/`));
@@ -47,13 +46,13 @@ export function SectionTabs({
               key={href}
               href={`${href}${query}`}
               aria-current={active ? "page" : undefined}
-              className={`flex shrink-0 items-center gap-2 border-b-[3px] px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
+              className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-[15px] font-semibold whitespace-nowrap transition-colors ${
                 active
-                  ? "border-brand bg-brand-soft/50 text-brand-strong dark:bg-white/5 dark:text-brand"
-                  : "border-transparent text-black/55 hover:bg-brand-soft/40 hover:text-brand-strong dark:text-white/60 dark:hover:bg-white/5 dark:hover:text-white"
+                  ? "border-primary text-primary dark:border-brand dark:text-brand"
+                  : "border-transparent text-text-muted hover:text-primary dark:text-white/55 dark:hover:text-white"
               }`}
             >
-              <Icon size={17} aria-hidden className="shrink-0" />
+              <Icon size={18} aria-hidden className="shrink-0" />
               {text}
             </Link>
           );
@@ -62,7 +61,7 @@ export function SectionTabs({
       {/* Fade on the right edge hints there are more tabs to scroll to. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent md:hidden dark:from-neutral-950"
+        className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-page to-transparent md:hidden dark:from-neutral-950"
       />
     </div>
   );

@@ -101,3 +101,65 @@ export function statusTone(value: string | null | undefined): StatusTone {
   if (!value) return "neutral";
   return TONES[value] ?? "closed";
 }
+
+// GAS's canonical status colours (Index.html window.STATUS_COLORS), used for
+// the outlined status pills so both apps read the same at a glance.
+const COLORS: Record<string, string> = {
+  // Submission pipeline (Recruitment + Bench share these)
+  New_Resume: "#0288d1",
+  Internal_Submission: "#1565c0",
+  Submitted: "#1565c0",
+  Vender_Submission: "#6a1b9a",
+  Online_Test: "#0277bd",
+  Client_Submission: "#00838f",
+  L1_Interview: "#e65100",
+  L2_Interview: "#6a1b9a",
+  Client_Selected: "#2e7d32",
+  Background_Check: "#00acc1",
+  Onboarding: "#1b5e20",
+  Started_Billable: "#6a1b9a",
+  Internal_Reject: "#c62828",
+  Vender_Reject: "#ad1457",
+  Client_Reject: "#b71c1c",
+  Blocklist: "#212121",
+  Position_Closed: "#455a64",
+  BGV_Failed: "#c62828",
+  Client_Withdrawn_Offer: "#e64a19",
+  Candidate_Backs_Out: "#8d6e63",
+  Duplicate: "#616161",
+  On_Hold: "#757575",
+  L1_Reject: "#d32f2f",
+  L2_Reject: "#9a0007",
+  // Requirements
+  Open: "#2e7d32",
+  "On Hold": "#e65100",
+  Closed: "#757575",
+  Filled: "#6a1b9a",
+  // Bench consultants
+  Available: "#2e7d32",
+  Marketing: "#1565c0",
+  Interview: "#e65100",
+  Placed: "#6a1b9a",
+  // Interviews
+  Scheduled: "#1565c0",
+  L1_Scheduled: "#5e35b1",
+  L2_Scheduled: "#4527a0",
+  Feedback_Pending: "#f57f17",
+  L1_Cleared: "#1976d2",
+  L2_Cleared: "#0277bd",
+  Selected: "#2e7d32",
+  Cancelled: "#c62828",
+  Rescheduled: "#e65100",
+  No_Show: "#757575",
+  Rejected: "#b71c1c",
+  // Hotlist / users
+  Active: "#2e7d32",
+  Inactive: "#757575",
+  active: "#2e7d32",
+  inactive: "#c62828",
+};
+
+/** The status's GAS colour; grey for anything unknown. */
+export function statusColor(value: string | null | undefined): string {
+  return (value && COLORS[value]) || "#757575";
+}

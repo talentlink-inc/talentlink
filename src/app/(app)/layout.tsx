@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <Header user={{ name: currentUser.name, email: currentUser.email, role: currentUser.role }} />
-          <main className="flex-1 overflow-y-auto bg-neutral-50 px-4 py-6 md:px-6 md:py-8 dark:bg-neutral-950">
+          <main className="flex-1 overflow-y-auto bg-page px-4 py-5 md:px-7 md:py-6 dark:bg-neutral-950">
             <div className="mx-auto w-full max-w-6xl">{children}</div>
           </main>
         </div>

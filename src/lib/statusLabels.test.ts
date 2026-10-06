@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { statusLabel, statusTone } from "./statusLabels";
+import { statusColor, statusLabel, statusTone } from "./statusLabels";
 import { INTERVIEW_MODES, INTERVIEW_STATUSES, INTERVIEW_TYPES, REJECTED_STATUSES, REQUIREMENT_STATUSES, SUBMISSION_STATUSES } from "./recruitment";
 import { BENCH_CONSULTANT_STATUSES, BENCH_HOTLIST_STATUSES } from "./bench";
 
@@ -42,5 +42,20 @@ describe("[module] status tones", () => {
   it("interview rounds and modes read in plain English", () => {
     for (const s of [...INTERVIEW_TYPES, ...INTERVIEW_MODES]) expect(statusLabel(s)).not.toContain("_");
     expect(statusLabel("in_person")).toBe("In person");
+  });
+});
+
+describe("[module] status colours (match GAS)", () => {
+  it("every submission, interview, requirement and bench status has its own GAS colour", () => {
+    for (const s of [...SUBMISSION_STATUSES, ...INTERVIEW_STATUSES, ...REQUIREMENT_STATUSES, ...BENCH_CONSULTANT_STATUSES]) {
+      expect(statusColor(s), s).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+    expect(statusColor("Open")).toBe("#2e7d32");
+    expect(statusColor("Vender_Submission")).toBe("#6a1b9a");
+  });
+
+  it("falls back to grey for unknown or empty statuses", () => {
+    expect(statusColor("Something_New")).toBe("#757575");
+    expect(statusColor(null)).toBe("#757575");
   });
 });

@@ -40,7 +40,19 @@ export const REQUIREMENT_LIST_SELECT = {
   billRate: true,
   billRateCurrency: true,
   employmentType: true,
+  createdAt: true,
+  mandatorySkills: true,
+  visa: true,
+  workLocation: true,
+  isRemote: true,
+  country: true,
+  assignees: { select: { user: { select: { name: true } } } },
 } as const;
+
+// Submissions against a requirement by pipeline stage — GAS's coloured count
+// bubbles next to the Job ID: blue received, amber in consideration, green
+// won, red rejected / out.
+export type SubmissionBuckets = { blue: number; amber: number; green: number; red: number };
 
 export type RequirementListRow = {
   id: string;
@@ -52,8 +64,54 @@ export type RequirementListRow = {
   billRate: string | null;
   billRateCurrency: string;
   employmentType: string | null;
+  createdAt: Date;
+  mandatorySkills: string | null; // trimmed for the list; full text in the panel
+  visa: string | null;
+  location: string | null; // "Remote" or the work location
+  country: string | null;
+  assignees: string[];
+  buckets: SubmissionBuckets;
 };
 
-export function toRequirementListRow(r: Omit<RequirementListRow, "billRate"> & { billRate: { toString(): string } | null }): RequirementListRow {
-  return { ...r, billRate: r.billRate?.toString() ?? null };
+type ListQueryRow = {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  clientName: string | null;
+  status: string;
+  priority: number;
+  billRate: { toString(): string } | null;
+  billRateCurrency: string;
+  employmentType: string | null;
+  createdAt: Date;
+  mandatorySkills: string | null;
+  visa: string | null;
+  workLocation: string | null;
+  isRemote: boolean;
+  country: string | null;
+  assignees: { user: { name: string } }[];
+};
+
+const EMPTY_BUCKETS: SubmissionBuckets = { blue: 0, amber: 0, green: 0, red: 0 };
+
+export function toRequirementListRow(r: ListQueryRow, buckets?: SubmissionBuckets): RequirementListRow {
+  const skills = r.mandatorySkills?.replace(/\s+/g, " ").trim() ?? null;
+  return {
+    id: r.id,
+    jobId: r.jobId,
+    jobTitle: r.jobTitle,
+    clientName: r.clientName,
+    status: r.status,
+    priority: r.priority,
+    billRate: r.billRate?.toString() ?? null,
+    billRateCurrency: r.billRateCurrency,
+    employmentType: r.employmentType,
+    createdAt: r.createdAt,
+    mandatorySkills: skills && skills.length > 90 ? `${skills.slice(0, 90)}…` : skills,
+    visa: r.visa,
+    location: r.isRemote ? "Remote" : r.workLocation,
+    country: r.country,
+    assignees: r.assignees.map((a) => a.user.name),
+    buckets: buckets ?? EMPTY_BUCKETS,
+  };
 }
