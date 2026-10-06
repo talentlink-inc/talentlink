@@ -12,8 +12,9 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { statusLabel } from "@/lib/statusLabels";
 import { buttonClass } from "@/components/ui/button";
 import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
-import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass, rowClass } from "@/components/ui/table";
 import type { BenchConsultantSummary, SerializedBenchSubmission } from "./types";
+import { idClass } from "@/components/ui/Chips";
 
 export function BenchSubmissionsTable({
   submissions,
@@ -124,13 +125,13 @@ export function BenchSubmissionsTable({
             <button
               type="button"
               onClick={() => open(s.id)}
-              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(s.id === selectedId)}`}
+              className={`w-full rounded-[10px] border border-line bg-white p-3 text-left shadow-sm dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(s.id === selectedId)}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="font-medium">{s.consultant.consultantName}</span>
                 <StatusChip status={s.status} />
               </div>
-              <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+              <div className="mt-1 text-sm text-text-secondary">
                 {s.companyName}
                 {s.contactPerson ? ` · ${s.contactPerson}` : ""}
               </div>
@@ -162,10 +163,10 @@ export function BenchSubmissionsTable({
               <tr
                 key={s.id}
                 onClick={() => open(s.id)}
-                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(s.id === selectedId)}`}
+                className={`cursor-pointer ${rowClass} ${rowSelectClass(s.id === selectedId)}`}
               >
-                <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>{s.submissionCode}</td>
-                <td className={`${cell} font-medium`}>{s.consultant.consultantName}</td>
+                <td className={`${cell} ${idClass}`}>{s.submissionCode}</td>
+                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>{s.consultant.consultantName}</td>
                 <td className={cell}>{s.companyName}</td>
                 <td className={cell}>{s.contactPerson ?? "—"}</td>
                 <td className={`${cell} whitespace-nowrap`}>{s.rate ?? "—"}</td>

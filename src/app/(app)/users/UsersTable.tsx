@@ -8,9 +8,10 @@ import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { rowSelectClass } from "@/lib/tableRow";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { SoftChip } from "@/components/ui/Chips";
 import { buttonClass } from "@/components/ui/button";
 import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
-import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass, rowClass } from "@/components/ui/table";
 import type { User } from "@/generated/prisma/client";
 
 export function UsersTable({ users, currentUserId, canEdit }: { users: User[]; currentUserId: string; canEdit: boolean }) {
@@ -109,7 +110,7 @@ export function UsersTable({ users, currentUserId, canEdit }: { users: User[]; c
             <button
               type="button"
               onClick={() => open(u)}
-              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(u.id === selectedId)}`}
+              className={`w-full rounded-[10px] border border-line bg-white p-3 text-left shadow-sm dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(u.id === selectedId)}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="font-medium">
@@ -120,7 +121,7 @@ export function UsersTable({ users, currentUserId, canEdit }: { users: User[]; c
                 </span>
                 <StatusChip status={u.status} />
               </div>
-              <div className="mt-1 truncate text-sm text-black/60 dark:text-white/60">{u.email}</div>
+              <div className="mt-1 truncate text-sm text-text-secondary">{u.email}</div>
               <div className="mt-1 text-xs text-black/45 dark:text-white/45">
                 {u.role} · Added {formatDate(u.createdAt)}
               </div>
@@ -148,14 +149,16 @@ export function UsersTable({ users, currentUserId, canEdit }: { users: User[]; c
               <tr
                 key={u.id}
                 onClick={() => open(u)}
-                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(u.id === selectedId)}`}
+                className={`cursor-pointer ${rowClass} ${rowSelectClass(u.id === selectedId)}`}
               >
-                <td className={`${cell} font-medium`}>
+                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>
                   {u.name}
                   {u.id === currentUserId && <span className="ml-1 text-xs text-black/40 dark:text-white/40">(you)</span>}
                 </td>
                 <td className={cell}>{u.email}</td>
-                <td className={cell}>{u.role}</td>
+                <td className={cell}>
+                  <SoftChip>{u.role}</SoftChip>
+                </td>
                 <td className={cell}>
                   <StatusChip status={u.status} />
                 </td>

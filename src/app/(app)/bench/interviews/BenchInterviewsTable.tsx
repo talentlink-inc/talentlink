@@ -18,7 +18,7 @@ import { statusLabel } from "@/lib/statusLabels";
 import { buttonClass } from "@/components/ui/button";
 import { DensityToggle, useCellClass, useUi } from "@/components/ui/UiProvider";
 import { RecordPanel, panelFooterClass } from "@/components/ui/RecordPanel";
-import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass, rowClass } from "@/components/ui/table";
 import type { BenchInterview } from "@/generated/prisma/client";
 import type { BenchConsultantSummary } from "../submissions/types";
 
@@ -123,13 +123,13 @@ export function BenchInterviewsTable({
             <button
               type="button"
               onClick={() => open(i.id)}
-              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(i.id === selectedId)}`}
+              className={`w-full rounded-[10px] border border-line bg-white p-3 text-left shadow-sm dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(i.id === selectedId)}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="font-medium">{i.submission.consultant.consultantName}</span>
                 <StatusChip status={i.status} />
               </div>
-              <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+              <div className="mt-1 text-sm text-text-secondary">
                 {i.clientCompany ?? i.submission.companyName} · {statusLabel(i.interviewType)}
               </div>
               <div className="mt-1 text-xs text-black/45 dark:text-white/45">
@@ -164,9 +164,9 @@ export function BenchInterviewsTable({
               <tr
                 key={i.id}
                 onClick={() => open(i.id)}
-                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(i.id === selectedId)}`}
+                className={`cursor-pointer ${rowClass} ${rowSelectClass(i.id === selectedId)}`}
               >
-                <td className={`${cell} font-medium`}>{i.submission.consultant.consultantName}</td>
+                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>{i.submission.consultant.consultantName}</td>
                 <td className={cell}>{i.clientCompany ?? i.submission.companyName}</td>
                 <td className={cell}>{statusLabel(i.interviewType)}</td>
                 <td className={`${cell} whitespace-nowrap`}>

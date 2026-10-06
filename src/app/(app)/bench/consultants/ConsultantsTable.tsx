@@ -10,17 +10,21 @@ import { usePagination } from "@/lib/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { rowSelectClass } from "@/lib/tableRow";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { StatCard, StatGrid, type StatTone } from "@/components/ui/StatCard";
+import { VisaChip } from "@/components/ui/Chips";
+import { Megaphone, PauseCircle, Star, UserCheck, type LucideIcon } from "lucide-react";
 import { buttonClass } from "@/components/ui/button";
 import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
-import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass, rowClass } from "@/components/ui/table";
 import type { SerializedConsultant } from "./types";
+import { idClass } from "@/components/ui/Chips";
 
-// Stat-card accent per consultant status (matches the StatusChip tones).
-const STAT_ACCENT: Record<string, string> = {
-  Available: "before:bg-emerald-500",
-  Marketing: "before:bg-amber-500",
-  Placed: "before:bg-brand",
-  "On Hold": "before:bg-slate-400",
+// Stat card per consultant status (GAS Bench Sales cards); click to filter.
+const STAT_CARDS: Record<string, { icon: LucideIcon; tone: StatTone; label: string }> = {
+  Available: { icon: UserCheck, tone: "green", label: "Available" },
+  Marketing: { icon: Megaphone, tone: "blue", label: "Actively marketing" },
+  Placed: { icon: Star, tone: "purple", label: "Placed" },
+  "On Hold": { icon: PauseCircle, tone: "orange", label: "On hold" },
 };
 
 export function ConsultantsTable({
@@ -89,22 +93,19 @@ export function ConsultantsTable({
 
   return (
     <div>
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <StatGrid>
         {BENCH_CONSULTANT_STATUSES.map((s) => (
-          <button
+          <StatCard
             key={s}
-            type="button"
-            aria-pressed={statusFilter === s}
+            icon={STAT_CARDS[s].icon}
+            tone={STAT_CARDS[s].tone}
+            value={counts[s] ?? 0}
+            label={STAT_CARDS[s].label}
+            pressed={statusFilter === s}
             onClick={() => setStatusFilter((cur) => (cur === s ? "" : s))}
-            className={`relative overflow-hidden rounded-lg border bg-white py-3 pr-4 pl-5 text-left transition-shadow before:absolute before:inset-y-0 before:left-0 before:w-1 hover:shadow-sm dark:bg-neutral-950 ${
-              STAT_ACCENT[s]
-            } ${statusFilter === s ? "border-brand ring-2 ring-brand/20" : "border-black/10 dark:border-white/10"}`}
-          >
-            <div className="text-xs font-medium text-black/55 dark:text-white/55">{s}</div>
-            <div className="text-2xl font-semibold tabular-nums">{counts[s] ?? 0}</div>
-          </button>
+          />
         ))}
-      </div>
+      </StatGrid>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
@@ -152,7 +153,7 @@ export function ConsultantsTable({
             <button
               type="button"
               onClick={() => open(c)}
-              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(c.id === selectedId)}`}
+              className={`w-full rounded-[10px] border border-line bg-white p-3 text-left shadow-sm dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(c.id === selectedId)}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="font-medium">
@@ -161,7 +162,7 @@ export function ConsultantsTable({
                 </span>
                 <StatusChip status={c.status} />
               </div>
-              <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+              <div className="mt-1 text-sm text-text-secondary">
                 {c.role} · {c.visaStatus} · {c.location}
               </div>
               <div className="mt-1 text-xs text-black/45 dark:text-white/45">
@@ -198,11 +199,11 @@ export function ConsultantsTable({
               <tr
                 key={c.id}
                 onClick={() => open(c)}
-                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(c.id === selectedId)}`}
+                className={`cursor-pointer ${rowClass} ${rowSelectClass(c.id === selectedId)}`}
               >
                 <td className={`${cell} whitespace-nowrap text-black/60 dark:text-white/60`}>{formatDate(c.addedDate)}</td>
-                <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>{c.consultantCode}</td>
-                <td className={`${cell} font-medium`}>
+                <td className={`${cell} ${idClass}`}>{c.consultantCode}</td>
+                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>
                   {c.consultantName}
                   {c.onHotlist && (
                     <span title="On hotlist" className="ml-1.5 text-amber-600">
@@ -210,7 +211,15 @@ export function ConsultantsTable({
                     </span>
                   )}
                 </td>
-                <td className={`${cell} text-center tabular-nums`}>{c.submissionCount}</td>
+                <td className={`${cell} text-center`}>
+                  {c.submissionCount > 0 ? (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#1565c0] px-1 text-[10px] font-bold text-white">
+                      {c.submissionCount}
+                    </span>
+                  ) : (
+                    <span className="text-text-muted">–</span>
+                  )}
+                </td>
                 <td className={cell}>
                   <StatusChip status={c.status} />
                 </td>
@@ -220,7 +229,9 @@ export function ConsultantsTable({
                 <td className={`${cell} max-w-[220px] truncate`} title={c.technologySkills}>
                   {c.technologySkills}
                 </td>
-                <td className={`${cell} whitespace-nowrap`}>{c.visaStatus}</td>
+                <td className={cell}>
+                  <VisaChip visa={c.visaStatus} />
+                </td>
                 <td className={cell}>{relocationLabel(c.relocation)}</td>
                 <td className={`${cell} whitespace-nowrap`}>{c.experience}</td>
                 <td className={cell}>{c.location}</td>

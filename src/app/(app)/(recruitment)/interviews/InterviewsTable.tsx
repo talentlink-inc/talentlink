@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Settings, Table as TableIcon, Calendar as CalendarIcon } from "lucide-react";
+import { Settings, Table as TableIcon, Calendar as CalendarIcon, CalendarCheck, CalendarClock, CalendarDays, CalendarPlus } from "lucide-react";
+import { StatCard, StatGrid } from "@/components/ui/StatCard";
+import { inRange, nowWindows } from "@/lib/insights";
 import { InterviewModal } from "./InterviewModal";
 import { InterviewCalendar } from "./InterviewCalendar";
 import { IntegrationSettingsModal } from "./IntegrationSettingsModal";
@@ -17,7 +19,7 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { statusLabel } from "@/lib/statusLabels";
 import { buttonClass } from "@/components/ui/button";
 import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
-import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass, rowClass } from "@/components/ui/table";
 import type { SerializedInterview } from "./types";
 import type { InterviewSubmissionSummary } from "./types";
 import type { IntegrationStatus } from "./integration-actions";
@@ -100,8 +102,26 @@ export function InterviewsTable({
 
   const { page, setPage, paged, totalPages, start, end, total } = usePagination(filtered, 25);
 
+  const stats = useMemo(() => {
+    const now = new Date();
+    const { today, week } = nowWindows(now);
+    const live = interviews.filter((i) => i.status !== "Cancelled");
+    return {
+      total: interviews.length,
+      today: live.filter((i) => inRange(i.scheduledAt, today.start, today.end)).length,
+      week: live.filter((i) => inRange(i.scheduledAt, week.start, week.end)).length,
+      upcoming: live.filter((i) => i.scheduledAt && new Date(i.scheduledAt) >= now).length,
+    };
+  }, [interviews]);
+
   return (
     <div>
+      <StatGrid>
+        <StatCard icon={CalendarClock} tone="blue" value={stats.total} label="Total interviews" />
+        <StatCard icon={CalendarCheck} tone="green" value={stats.today} label="Today" />
+        <StatCard icon={CalendarDays} tone="orange" value={stats.week} label="This week" />
+        <StatCard icon={CalendarPlus} tone="purple" value={stats.upcoming} label="Upcoming" />
+      </StatGrid>
       {capturedConnected && (
         <p className="mb-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
           Calendar account connected.
@@ -208,13 +228,13 @@ export function InterviewsTable({
                 <button
                   type="button"
                   onClick={() => open(i)}
-                  className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(i.id === selectedId)}`}
+                  className={`w-full rounded-[10px] border border-line bg-white p-3 text-left shadow-sm dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(i.id === selectedId)}`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-medium">{i.submission.candidate.name}</span>
                     <StatusChip status={i.status} />
                   </div>
-                  <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+                  <div className="mt-1 text-sm text-text-secondary">
                     {statusLabel(i.interviewType)}
                     {i.clientCompany ? ` · ${i.clientCompany}` : ""}
                   </div>
@@ -248,9 +268,9 @@ export function InterviewsTable({
                   <tr
                     key={i.id}
                     onClick={() => open(i)}
-                    className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(i.id === selectedId)}`}
+                    className={`cursor-pointer ${rowClass} ${rowSelectClass(i.id === selectedId)}`}
                   >
-                    <td className={`${cell} font-medium`}>{i.submission.candidate.name}</td>
+                    <td className={`${cell} font-semibold text-text-strong dark:text-white`}>{i.submission.candidate.name}</td>
                     <td className={cell}>{statusLabel(i.interviewType)}</td>
                     <td className={`${cell} whitespace-nowrap`}>
                       {i.scheduledAt ? formatDateTime(i.scheduledAt, i.timezone ?? undefined) : "—"}

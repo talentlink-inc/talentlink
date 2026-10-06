@@ -9,7 +9,7 @@ import { useEscapeToClose } from "@/lib/useEscapeToClose";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { buttonClass } from "@/components/ui/button";
 import { DensityToggle, useCellClass, useUi } from "@/components/ui/UiProvider";
-import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass, rowClass } from "@/components/ui/table";
 
 type HotlistRow = {
   id: string;
@@ -138,12 +138,12 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
 
       <ul className="space-y-2 md:hidden" aria-label="Hotlist">
         {filtered.map((c) => (
-          <li key={c.id} className="rounded-lg border border-black/10 bg-white p-3 dark:border-white/10 dark:bg-neutral-950">
+          <li key={c.id} className="rounded-[10px] border border-line bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-950">
             <div className="flex items-start justify-between gap-2">
               <span className="font-medium">{c.consultantName}</span>
               <StatusChip status={c.hotlistStatus ?? "Active"} />
             </div>
-            <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+            <div className="mt-1 text-sm text-text-secondary">
               {c.role} · {c.visaStatus} · {c.location}
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
@@ -177,8 +177,8 @@ export function HotlistTable({ consultants, companyName }: { consultants: Hotlis
           </thead>
           <tbody>
             {filtered.map((c) => (
-              <tr key={c.id} className="border-t border-black/5 dark:border-white/10">
-                <td className={`${cell} font-medium`}>{c.consultantName}</td>
+              <tr key={c.id} className={rowClass}>
+                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>{c.consultantName}</td>
                 <td className={cell}>{c.role}</td>
                 <td className={`${cell} max-w-[220px] truncate`} title={c.technologySkills}>
                   {c.technologySkills}

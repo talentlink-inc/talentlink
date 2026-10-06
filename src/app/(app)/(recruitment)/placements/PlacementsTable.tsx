@@ -4,6 +4,8 @@ import { useMemo, useRef, useState } from "react";
 import { PlacementModal } from "./PlacementModal";
 import { formatDate } from "@/lib/format";
 import { QUALIFYING_PLACEMENT_STATUSES, isRejectedStatus } from "@/lib/recruitment";
+import { BadgeCheck, CircleSlash, Hourglass, Trophy } from "lucide-react";
+import { StatCard, StatGrid } from "@/components/ui/StatCard";
 import { useOpenParam } from "@/lib/useOpenParam";
 import { usePageShortcuts } from "@/lib/keyboardShortcuts";
 import { usePagination } from "@/lib/usePagination";
@@ -12,8 +14,9 @@ import { rowSelectClass } from "@/lib/tableRow";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { statusLabel } from "@/lib/statusLabels";
 import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
-import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass, rowClass } from "@/components/ui/table";
 import type { SerializedSubmission } from "../submissions/types";
+import { idClass } from "@/components/ui/Chips";
 
 const FELL_THROUGH = "__fell_through__";
 
@@ -78,8 +81,24 @@ export function PlacementsTable({
 
   const { page, setPage, paged, totalPages, start, end, total } = usePagination(filtered, 25);
 
+  const stats = useMemo(() => {
+    let active = 0, started = 0, fell = 0;
+    for (const p of placements) {
+      if (p.status === "Started_Billable") started++;
+      else if (isRejectedStatus(p.status)) fell++;
+      else active++;
+    }
+    return { total: placements.length, active, started, fell };
+  }, [placements]);
+
   return (
     <div>
+      <StatGrid>
+        <StatCard icon={Trophy} tone="blue" value={stats.total} label="Total placements" />
+        <StatCard icon={Hourglass} tone="orange" value={stats.active} label="Selected / onboarding" />
+        <StatCard icon={BadgeCheck} tone="green" value={stats.started} label="Started billing" />
+        <StatCard icon={CircleSlash} tone="red" value={stats.fell} label="Fell through" />
+      </StatGrid>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           ref={searchInputRef}
@@ -127,13 +146,13 @@ export function PlacementsTable({
             <button
               type="button"
               onClick={() => open(p)}
-              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(p.id === selectedId)}`}
+              className={`w-full rounded-[10px] border border-line bg-white p-3 text-left shadow-sm dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(p.id === selectedId)}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="font-medium">{p.candidate.name}</span>
                 <StatusChip status={p.status} />
               </div>
-              <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+              <div className="mt-1 text-sm text-text-secondary">
                 {p.requirement?.jobTitle ?? p.requirementJobIdRaw ?? "No requirement"}
               </div>
               <div className="mt-1 text-xs text-black/45 dark:text-white/45">
@@ -168,12 +187,12 @@ export function PlacementsTable({
               <tr
                 key={p.id}
                 onClick={() => open(p)}
-                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(p.id === selectedId)}`}
+                className={`cursor-pointer ${rowClass} ${rowSelectClass(p.id === selectedId)}`}
               >
-                <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>
+                <td className={`${cell} ${idClass}`}>
                   {p.placementId ?? "—"}
                 </td>
-                <td className={`${cell} font-medium`}>{p.candidate.name}</td>
+                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>{p.candidate.name}</td>
                 <td className={cell}>{p.requirement?.jobTitle ?? p.requirementJobIdRaw ?? "—"}</td>
                 <td className={cell}>
                   <StatusChip status={p.status} />

@@ -9,7 +9,7 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { buttonClass } from "@/components/ui/button";
 import { useCellClass, useUi } from "@/components/ui/UiProvider";
-import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass, rowClass } from "@/components/ui/table";
 
 export type ReportColumn = { key: string; label: string; status?: boolean; nowrap?: boolean; mono?: boolean };
 export type ReportRow = { id: string; href?: string; [key: string]: string | number | null | undefined };
@@ -86,7 +86,7 @@ export function ReportList({
           </thead>
           <tbody>
             {paged.map((r) => (
-              <tr key={r.id} className="border-t border-black/5 hover:bg-brand-soft/30 dark:border-white/10">
+              <tr key={r.id} className={rowClass}>
                 {columns.map((c, i) => {
                   const v = r[c.key];
                   const content = c.status ? <StatusChip status={v ? String(v) : null} /> : (v ?? "—");

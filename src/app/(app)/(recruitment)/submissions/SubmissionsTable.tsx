@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { CalendarDays, CalendarCheck, Download, Eye, FileText, Paperclip, Plus } from "lucide-react";
 import { SubmissionModal } from "./SubmissionModal";
 import { formatDate } from "@/lib/format";
 import { VISA_STATUSES, SUBMISSION_EMPLOYMENT_TYPES, parseEmploymentTypes } from "@/lib/recruitment";
@@ -18,8 +19,14 @@ import { getSubmissionDetail } from "./actions";
 import { SubmissionPanelLoader } from "./SubmissionPanelLoader";
 import { useDetailLoader } from "@/components/ui/useDetailLoader";
 import type { RequirementSummary, SubmissionListRow } from "./types";
+import { StatCard, StatGrid } from "@/components/ui/StatCard";
+import { idClass, JobIdChip, VisaChip } from "@/components/ui/Chips";
+import { rowClass } from "@/components/ui/table";
+import { SUBMISSION_STATUSES } from "@/lib/recruitment";
+import { statusLabel } from "@/lib/statusLabels";
 
 export function SubmissionsTable({
+  stats,
   submissions,
   requirements,
   currentUserId,
@@ -27,6 +34,7 @@ export function SubmissionsTable({
   isAdmin,
   permissions,
 }: {
+  stats: { total: number; today: number; week: number; withResume: number };
   submissions: SubmissionListRow[];
   requirements: RequirementSummary[];
   currentUserId: string;
@@ -40,6 +48,7 @@ export function SubmissionsTable({
   const detail = useDetailLoader(getSubmissionDetail, submissions);
   const [search, setSearch] = useState("");
   const [visaFilter, setVisaFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [empTypeFilter, setEmpTypeFilter] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -67,36 +76,39 @@ export function SubmissionsTable({
     const q = search.trim().toLowerCase();
     return submissions.filter((s) => {
       if (visaFilter && s.candidate.visaStatus !== visaFilter) return false;
+      if (statusFilter && s.status !== statusFilter) return false;
       if (empTypeFilter && !parseEmploymentTypes(s.employmentType).includes(empTypeFilter)) return false;
       if (q) {
-        const haystack = `${s.submissionId ?? ""} ${s.candidate.name} ${s.candidate.email ?? ""} ${
-          s.candidate.phone ?? ""
-        } ${s.candidate.currentLocation ?? ""}`.toLowerCase();
+        const haystack = `${s.submissionId ?? ""} ${s.candidate.name} ${s.candidate.email ?? ""} ${s.candidate.phone ?? ""} ${
+          s.candidate.currentLocation ?? ""
+        } ${s.requirement?.jobId ?? s.requirementJobIdRaw ?? ""} ${s.recruiter ?? ""} ${s.role ?? ""}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [submissions, search, visaFilter, empTypeFilter]);
+  }, [submissions, search, visaFilter, statusFilter, empTypeFilter]);
 
   const { page, setPage, paged, totalPages, start, end, total } = usePagination(filtered, 25);
 
   return (
     <div>
+      <StatGrid>
+        <StatCard icon={FileText} tone="blue" value={stats.total} label="Total submissions" />
+        <StatCard icon={CalendarCheck} tone="green" value={stats.today} label="Submitted today" />
+        <StatCard icon={CalendarDays} tone="orange" value={stats.week} label="This week" />
+        <StatCard icon={Paperclip} tone="purple" value={stats.withResume} label="Resumes uploaded" />
+      </StatGrid>
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          aria-label="Search name, email, phone, location"
-          placeholder="Search ID, name, email, phone, location…"
-          className={`${toolbarInputClass} min-w-[220px] flex-1`}
+          aria-label="Search submissions"
+          placeholder="Search name, email, phone, job ID…"
+          className={`${toolbarInputClass} min-w-[200px] flex-1 md:max-w-xs`}
         />
-        <select
-          aria-label="Filter by visa"
-          value={visaFilter}
-          onChange={(e) => setVisaFilter(e.target.value)}
-          className={toolbarInputClass}
-        >
+        <select aria-label="Filter by visa" value={visaFilter} onChange={(e) => setVisaFilter(e.target.value)} className={toolbarInputClass}>
           <option value="">All visas</option>
           {VISA_STATUSES.map((v) => (
             <option key={v} value={v}>
@@ -104,13 +116,16 @@ export function SubmissionsTable({
             </option>
           ))}
         </select>
-        <select
-          aria-label="Filter by employment type"
-          value={empTypeFilter}
-          onChange={(e) => setEmpTypeFilter(e.target.value)}
-          className={toolbarInputClass}
-        >
-          <option value="">All employment types</option>
+        <select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={toolbarInputClass}>
+          <option value="">All statuses</option>
+          {SUBMISSION_STATUSES.map((st) => (
+            <option key={st} value={st}>
+              {statusLabel(st)}
+            </option>
+          ))}
+        </select>
+        <select aria-label="Filter by employment type" value={empTypeFilter} onChange={(e) => setEmpTypeFilter(e.target.value)} className={toolbarInputClass}>
+          <option value="">All emp. types</option>
           {SUBMISSION_EMPLOYMENT_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
@@ -122,12 +137,8 @@ export function SubmissionsTable({
             <DensityToggle />
           </span>
           {canEdit && (
-            <button
-              type="button"
-              onClick={() => setModal({ mode: "create", id: null })}
-              className={buttonClass("primary")}
-            >
-              + Submit candidate
+            <button type="button" onClick={() => setModal({ mode: "create", id: null })} className={buttonClass("primary")}>
+              <Plus size={16} aria-hidden /> Submit candidate
             </button>
           )}
         </div>
@@ -141,39 +152,44 @@ export function SubmissionsTable({
               onClick={() => open(s)}
               onTouchStart={warm(s)}
               onFocus={warm(s)}
-              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(s.id === selectedId)}`}
+              className={`w-full rounded-[10px] border border-line bg-white p-3 text-left shadow-sm dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(s.id === selectedId)}`}
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="font-medium">{s.candidate.name}</span>
+                <span className="font-semibold text-text-strong dark:text-white">{s.candidate.name}</span>
                 <StatusChip status={s.status} />
               </div>
-              <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+              <div className="mt-1 text-sm text-text-secondary">
                 {s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "No requirement"}
               </div>
-              <div className="mt-1 text-xs text-black/45 dark:text-white/45">
-                {s.submissionId ?? "—"} · {s.submissionDate ? formatDate(s.submissionDate) : "No date"}
-                {s.billRate ? ` · ${s.billRateCurrency} ${s.billRate}` : ""}
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                <span className={idClass}>{s.submissionId ?? "—"}</span>
+                <VisaChip visa={s.candidate.visaStatus} />
+                <span>{s.submissionDate ? formatDate(s.submissionDate) : "No date"}</span>
               </div>
             </button>
           </li>
         ))}
         {filtered.length === 0 && (
-          <li className={emptyCellClass}>
-            {submissions.length === 0 ? "No submissions yet." : "No submissions match your filters."}
-          </li>
+          <li className={emptyCellClass}>{submissions.length === 0 ? "No submissions yet." : "No submissions match your filters."}</li>
         )}
       </ul>
 
       <div className={`${tableCardClass} hidden md:block`}>
-        <table className={`${tableClass} min-w-[840px]`}>
+        <table className={`${tableClass} min-w-[1150px]`}>
           <thead className={theadClass}>
             <tr>
-              <th className={cell}>ID</th>
+              <th className={cell}>Date</th>
+              <th className={cell}>Sub ID</th>
+              <th className={cell}>Job ID</th>
+              <th className={cell}>Recruiter</th>
               <th className={cell}>Candidate</th>
-              <th className={cell}>Requirement</th>
+              <th className={cell}>Location</th>
+              <th className={cell}>Exp.</th>
+              <th className={cell}>Visa</th>
+              <th className={cell}>Emp. type</th>
+              <th className={cell}>Role / skills</th>
               <th className={cell}>Status</th>
-              <th className={cell}>Submitted</th>
-              <th className={cell}>Bill rate</th>
+              <th className={cell}>Resume</th>
             </tr>
           </thead>
           <tbody>
@@ -182,23 +198,68 @@ export function SubmissionsTable({
                 key={s.id}
                 onClick={() => open(s)}
                 onMouseEnter={warm(s)}
-                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(s.id === selectedId)}`}
+                className={`cursor-pointer ${rowClass} ${rowSelectClass(s.id === selectedId)}`}
               >
-                <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>
-                  {s.submissionId ?? "—"}
+                <td className={`${cell} whitespace-nowrap text-text-secondary`} title={s.submissionDate ? formatDate(s.submissionDate) : undefined}>
+                  {s.submissionDate ? formatDate(s.submissionDate).replace(/, \d{4}$/, "") : "—"}
                 </td>
-                <td className={`${cell} font-medium`}>{s.candidate.name}</td>
-                <td className={cell}>{s.requirement?.jobTitle ?? s.requirementJobIdRaw ?? "—"}</td>
+                <td className={cell}>
+                  <span className={idClass}>{s.submissionId ?? "—"}</span>
+                </td>
+                <td className={cell} title={s.requirement?.jobTitle}>
+                  <JobIdChip jobId={s.requirement?.jobId ?? s.requirementJobIdRaw} />
+                </td>
+                <td className={`${cell} max-w-[110px] truncate text-text-secondary`}>{s.recruiter?.split(" ")[0] || "—"}</td>
+                <td className={`${cell} max-w-[170px] truncate font-semibold text-text-strong dark:text-white`} title={s.candidate.name}>
+                  {s.candidate.name}
+                </td>
+                <td className={`${cell} max-w-[140px] truncate text-text-secondary`} title={s.candidate.currentLocation ?? undefined}>
+                  {s.candidate.currentLocation || "—"}
+                </td>
+                <td className={`${cell} whitespace-nowrap text-text-secondary`}>{s.candidate.experience || "—"}</td>
+                <td className={cell}>
+                  <VisaChip visa={s.candidate.visaStatus} />
+                </td>
+                <td className={`${cell} max-w-[110px] truncate text-[12px] text-text-secondary`}>{s.employmentType || "—"}</td>
+                <td className={`${cell} max-w-[180px] truncate text-text-secondary`} title={s.role ?? undefined}>
+                  {s.role || "—"}
+                </td>
                 <td className={cell}>
                   <StatusChip status={s.status} />
                 </td>
-                <td className={`${cell} whitespace-nowrap`}>{s.submissionDate ? formatDate(s.submissionDate) : "—"}</td>
-                <td className={cell}>{s.billRate ? `${s.billRateCurrency} ${s.billRate}` : "—"}</td>
+                <td className={`${cell} whitespace-nowrap`} onClick={(e) => e.stopPropagation()}>
+                  {s.resumeId && permissions.canViewResume ? (
+                    <span className="inline-flex items-center gap-1">
+                      <a
+                        href={`/api/resumes/${s.resumeId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View resume"
+                        aria-label={`View ${s.candidate.name}'s resume`}
+                        className="rounded p-1 text-primary hover:bg-primary-soft"
+                      >
+                        <Eye size={16} />
+                      </a>
+                      {permissions.canDownloadResume && (
+                        <a
+                          href={`/api/resumes/${s.resumeId}?download=1`}
+                          title="Download resume"
+                          aria-label={`Download ${s.candidate.name}'s resume`}
+                          className="rounded p-1 text-primary hover:bg-primary-soft"
+                        >
+                          <Download size={16} />
+                        </a>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-text-muted">—</span>
+                  )}
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className={emptyCellClass}>
+                <td colSpan={12} className={emptyCellClass}>
                   {submissions.length === 0 ? "No submissions yet." : "No submissions match your filters."}
                 </td>
               </tr>

@@ -38,7 +38,7 @@ export function Kpi({
     </>
   );
   const cls =
-    "block rounded-lg border border-black/10 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-neutral-950";
+    "block rounded-[10px] border border-line-soft bg-white px-5 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-white/10 dark:bg-neutral-950";
   return href ? (
     <Link href={href} className={`${cls} transition-colors hover:border-brand/60 hover:bg-brand-soft/30`}>
       {body}
@@ -63,7 +63,7 @@ export function Panel({
 }) {
   return (
     <section
-      className={`min-w-0 rounded-lg border border-black/10 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-950 ${className}`}
+      className={`min-w-0 rounded-[10px] border border-line-soft bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-white/10 dark:bg-neutral-950 ${className}`}
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>

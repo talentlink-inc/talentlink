@@ -78,11 +78,17 @@ describe("[security] slim list rows", () => {
       billRateCurrency: "USD",
       employmentType: null,
       requirementJobIdRaw: null,
+      recruiterNameRaw: "Umesh",
+      roleSkillsShort: null,
+      roleWithSkills: "Java   developer",
+      resume: { id: "res1" },
       requirement: null,
-      candidate: { name: "Asha", email: "a@x.com", phone: "555", currentLocation: null, visaStatus: null },
+      candidate: { name: "Asha", email: "a@x.com", phone: "555", currentLocation: null, visaStatus: null, totalExperienceYears: { toString: () => "8" } },
     };
     expect(toSubmissionListRow(row, { canViewEmail: false, canViewPhone: true }).candidate).toMatchObject({ email: null, phone: "555" });
     expect(toSubmissionListRow(row, { canViewEmail: true, canViewPhone: false }).candidate).toMatchObject({ email: "a@x.com", phone: null });
-    expect(toSubmissionListRow(row, { canViewEmail: true, canViewPhone: true }).billRate).toBe("65");
+    const full = toSubmissionListRow(row, { canViewEmail: true, canViewPhone: true });
+    expect(full).toMatchObject({ billRate: "65", recruiter: "Umesh", role: "Java developer", resumeId: "res1" });
+    expect(full.candidate.experience).toBe("8 yrs");
   });
 });

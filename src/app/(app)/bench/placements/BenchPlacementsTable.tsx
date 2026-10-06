@@ -16,8 +16,9 @@ import { statusLabel } from "@/lib/statusLabels";
 import { buttonClass } from "@/components/ui/button";
 import { DensityToggle, useCellClass, useUi } from "@/components/ui/UiProvider";
 import { RecordPanel, panelFooterClass } from "@/components/ui/RecordPanel";
-import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
+import { emptyCellClass, tableCardClass, tableClass, theadClass, toolbarInputClass, rowClass } from "@/components/ui/table";
 import type { SerializedBenchSubmission } from "../submissions/types";
+import { idClass } from "@/components/ui/Chips";
 
 const FELL_THROUGH = "__fell_through__";
 
@@ -101,13 +102,13 @@ export function BenchPlacementsTable({
             <button
               type="button"
               onClick={() => open(p.id)}
-              className={`w-full rounded-lg border border-black/10 bg-white p-3 text-left dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(p.id === selectedId)}`}
+              className={`w-full rounded-[10px] border border-line bg-white p-3 text-left shadow-sm dark:border-white/10 dark:bg-neutral-950 ${rowSelectClass(p.id === selectedId)}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="font-medium">{p.consultant.consultantName}</span>
                 <StatusChip status={p.status} />
               </div>
-              <div className="mt-1 text-sm text-black/60 dark:text-white/60">{p.companyName}</div>
+              <div className="mt-1 text-sm text-text-secondary">{p.companyName}</div>
               <div className="mt-1 text-xs text-black/45 dark:text-white/45">
                 {p.placementId} · Starts {p.doj ? formatDate(p.doj) : "—"} · {p.billRate ?? p.rate ?? "No rate"}
               </div>
@@ -139,12 +140,12 @@ export function BenchPlacementsTable({
               <tr
                 key={p.id}
                 onClick={() => open(p.id)}
-                className={`cursor-pointer border-t border-black/5 dark:border-white/10 ${rowSelectClass(p.id === selectedId)}`}
+                className={`cursor-pointer ${rowClass} ${rowSelectClass(p.id === selectedId)}`}
               >
-                <td className={`${cell} font-mono text-xs whitespace-nowrap text-black/55 dark:text-white/55`}>
+                <td className={`${cell} ${idClass}`}>
                   {p.placementId}
                 </td>
-                <td className={`${cell} font-medium`}>{p.consultant.consultantName}</td>
+                <td className={`${cell} font-semibold text-text-strong dark:text-white`}>{p.consultant.consultantName}</td>
                 <td className={cell}>{p.companyName}</td>
                 <td className={cell}>
                   <StatusChip status={p.status} />
@@ -215,7 +216,7 @@ function PlacementModal({
           label: "Details",
           content: (
             <>
-              <p className="mb-4 text-sm text-black/60 dark:text-white/60">
+              <p className="mb-4 text-sm text-text-secondary">
                 {p.submissionCode} · submitted {p.submissionDate ? formatDate(p.submissionDate) : "—"}
               </p>
               <form

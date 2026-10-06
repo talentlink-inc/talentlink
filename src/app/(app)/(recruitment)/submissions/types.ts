@@ -111,8 +111,14 @@ export const SUBMISSION_LIST_SELECT = {
   billRateCurrency: true,
   employmentType: true,
   requirementJobIdRaw: true,
-  requirement: { select: { jobTitle: true } },
-  candidate: { select: { name: true, email: true, phone: true, currentLocation: true, visaStatus: true } },
+  recruiterNameRaw: true,
+  roleSkillsShort: true,
+  roleWithSkills: true,
+  requirement: { select: { jobTitle: true, jobId: true } },
+  resume: { select: { id: true } },
+  candidate: {
+    select: { name: true, email: true, phone: true, currentLocation: true, visaStatus: true, totalExperienceYears: true },
+  },
 } as const;
 
 export type SubmissionListRow = {
@@ -124,21 +130,69 @@ export type SubmissionListRow = {
   billRateCurrency: string;
   employmentType: string | null;
   requirementJobIdRaw: string | null;
-  requirement: { jobTitle: string } | null;
-  candidate: { name: string; email: string | null; phone: string | null; currentLocation: string | null; visaStatus: string | null };
+  recruiter: string | null;
+  role: string | null; // short role/skills line for the list
+  resumeId: string | null;
+  requirement: { jobTitle: string; jobId: string } | null;
+  candidate: {
+    name: string;
+    email: string | null;
+    phone: string | null;
+    currentLocation: string | null;
+    visaStatus: string | null;
+    experience: string | null;
+  };
+};
+
+type SubmissionListQueryRow = {
+  id: string;
+  submissionId: string | null;
+  status: string;
+  submissionDate: Date | null;
+  billRate: { toString(): string } | null;
+  billRateCurrency: string;
+  employmentType: string | null;
+  requirementJobIdRaw: string | null;
+  recruiterNameRaw: string | null;
+  roleSkillsShort: string | null;
+  roleWithSkills: string | null;
+  requirement: { jobTitle: string; jobId: string } | null;
+  resume: { id: string } | null;
+  candidate: {
+    name: string;
+    email: string | null;
+    phone: string | null;
+    currentLocation: string | null;
+    visaStatus: string | null;
+    totalExperienceYears: { toString(): string } | null;
+  };
 };
 
 export function toSubmissionListRow(
-  s: Omit<SubmissionListRow, "billRate"> & { billRate: { toString(): string } | null },
+  s: SubmissionListQueryRow,
   permissions: Pick<DataPermissions, "canViewEmail" | "canViewPhone">
 ): SubmissionListRow {
+  const role = (s.roleSkillsShort || s.roleWithSkills)?.replace(/\s+/g, " ").trim() || null;
   return {
-    ...s,
+    id: s.id,
+    submissionId: s.submissionId,
+    status: s.status,
+    submissionDate: s.submissionDate,
     billRate: s.billRate?.toString() ?? null,
+    billRateCurrency: s.billRateCurrency,
+    employmentType: s.employmentType,
+    requirementJobIdRaw: s.requirementJobIdRaw,
+    recruiter: s.recruiterNameRaw,
+    role: role && role.length > 70 ? `${role.slice(0, 70)}…` : role,
+    resumeId: s.resume?.id ?? null,
+    requirement: s.requirement,
     candidate: {
-      ...s.candidate,
+      name: s.candidate.name,
       email: permissions.canViewEmail ? s.candidate.email : null,
       phone: permissions.canViewPhone ? s.candidate.phone : null,
+      currentLocation: s.candidate.currentLocation,
+      visaStatus: s.candidate.visaStatus,
+      experience: s.candidate.totalExperienceYears ? `${s.candidate.totalExperienceYears.toString()} yrs` : null,
     },
   };
 }

@@ -3,6 +3,7 @@ import { getTenantDb } from "@/lib/tenantDb";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageRecruitment, canManageUsers } from "@/lib/users";
+import { inRange, nowWindows } from "@/lib/insights";
 import { SubmissionsTable } from "./SubmissionsTable";
 import { REQUIREMENT_SUMMARY_SELECT, SUBMISSION_LIST_SELECT, toSubmissionListRow } from "./types";
 
@@ -26,8 +27,18 @@ export default async function SubmissionsPage() {
     }),
   ]);
 
+  // Stat cards (business timezone, same windows as Insights).
+  const { today, week } = nowWindows(new Date());
+  const stats = {
+    total: submissions.length,
+    today: submissions.filter((s) => inRange(s.submissionDate, today.start, today.end)).length,
+    week: submissions.filter((s) => inRange(s.submissionDate, week.start, week.end)).length,
+    withResume: submissions.filter((s) => s.resume).length,
+  };
+
   return (
     <SubmissionsTable
+      stats={stats}
       submissions={submissions.map((s) => toSubmissionListRow(s, currentUser))}
       requirements={requirements}
       currentUserId={currentUser.id}
