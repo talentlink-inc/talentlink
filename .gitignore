@@ -52,3 +52,4 @@ next-env.d.ts
 
 # migration script secrets
 /scripts/.secrets
+/scripts/.cache

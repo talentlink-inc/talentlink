@@ -27,6 +27,7 @@ const ROUTES: [string, Crumb][] = [
   ["/bench/interviews", { section: "Bench Sales", sectionHref: "/bench/consultants", tab: "Interviews" }],
   ["/bench/notes", { section: "Bench Sales", sectionHref: "/bench/consultants", tab: "Notes" }],
   ["/bench", { section: "Bench Sales", sectionHref: "/bench/consultants" }],
+  ["/repository", { section: "Repository", sectionHref: "/repository" }],
   ["/users", { section: "User Management", sectionHref: "/users" }],
   ["/settings", { section: "Settings", sectionHref: "/settings" }],
   ["/test-suite", { section: "Test Suite", sectionHref: "/test-suite" }],

@@ -4,6 +4,7 @@ import { IntentLink as Link } from "@/components/ui/IntentLink";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  Archive,
   FileText,
   LayoutDashboard,
   ShieldCheck,
@@ -204,7 +205,10 @@ export function Sidebar({
             HIRING
           </div>
         )}
-        <ul className="space-y-0.5">{navItem("/requirements", "Recruitment", FileText, RECRUITMENT_PATHS)}</ul>
+        <ul className="space-y-0.5">
+          {navItem("/requirements", "Recruitment", FileText, RECRUITMENT_PATHS)}
+          {navItem("/repository", "Repository", Archive)}
+        </ul>
 
         {canAccessBench && (
           <>

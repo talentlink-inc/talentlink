@@ -209,6 +209,16 @@ model Candidate {
   linkedinUrl          String?  @map("linkedin_url")
   identityHash         String?  @map("identity_hash") // hash of lower(email)+phone, for dup detection
 
+  // Repository (GAS Resume Lab → one verified pool). Set for candidates whose
+  // resume came in through the Repository rather than a submission.
+  inRepository         Boolean  @default(false) @map("in_repository")
+  currentTitle         String?  @map("current_title")   // job title shown in the file name and list
+  skills               String?                          // comma-separated, for search and display
+  country              String?                          // derived from location, for the country filter
+  repositoryReceivedAt DateTime? @map("repository_received_at") // when the resume was received (email date) / added
+  repositoryAddedBy    String?  @map("repository_added_by")
+  repositoryLegacyId   String?  @map("repository_legacy_id") // GAS ResumeDB id — makes re-sync idempotent
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
@@ -218,6 +228,8 @@ model Candidate {
   submissions Submission[]
 
   @@unique([tenantId, identityHash])
+  @@unique([tenantId, repositoryLegacyId])
+  @@index([tenantId, inRepository, repositoryReceivedAt])
   @@index([tenantId, email])
   @@index([tenantId, phone])
   @@map("candidates")
