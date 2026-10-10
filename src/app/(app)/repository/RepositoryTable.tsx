@@ -63,9 +63,17 @@ export function RepositoryTable({
   const cell = useCellClass();
   const detail = useDetailLoader(getRepositoryCandidate, rows);
 
-  // Filters live in the URL so results are shareable and Back works.
+  // Filters live in the URL so results are shareable and Back works. Changes
+  // build on the latest *requested* filters, not the last rendered ones —
+  // otherwise two quick changes (or Clear followed by the debounced search)
+  // raced and the second one restored the filters the first had changed.
+  const latest = useRef(query);
+  useEffect(() => {
+    latest.current = query;
+  }, [query]);
   const go = (patch: Partial<RepositoryQuery>) => {
-    const next = { ...query, ...patch, page: patch.page ?? 1 };
+    const next = { ...latest.current, ...patch, page: patch.page ?? 1 };
+    latest.current = next;
     const params = new URLSearchParams();
     if (next.q) params.set("q", next.q);
     if (next.visa) params.set("visa", next.visa);
@@ -78,7 +86,7 @@ export function RepositoryTable({
 
   // Debounced search: query the server 300ms after typing stops.
   useEffect(() => {
-    if (search.trim() === query.q) return;
+    if (search.trim() === latest.current.q) return;
     const t = setTimeout(() => go({ q: search.trim() }), 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,7 +135,7 @@ export function RepositoryTable({
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search the repository"
           placeholder="Search name, skill, role, location…"
-          className={`${toolbarInputClass} min-w-[220px] flex-1 md:max-w-sm`}
+          className={`${toolbarInputClass} min-w-[200px] flex-1 md:max-w-xs`}
         />
         <select aria-label="Filter by visa" value={query.visa} onChange={(e) => go({ visa: e.target.value })} className={toolbarInputClass}>
           <option value="">All visas</option>
@@ -178,7 +186,35 @@ export function RepositoryTable({
         </span>
       </div>
 
-      <div className={tableCardClass}>
+      {/* Phones: one card per resume (same pattern as the other lists). */}
+      <ul className={`space-y-2 md:hidden ${pending ? "opacity-60" : ""}`} aria-label="Resumes">
+        {rows.map((r) => (
+          <li key={r.id}>
+            <button
+              type="button"
+              onClick={() => setOpenId(r.id)}
+              onTouchStart={() => void detail.prefetch(r.id)}
+              className="w-full rounded-[10px] border border-line bg-white p-3 text-left shadow-sm dark:border-white/10 dark:bg-neutral-950"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="min-w-0 truncate font-semibold text-primary dark:text-[#9fa8da]">{r.name}</span>
+                <VisaChip visa={r.visa} />
+              </div>
+              <div className="mt-1 truncate text-sm text-text-secondary">{r.title || "—"}</div>
+              <div className="mt-1 text-xs text-text-muted">
+                {[r.location, r.years != null ? `${r.years} yrs` : null, resumeAge(r.receivedAt)].filter(Boolean).join(" · ")}
+              </div>
+            </button>
+          </li>
+        ))}
+        {rows.length === 0 && (
+          <li className={emptyCellClass}>
+            {poolSize === 0 ? "The repository is empty — resumes appear here once they're migrated from GAS." : "No resumes match your filters."}
+          </li>
+        )}
+      </ul>
+
+      <div className={`${tableCardClass} hidden md:block`}>
         {/* Slim progress strip while new results load (GAS .rdb-progress). */}
         <div className="h-0.5 overflow-hidden bg-transparent" aria-hidden>
           {pending && <div className="h-full w-1/3 animate-[tl-progress_1.1s_linear_infinite] bg-primary" />}
@@ -308,7 +344,7 @@ function CandidatePanel({
     };
   }, [id, load]);
 
-  const name = c?.name ?? row?.name ?? "Loading…";
+  const name = c === null ? "Resume not found" : (c?.name ?? row?.name ?? "Loading…");
   const title = c?.title ?? row?.title;
   const r = (label: string, value: React.ReactNode) => (
     <div className="grid grid-cols-3 gap-2 border-b border-line-soft py-2 text-sm dark:border-white/10">
