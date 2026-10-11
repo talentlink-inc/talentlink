@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Download, Eye, FileText, FilterX, Globe2, Users } from "lucide-react";
+import { ArrowDown, ArrowUp, Download, Eye, FileText, FilterX } from "lucide-react";
 import {
   EXPERIENCE_BANDS,
   REPOSITORY_COUNTRIES,
@@ -19,8 +19,6 @@ import { rowSelectClass } from "@/lib/tableRow";
 import { buttonClass } from "@/components/ui/button";
 import { VisaChip } from "@/components/ui/Chips";
 import { RecordPanel } from "@/components/ui/RecordPanel";
-import { StatCard, StatGrid } from "@/components/ui/StatCard";
-import { DensityToggle, useCellClass } from "@/components/ui/UiProvider";
 import { emptyCellClass, rowClass, tableCardClass, tableClass, theadClass, toolbarInputClass } from "@/components/ui/table";
 import { useDetailLoader } from "@/components/ui/useDetailLoader";
 import { getRepositoryCandidate, type RepositoryCandidate } from "./actions";
@@ -60,7 +58,8 @@ export function RepositoryTable({
   const [search, setSearch] = useState(query.q);
   const [openId, setOpenId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const cell = useCellClass();
+  // Always compact: the repository is a long list, density isn't a choice here.
+  const cell = "px-3 py-1.5";
   const detail = useDetailLoader(getRepositoryCandidate, rows);
 
   // Filters live in the URL so results are shareable and Back works. Changes
@@ -121,14 +120,13 @@ export function RepositoryTable({
 
   return (
     <div>
-      <StatGrid>
-        <StatCard icon={FileText} tone="blue" value={poolSize.toLocaleString()} label="Verified resumes" />
-        <StatCard icon={Users} tone="green" value={total.toLocaleString()} label={filtered ? "Match your filters" : "Showing all"} />
-        <StatCard icon={Globe2} tone="purple" value={query.country || "All"} label="Country" />
-        <StatCard icon={FileText} tone="orange" value={query.visa || "All"} label="Visa" />
-      </StatGrid>
-
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-2 text-sm font-semibold text-text-strong dark:text-white" title="Total resumes in the repository">
+          <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold tabular-nums text-white">
+            {poolSize.toLocaleString()}
+          </span>
+          Resumes
+        </span>
         <input
           ref={searchRef}
           value={search}
@@ -181,9 +179,6 @@ export function RepositoryTable({
             <FilterX size={15} aria-hidden /> Clear
           </button>
         )}
-        <span className="ml-auto hidden md:inline-flex">
-          <DensityToggle />
-        </span>
       </div>
 
       {/* Phones: one card per resume (same pattern as the other lists). */}

@@ -34,7 +34,7 @@ import { getSupabaseAdmin, RESUME_BUCKET } from "../src/lib/supabase/admin";
 import { candidateIdentityHash } from "../src/lib/candidates";
 import { deriveCountry } from "../src/lib/repository";
 import { checkResumeText, repositoryFileName, resolveName, resolveTitle } from "../src/lib/resumeVerify";
-import { getGoogleClients, readSheetAsObjects } from "./lib/sheets";
+import { getGoogleClients, readSheetAsObjectsChunked } from "./lib/sheets";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const LIMIT = (() => {
@@ -43,7 +43,7 @@ const LIMIT = (() => {
 })();
 const TENANT_SUBDOMAIN = process.env.DEFAULT_TENANT_SUBDOMAIN ?? "digitallinks";
 const CACHE_DIR = path.join("scripts", ".cache", "repository");
-const CONCURRENCY = 6;
+const CONCURRENCY = 16;
 const MAX_BYTES = 8 * 1024 * 1024;
 
 type Row = Record<string, string>;
@@ -56,6 +56,35 @@ const MIME_EXT: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
   "application/msword": "doc",
 };
+
+// The GAS sheet's newer extraction columns (acceptedAt onwards) are shifted
+// one place on many rows: each value sits under the header *before* its own
+// (the real workAuth "GC" is under "recentProjects", the real linkedinUrl
+// under "yearsByDomain", …). Detect that per row and read the true column.
+const SHIFT_FROM = "acceptedAt";
+const SHIFTED_ORDER = [
+  "thumbnailUrl", "acceptedAt", "coreSkills", "allSkills", "certifications", "education", "recentProjects",
+  "workAuth", "yearsByDomain", "linkedinUrl", "githubUrl", "portfolioUrl", "relocationOK", "remoteOK",
+  "expectedRate", "preferredLocations", "languageProficiency", "lastExtractedAt", "extractionConfidence",
+  "isResume", "renameFromOriginal",
+];
+function isShifted(r: Row) {
+  return /^(true|false)$/i.test(r.extractionConfidence ?? "") || /\.(pdf|docx?)$/i.test(r.isResume ?? "");
+}
+/** The value of `field` for this row, allowing for the one-column shift. */
+function field(r: Row, name: string): string {
+  const i = SHIFTED_ORDER.indexOf(name);
+  if (i > 0 && SHIFTED_ORDER.indexOf(SHIFT_FROM) <= i && isShifted(r)) return r[SHIFTED_ORDER[i - 1]] ?? "";
+  return r[name] ?? "";
+}
+const VISA_WORDS = /^(usc|us citizen|citizen|gc|green card|gc[- ]?ead|h1b|h-1b|h4[- ]?ead|opt|stem[- ]?opt|cpt|l1|l2[- ]?ead|tn|o1|ead)$/i;
+function visaOf(r: Row): string | null {
+  for (const v of [r.visa, field(r, "workAuth")]) {
+    const t = (v ?? "").trim();
+    if (t && t.length <= 20 && VISA_WORDS.test(t)) return /citizen/i.test(t) ? "USC" : t.toUpperCase().replace(/^H-1B$/, "H1B");
+  }
+  return null;
+}
 
 function bucketOf(status: string) {
   const s = status.toLowerCase();
@@ -81,7 +110,7 @@ function parseYears(v: string | undefined): number | null {
 function skillsOf(r: Row): string | null {
   for (const key of ["coreSkills", "allSkills"]) {
     try {
-      const arr = JSON.parse(r[key] || "[]");
+      const arr = JSON.parse(field(r, key) || "[]");
       if (Array.isArray(arr) && arr.length) return arr.slice(0, 15).map(String).join(", ");
     } catch {
       /* not JSON */
@@ -150,7 +179,9 @@ async function main() {
   const db = getTenantDbFor(tenant.id);
   const { sheets, drive } = getGoogleClients();
 
-  const all = (await readSheetAsObjects(sheets, process.env.GAS_SPREADSHEET_ID!, "ResumeDB")).filter((r) => r.id && r.driveFileId);
+  console.log("Reading the GAS ResumeDB sheet…");
+  const all = (await readSheetAsObjectsChunked(sheets, process.env.GAS_SPREADSHEET_ID!, "ResumeDB", { onProgress: (n) => console.log(`  …${n} rows read`) })).filter((r) => r.id && r.driveFileId);
+  console.log(`  ${all.length} rows. Loading existing candidates…`);
 
   // Already imported (re-sync) and already-known candidate emails.
   const existing = await db.candidate.findMany({ where: { tenantId: tenant.id }, select: { email: true, repositoryLegacyId: true } });
@@ -158,7 +189,7 @@ async function main() {
   const knownEmails = new Set(existing.filter((c) => !c.repositoryLegacyId && c.email).map((c) => c.email!.trim().toLowerCase()));
 
   // Newest row per email wins.
-  const received = (r: Row) => parseDate(r.sourceReceivedAt) ?? parseDate(r.acceptedAt) ?? parseDate(r.addedAt);
+  const received = (r: Row) => parseDate(r.sourceReceivedAt) ?? parseDate(field(r, "acceptedAt")) ?? parseDate(r.addedAt);
   const byEmail = new Map<string, Row>();
   for (const r of all) {
     const e = (r.email || "").trim().toLowerCase();
@@ -174,7 +205,7 @@ async function main() {
     const skip = (reason: string) => outcomes.push({ kind: "skipped", legacyId: r.id, reason, sheetName: r.name || "" });
     if (imported.has(r.id)) skip("already imported");
     else if (bucketOf(r.status || "") === "rejected") skip("rejected in GAS");
-    else if (String(r.isResume).toUpperCase() === "FALSE") skip("GAS marked not a resume");
+    else if (field(r, "isResume").toUpperCase() === "FALSE") skip("GAS marked not a resume");
     else if (e && knownEmails.has(e)) skip("already a candidate (submission)");
     else if (e && byEmail.get(e) !== r) skip("duplicate email (older copy)");
     else queue.push(r);
@@ -203,7 +234,7 @@ async function main() {
       const check = checkResumeText(text, { verified });
       if (!check.ok) return skip(check.reason);
     }
-    const name = resolveName(r.name, r.renameFromOriginal || file.name, text);
+    const name = resolveName(r.name, field(r, "renameFromOriginal") || file.name, text);
     if (!name) return skip("no real name found");
     const nameSource = name === (r.name || "").trim() ? "gas" : "fixed";
     const title = resolveTitle(r.currentTitle, text);
@@ -229,8 +260,11 @@ async function main() {
         phone,
         currentLocation: location,
         totalExperienceYears: parseYears(r.yearsTotal),
-        visaStatus: (r.visa || r.workAuth || "").trim() || null,
-        linkedinUrl: (r.linkedinUrl || "").trim() || null,
+        visaStatus: visaOf(r),
+        linkedinUrl: (() => {
+          const u = field(r, "linkedinUrl").trim();
+          return /linkedin\.com/i.test(u) ? (u.startsWith("http") ? u : `https://${u}`) : null;
+        })(),
         identityHash: candidateIdentityHash(email, phone, `repository|${r.id}`),
         inRepository: true,
         currentTitle: title,

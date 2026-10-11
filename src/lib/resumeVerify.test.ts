@@ -44,6 +44,18 @@ describe("[unit] repository names", () => {
     expect(isRealName(n)).toBe(ok);
   });
 
+  it("rejects job words that look like names", () => {
+    for (const n of ["Dotnet Full Stack", "QA Automation", "Sravanthi SDET", "Android Developer", "ETL Tester"]) expect(isRealName(n), n).toBe(false);
+  });
+
+  it("accepts real names with lower-case parts, dot separators and curly apostrophes", () => {
+    expect(resolveName("Hari babu Thatikonda", null, null)).toBe("Hari Babu Thatikonda");
+    expect(resolveName("Purushotham abaku", null, null)).toBe("Purushotham Abaku");
+    expect(resolveName("Vamshi krishna.Nelluri", null, null)).toBe("Vamshi Krishna Nelluri");
+    expect(resolveName("Jim O’Reilly", null, null)).toBe("Jim O'Reilly");
+    expect(resolveName("Ronald McDonald", null, null)).toBe("Ronald McDonald");
+  });
+
   it("tidies all-caps and all-lower names", () => {
     expect(tidyName("JOHN A. DOE")).toBe("John A. Doe");
     expect(tidyName("jane smith")).toBe("Jane Smith");
