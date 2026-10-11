@@ -252,29 +252,42 @@ async function main() {
     const email = (r.email || "").trim() || null;
     const phone = (r.phone || "").trim() || null;
     const location = (r.location || "").trim() || null;
-    const candidate = await db.candidate.create({
-      data: {
-        tenantId: tenant!.id,
-        name,
-        email,
-        phone,
-        currentLocation: location,
-        totalExperienceYears: parseYears(r.yearsTotal),
-        visaStatus: visaOf(r),
-        linkedinUrl: (() => {
-          const u = field(r, "linkedinUrl").trim();
-          return /linkedin\.com/i.test(u) ? (u.startsWith("http") ? u : `https://${u}`) : null;
-        })(),
-        identityHash: candidateIdentityHash(email, phone, `repository|${r.id}`),
-        inRepository: true,
-        currentTitle: title,
-        skills: skillsOf(r),
-        country: deriveCountry(location),
-        repositoryReceivedAt: received(r),
-        repositoryAddedBy: (r.addedBy || "").trim() || null,
-        repositoryLegacyId: r.id,
-      },
-    });
+    // If the save fails (most often: the same person — same email/phone — is
+    // already in the repository from another GAS row), don't leave the file behind.
+    const undo = async (reason: string) => {
+      await supabase!.storage.from(RESUME_BUCKET).remove([storagePath]);
+      outcomes.splice(outcomes.findIndex((o) => o.kind === "kept" && o.legacyId === r.id), 1);
+      skip(reason);
+    };
+    let candidate;
+    try {
+      candidate = await db.candidate.create({
+        data: {
+          tenantId: tenant!.id,
+          name,
+          email,
+          phone,
+          currentLocation: location,
+          totalExperienceYears: parseYears(r.yearsTotal),
+          visaStatus: visaOf(r),
+          linkedinUrl: (() => {
+            const u = field(r, "linkedinUrl").trim();
+            return /linkedin\.com/i.test(u) ? (u.startsWith("http") ? u : `https://${u}`) : null;
+          })(),
+          identityHash: candidateIdentityHash(email, phone, `repository|${r.id}`),
+          inRepository: true,
+          currentTitle: title,
+          skills: skillsOf(r),
+          country: deriveCountry(location),
+          repositoryReceivedAt: received(r),
+          repositoryAddedBy: (r.addedBy || "").trim() || null,
+          repositoryLegacyId: r.id,
+        },
+      });
+    } catch (err) {
+      const dup = (err as { code?: string }).code === "P2002";
+      return undo(dup ? "same person already in the repository" : `error: ${(err as Error).message.slice(0, 80)}`);
+    }
     await db.resume.create({
       data: {
         tenantId: tenant!.id,
